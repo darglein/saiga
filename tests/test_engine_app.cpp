@@ -1880,17 +1880,21 @@ TEST(EngineAppCoop, InterleavedStepsAndTheClientsPlayer)
             return true;
         });
 
-    // The join is seen in the first host step; the player arrives 1 + delay steps later and becomes the local player
+    // S26: the join is seen in the host step that admits the client's JoinRequest (one round trip at delay 2: host
+    // step 4); the player arrives 1 + delay steps later and becomes the local player
     app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(g_coop.joined.empty());
+    int frames = 1;
+    for (; frames < 16 && g_coop.joined.empty(); ++frames) app.runFrames(1, 1.0 / 60);
     ASSERT_EQ(g_coop.joined, std::vector<uint8_t>{1});
+    EXPECT_EQ(host.stepIndex(), 4u);
     EXPECT_FALSE(app.localPlayer().valid());
-    app.runFrames(6, 1.0 / 60);
+    for (int k = 0; k < 16 && !app.localPlayer().valid(); ++k) app.runFrames(1, 1.0 / 60);
     const Entity mine = app.localPlayer();
     ASSERT_TRUE(mine.valid());
     EXPECT_EQ(client.read<Player>(mine).peer, 1);
     EXPECT_EQ(client.read<Player>(mine).characterId, 101u);
-    EXPECT_EQ(host.stepIndex(), 7u);
-    EXPECT_EQ(client.stepIndex(), 7u);
+    EXPECT_EQ(host.stepIndex(), client.stepIndex());
 
     // A low frame rate: several steps per frame, interleaved host / client (the client never gets two host steps in
     // one round); one accumulator, so both worlds have the same step count and the client's alpha follows the host
@@ -2139,7 +2143,10 @@ TEST(EngineCoopLeave, PeersLeftAndDestroyOwnedBy)
     auto client  = std::make_unique<World>(cs);
     host.step();
     client->step();
+    // S26: admitted in the host step that handles the JoinRequest
+    host.step();
     ASSERT_EQ(host.peersJoined(), std::vector<uint8_t>{1});
+    client->step();
     // The peer's player with a child, and a host-owned vehicle
     const Entity player = host.create();
     Player pl;

@@ -5,9 +5,9 @@
  */
 
 // TerrainDeltaCodec (docs/engine_design.md §13.2, §15.1; S22): the encoding of a rectangle of terrain deltas, shared by
-// the TERR save section and the TerrainModification / TerrainChunkState messages. The values in row-major order (row =
+// the TERR save section, the TerrainModification message and S26's ChunkSnapshot. The values in row-major order (row =
 // z) as zigzag varints of the difference to the previous value; the predictor starts at 0 for every rectangle (each
-// TERR chunk, each message part, each chunk state), so every rectangle decodes on its own; then optionally zstd at a
+// TERR chunk, each message part, each snapshot), so every rectangle decodes on its own; then optionally zstd at a
 // fixed level. The decoder treats its input as untrusted: it bounds the decompressed size (count * 4 bytes: a zigzag
 // difference of two deltas within +-kMaxTerrainDelta is below 2^26, at most 4 varint bytes), the value count and
 // |delta| <= kMaxTerrainDelta, and leaves no bytes over.

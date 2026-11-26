@@ -542,6 +542,29 @@ std::vector<std::string> receivedBy(const World& w)
         if (r.world == &w) out.push_back(r.what);
     return out;
 }
+
+// S26: the handshake before a test's messages (game messages reach only admitted peers, D13): host and clients step
+// until every client joined, then two more rounds (the clients' `all` subscriptions and the host's ChunkIndex)
+void join(World& host, std::initializer_list<World*> clients)
+{
+    auto joined = [&]()
+    {
+        for (World* c : clients)
+            if (c->joinState() != JoinState::Joined) return false;
+        return true;
+    };
+    for (int i = 0; i < 32 && !joined(); ++i)
+    {
+        host.step();
+        for (World* c : clients) c->step();
+    }
+    ASSERT_TRUE(joined());
+    for (int i = 0; i < 2; ++i)
+    {
+        host.step();
+        for (World* c : clients) c->step();
+    }
+}
 }  // namespace
 
 namespace
@@ -607,17 +630,30 @@ TEST(Messages, DeliveredInTheReceiversNextStep)
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
     host.step();
-    client.step();  // connected
+    client.step();  // connected: the client sends its JoinRequest (S26), the host lists no peer yet
+    EXPECT_TRUE(client.connectedPeers().empty());
+    EXPECT_TRUE(host.connectedPeers().empty());
+    EXPECT_EQ(client.joinState(), JoinState::Joining);
+    host.step();  // admitted: the host's peer lists show the client from this step
+    EXPECT_EQ(host.connectedPeers(), std::vector<uint8_t>{1});
+    EXPECT_EQ(host.peersJoined(), std::vector<uint8_t>{1});
+    client.step();  // JoinAccept
+    EXPECT_EQ(client.joinState(), JoinState::Joined);
     EXPECT_EQ(client.connectedPeers(), std::vector<uint8_t>{0});
     EXPECT_EQ(client.peersJoined(), std::vector<uint8_t>{0});
+    host.step();
+    const uint64_t in0 = client.netStats().messagesIn;
     // Between steps a send flushes at once; the client handles it in phase 1 of its next step
     host.send(1, Ping{5});
     EXPECT_TRUE(receivedBy(client).empty());
     client.step();
     ASSERT_EQ(receivedBy(client), std::vector<std::string>{"ping 5"});
-    EXPECT_EQ(g_received.back().step, 1u);  // the client's second step (stepIndex counts completed steps)
+    EXPECT_EQ(g_received.back().step, 2u);  // the client's third step (stepIndex counts completed steps)
     EXPECT_EQ(g_received.back().from, 0);
     EXPECT_TRUE(client.peersJoined().empty());  // replaced at the next receive
+    host.step();
+    client.step();
+    const uint64_t in1 = client.netStats().messagesIn;
     // Raw messages; a typed message from the client to the host
     const auto data = bytes(5000, 3);
     host.sendRaw(1, kRaw, data.data(), data.size());
@@ -626,7 +662,9 @@ TEST(Messages, DeliveredInTheReceiversNextStep)
     host.step();
     EXPECT_EQ(receivedBy(client).back(), "raw 5000:" + std::to_string(int(data[0])));
     EXPECT_EQ(receivedBy(host), std::vector<std::string>{"note hi"});
-    EXPECT_EQ(client.netStats().messagesIn, 2u);
+    // The ping (with the snapshot and index of that round) and the raw message
+    EXPECT_GE(in1 - in0, 1u);
+    EXPECT_EQ(client.netStats().messagesIn - in1, 1u);
 }
 
 TEST(Messages, CoalescedAndHandledInSendOrderAcrossChannels)
@@ -634,10 +672,13 @@ TEST(Messages, CoalescedAndHandledInSendOrderAcrossChannels)
     g_received.clear();
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    join(host, {&client});
+    const uint64_t packets0 = ht->stats().packetsOut[size_t(Channel::Control)];
     host.beginSendBatch();
     for (uint32_t i = 0; i < 100; ++i) host.send(1, Ping{i});
     host.endSendBatch();
-    EXPECT_LE(ht->stats().packetsOut[size_t(Channel::Control)], 2u);  // 100 small messages in few packets
+    // 100 small messages in few packets
+    EXPECT_LE(ht->stats().packetsOut[size_t(Channel::Control)] - packets0, 2u);
     // Interleaved channels and reliabilities: handled in send order
     host.beginSendBatch();
     host.send(1, Ping{1000});
@@ -659,13 +700,19 @@ TEST(Messages, OrderedByPeerAndSequenceWithThreePeers)
     g_received.clear();
     auto net = LoopbackTransport::createNetwork(3);
     World host(netSetup(net[0].get())), a(netSetup(net[1].get())), b(netSetup(net[2].get()));
+    // S26: both clients are admitted in the same host step
+    host.step();
+    a.step();
+    b.step();
+    host.step();
+    EXPECT_EQ(host.peersJoined(), (std::vector<uint8_t>{1, 2}));
+    join(host, {&a, &b});
     b.send(0, Ping{20});
     a.send(0, Ping{10});
     b.send(0, Ping{21});
     a.send(0, Ping{11});
     host.step();
     EXPECT_EQ(receivedBy(host), (std::vector<std::string>{"ping 10", "ping 11", "ping 20", "ping 21"}));
-    EXPECT_EQ(host.peersJoined(), (std::vector<uint8_t>{1, 2}));
 }
 
 TEST(Messages, AHandlersStructuralChangeIsAppliedBeforeTheNext)
@@ -673,6 +720,7 @@ TEST(Messages, AHandlersStructuralChangeIsAppliedBeforeTheNext)
     g_received.clear();
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    join(host, {&client});
     host.beginSendBatch();
     host.send(1, Spawned{0});
     host.send(1, Spawned{1});
@@ -685,7 +733,8 @@ TEST(Messages, MalformedInputIsDroppedAndCounted)
 {
     g_received.clear();
     auto [ht, ct] = LoopbackTransport::createPair();
-    World client(netSetup(ct.get()));
+    World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    join(host, {&client});
     // Garbage, an unknown ID, a payload that does not decode
     ht->send(1, Channel::Control, {0xFF, 0xFF, 0xFF}, Reliability::Reliable);
     std::vector<uint8_t> unknown;
@@ -717,6 +766,10 @@ TEST(Messages, AbortedStepKeepsTheUnhandledRest)
     g_received.clear();
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    // S26: the client's JoinRequest, the host's admission; JoinAccept and the pings arrive in one round
+    host.step();
+    client.step();
+    host.step();
     g_poison = 2;
     host.beginSendBatch();
     host.send(1, Ping{1});
@@ -726,13 +779,14 @@ TEST(Messages, AbortedStepKeepsTheUnhandledRest)
     EXPECT_THROW(client.step(), std::runtime_error);
     EXPECT_EQ(receivedBy(client), std::vector<std::string>{"ping 1"});
     EXPECT_EQ(client.peersJoined(), std::vector<uint8_t>{0});
+    const uint64_t in0 = client.netStats().messagesIn;
     client.step();
     EXPECT_EQ(receivedBy(client), (std::vector<std::string>{"ping 1", "ping 3"}));
     EXPECT_EQ(client.netStats().handlerExceptions, 1u);
     EXPECT_EQ(client.peersJoined(), std::vector<uint8_t>{0});  // the join stayed visible in the completed step
     client.step();
     EXPECT_TRUE(client.peersJoined().empty());
-    EXPECT_EQ(client.netStats().messagesIn, 2u);  // counted once per handled message, kept across the abort
+    EXPECT_EQ(client.netStats().messagesIn, in0 + 1);  // counted once per handled message, kept across the abort
     // Regression (S15 review): the reply of a handled message was dropped when a later handler of the batch threw
     host.beginSendBatch();
     host.send(1, Echo{7});
@@ -773,6 +827,7 @@ TEST(Messages, AbortedPhaseDropsItsSends)
     WorldSetup hs = netSetup(ht.get());
     hs.systems    = throwingSystems;
     World host(hs), client(netSetup(ct.get()));
+    join(host, {&client});
     g_throwInPhase = 1;
     EXPECT_THROW(host.step(), std::runtime_error);
     // Regression (S15 review): the kept entry kept its phase tag, so a later abort in that phase dropped it
@@ -800,6 +855,7 @@ TEST(Messages, LoadsAndTheOutbox)
     g_received.clear();
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    join(host, {&client});
     const auto blob = host.save();
     // A load discards the outbox (encoded from the replaced state); its listeners' sends go out
     host.addLoadListener([&](const LoadInfo&) { host.send(1, Ping{77}); });
@@ -865,6 +921,8 @@ TEST(Messages, WorldApiReportsTheNetwork)
 {
     auto [ht, ct] = LoopbackTransport::createPair();
     World host(netSetup(ht.get())), client(netSetup(ct.get()));
+    join(host, {&client});
+    const uint64_t in0 = client.netStats().messagesIn;
     host.send(1, Ping{1});
     client.step();
     WorldApi api(client);
@@ -872,7 +930,10 @@ TEST(Messages, WorldApiReportsTheNetwork)
     ASSERT_TRUE(s.ok) << s.error;
     EXPECT_EQ(s.value["net"]["peer"].int_value(), 1) << s.value.dump();
     EXPECT_EQ(s.value["net"]["connected"][0].int_value(), 0);
-    EXPECT_EQ(s.value["net"]["messages_in"].number_value(), 1);
+    EXPECT_EQ(s.value["net"]["messages_in"].number_value(), double(in0 + 1));
+    // S26: the handshake state and the schema hash
+    EXPECT_EQ(s.value["net"]["join"]["state"].string_value(), "joined") << s.value.dump();
+    EXPECT_FALSE(s.value["net"]["schema_hash"].string_value().empty());
     const ApiResult d = api.call("describe_world", Json::object{});
     ASSERT_TRUE(d.ok);
     bool found = false;
@@ -935,11 +996,12 @@ TEST(Messages, DelayLeavesRejectsCountersAndBatches)
     o.delayRounds = 2;
     auto net      = LoopbackTransport::createNetwork(2, o);
     World host(netSetup(net[0].get())), client(netSetup(net[1].get()));
+    join(host, {&client});
     host.send(1, Ping{1});
     client.step();
     client.step();
     EXPECT_TRUE(receivedBy(client).empty());
-    client.step();  // sent before the client's first round: visible in its third (1 + delay 2)
+    client.step();  // sent before the client's next round: visible in the third (1 + delay 2)
     EXPECT_EQ(receivedBy(client), std::vector<std::string>{"ping 1"});
     // Packet-level rejects: count 0, a length beyond the packet
     net[0]->send(1, Channel::Control, {0, 0}, Reliability::Reliable);
@@ -951,9 +1013,10 @@ TEST(Messages, DelayLeavesRejectsCountersAndBatches)
     beyond.push_back(0);
     writeVarint(beyond, 100);
     beyond.push_back(1);
+    const uint64_t rejected0 = client.netStats().rejected;
     net[0]->send(1, Channel::Control, beyond, Reliability::Reliable);
     for (int i = 0; i < 4; ++i) client.step();
-    EXPECT_EQ(client.netStats().rejected, 2u);
+    EXPECT_EQ(client.netStats().rejected - rejected0, 2u);
     // The counters of the host's profile
     Profiler& p = host.profiler();
     host.send(1, Ping{2});

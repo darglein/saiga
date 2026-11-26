@@ -867,6 +867,36 @@ ApiResult WorldApi::worldStatus(const Json&)
                                                            {"dropped_bandwidth", double(ts.droppedBandwidth)},
                                                            {"dropped_no_peer", double(ts.droppedNoPeer)},
                                                            {"rejected_input", double(ts.rejectedInput)}}}};
+        // S26: the handshake, the network schema hash and the chunk sync of this peer
+        static const char* const joinStates[] = {"local", "joining", "joined", "rejected"};
+        char schema[32];
+        std::snprintf(schema, sizeof(schema), "%016llx", (unsigned long long)w->netSchemaHash());
+        Json::object net = o["net"].object_items();
+        net["join"] = Json::object{{"state", joinStates[size_t(w->joinState())]}, {"rejection", w->joinRejection()}};
+        net["schema_hash"]        = schema;
+        net["joins_rejected"]     = double(n.joinsRejected);
+        net["dropped_not_joined"] = double(n.droppedNotJoined);
+        net["modification_gaps"]  = double(n.modificationGaps);
+        if (w->isHost())
+        {
+            const HostChunkSubscriptions& subs = w->replication().subscriptions();
+            Json::array peers;
+            for (uint8_t p : w->connectedPeers())
+                peers.push_back(Json::object{{"peer", int(p)},
+                                             {"subscribed", double(subs.subscribedCount(p))},
+                                             {"queued_snapshots", double(subs.queuedSnapshots(p))}});
+            net["peers"] = peers;
+        }
+        else
+        {
+            const ClientChunkSync& sync = w->replication().chunkSync();
+            net["chunks"]               = Json::object{{"subscribed", double(sync.chunks().size())},
+                                                       {"pending", double(sync.pendingCount())},
+                                                       {"synced", double(sync.syncedCount())},
+                                                       {"queued_parts", double(sync.queuedParts())},
+                                                       {"rerequests", double(n.chunkRerequests)}};
+        }
+        o["net"] = net;
     }
     return ApiResult::success(o);
 }
@@ -1729,6 +1759,11 @@ std::string hex64(uint64_t v)
     std::snprintf(text, sizeof(text), "%016llx", (unsigned long long)v);
     return text;
 }
+
+const char* chunkSyncStateName(ClientChunkSync::State s)
+{
+    return s == ClientChunkSync::State::Synced ? "synced" : (s == ClientChunkSync::State::Pending ? "pending" : "none");
+}
 }  // namespace
 
 ApiResult WorldApi::chunkInfo(const Json& a)
@@ -1782,6 +1817,14 @@ ApiResult WorldApi::chunkInfo(const Json& a)
     out["residency"] = Json::object{{"state", chunkStateName(w->residency().state(c))},
                                     {"parts", partsJson(w->residency().partsReady(c))},
                                     {"requested", w->residency().requested(c)}};
+    // S26: the chunk's sync state on a client (the host is authoritative)
+    if (!w->isHost())
+    {
+        const ClientChunkSync& sync = w->replication().chunkSync();
+        out["sync"]                 = Json::object{{"state", chunkSyncStateName(sync.state(c))},
+                                                   {"ticket", double(sync.ticket(c))},
+                                                   {"queued_parts", double(sync.queuedParts(c))}};
+    }
     return ApiResult::success(out);
 }
 

@@ -66,6 +66,16 @@ namespace Engine
 class GeneratorList;
 class ContentCache;
 class GenerationPipeline;
+struct GenerationPlans;
+
+// The host's chunk sync limits (docs/engine_design.md §13.2; S26, R-MECH-1)
+struct NetworkConfig
+{
+    // The encoded ChunkSnapshot bytes per step, all peers together (D12; at least one snapshot per step)
+    size_t chunkSnapshotBytesPerStep = size_t(1) << 20;
+    // The per-chunk subscriptions of one peer (a ChunkInterest beyond it is rejected input)
+    size_t maxChunksPerPeer = 16384;
+};
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -87,6 +97,8 @@ struct WorldConfig
     // hardIslandLimit requestArrival refuses an arrival that would exceed it
     int maxSimulationIslands = 4;
     bool hardIslandLimit     = false;
+    // The host's chunk sync limits (S26)
+    NetworkConfig network;
 };
 
 struct WorldSetup
@@ -297,9 +309,12 @@ class SAIGA_ENGINE_API World
         uint64_t handlerExceptions        = 0;
         uint64_t droppedOnLoad            = 0;  // outbox entries a load discarded
         uint64_t droppedDuringObjectStart = 0;  // sends from configure / onLoad of a load
-        // S22: received terrain parts whose sequence skipped one (before S26 a protocol error: logged, counted,
-        // applied)
+        // S22, S26: received terrain parts or tombstones whose sequence skipped one (logged, counted, not applied: the
+        // chunk is re-requested; a bug on a lossless transport)
         uint64_t modificationGaps = 0;
+        // S26: JoinRequests the host rejected; messages not sent because the peer was not admitted (host) or this
+        // client had not joined; chunks this client re-requested (a gap or a queue overflow)
+        uint64_t joinsRejected = 0, droppedNotJoined = 0, chunkRerequests = 0;
     };
     // A registered message to a peer: encoded at once into the outbox (flushed after phase 8, or at once between steps
     // outside a batching scope). An unregistered type, no transport or the own peer stop the program in every build.
@@ -324,7 +339,8 @@ class SAIGA_ENGINE_API World
     void endSendBatch();
     Transport* transport() const { return net; }
     const MessageList& messageList() const { return messages; }
-    // The connected peers; the peers that connected / disconnected in the last receive (kept until a step completes)
+    // The admitted peers (S26, D13: the host accepted the peer's JoinRequest; a client lists the host once it joined);
+    // the peers admitted / disconnected in the last receive (kept until a step completes)
     const std::vector<uint8_t>& connectedPeers() const { return peers; }
     const std::vector<uint8_t>& peersJoined() const { return joined; }
     const std::vector<uint8_t>& peersLeft() const { return left; }
@@ -332,6 +348,14 @@ class SAIGA_ENGINE_API World
     // The network schema of this world (S26, D4; built at the end of the construction, constant) and its hash
     const NetSchema& netSchema() const { return schemaOfNet; }
     uint64_t netSchemaHash() const { return schemaHashOfNet; }
+    // The handshake (S26, §13.2): Local for a host or without transport; a client is Joining until the host's
+    // JoinAccept (Joined) or JoinReject / a failed adoption of the host's generation (Rejected, joinRejection() names
+    // the reason; for a schema the differing sections)
+    JoinState joinState() const { return joinStateValue; }
+    const std::string& joinRejection() const { return joinRejectionText; }
+    // S26 (D18): the chunk's modification state is the host's: always on the host; on a client the chunk is Synced
+    // (its snapshot applied)
+    bool chunkSynced(const ChunkId& chunk) const;
     // The role of this world (WorldSetup::role, localPeer; S16)
     uint8_t localPeer() const { return selfPeer; }
     bool isHost() const { return role == NetRole::Host; }
@@ -489,17 +513,21 @@ class SAIGA_ENGINE_API World
     uint64_t generationSeed() const { return setupSeed; }
     // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
     bool spaceHasTerrain(SpaceId space) const;
-    // Client (S23a): the host's GenerationState differed from this client's generation (refused, nothing applied; the
-    // host + client variants fail on it) / it was checked and equal
+    // Client (S23a, S26): the host's generation info could not be adopted (JoinState::Rejected; the host + client
+    // variants fail on it) / it was adopted (the plans equal the host's)
     bool generationMismatch() const { return generationMismatchFlag; }
     bool generationChecked() const { return generationCheckedFlag; }
-    // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
+    // Engine-internal (S26): other plans of the same space table replace the current ones (a host load's commit, a
+    // client's adoption of the host's pins): the plans, the terrain sources, the content sets and the residency
+    void replaceGeneration(GenerationPlans&& plans);
+    // GENR, the generation info of JoinAccept / Resync (S26) and the generation part of hash(): a non-legacy generator
+    // or chunk records (§15.1, S23a)
     bool writesGenerationState() const;
     // The chunk records (state: the placement version and the tombstones per recorded chunk, the host's stamped chunks)
     const ChunkRecords& contentRecords() const { return *chunkRecords; }
     ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
     // S23b: the effective record of a chunk (§12.1): its record, else {the space's current placement version, no
-    // tombstones} (equal on host and clients: GenerationState refuses other versions)
+    // tombstones} (equal on host and clients: a client adopts the host's pins, S26)
     uint16_t effectivePlacementVersion(const ChunkId& chunk) const;
     ChunkRecord effectiveRecord(const ChunkId& chunk) const;
     // S23b: the one notification of every record writer after it changed a record (created, removed, version changed,
@@ -997,6 +1025,9 @@ class SAIGA_ENGINE_API World
     int extractScope = -1;
 
     friend class Replication;
+    // S26: the chunk sync of both roles (rejected input, the net counters)
+    friend class HostChunkSubscriptions;
+    friend class ClientChunkSync;
     NetRole role     = NetRole::Host;
     uint8_t selfPeer = 0;
     std::unique_ptr<Replication> repl;
@@ -1079,11 +1110,18 @@ class SAIGA_ENGINE_API World
     std::array<uint64_t, 256> sendSequence{};
     std::vector<uint8_t> peers, joined, left;
     bool peerListsCommitted = true;  // the last receive's step completed (the lists are replaced at the next receive)
+    // S26 (D13): host: the connected peers whose JoinRequest was not admitted yet; client: the handshake state and the
+    // messages that arrived while Joining (handled right after Joined)
+    std::vector<uint8_t> joining;
+    JoinState joinStateValue = JoinState::Local;
+    std::string joinRejectionText;
+    std::vector<ReceivedMessage> deferredWhileJoining;
+    static constexpr size_t kMaxDeferredWhileJoining = 1024;
     std::array<int, 256> rejectLogs{};
     int sendBatchDepth = 0;
     NetStats netCounts;
     int counterSentBytes = -1, counterReceivedBytes = -1, counterMessagesIn = -1, counterMessagesOut = -1,
-        counterRejected = -1;
+        counterRejected = -1, counterSnapshotBytes = -1, counterSnapshots = -1;
     void record(std::unique_ptr<Command> c);
     void flushCommands();
     void runStep();

@@ -127,7 +127,7 @@ struct SpaceTransitionEvent
 };
 
 // The terrain of a space changed (§12.2; S22): one event per applied change (a host edit, a client's received
-// TerrainModification or TerrainChunkState, a client's Resync clear of a chunk with deltas), on the host and on
+// TerrainModification or ChunkSnapshot, a client's Resync clear or unload of a chunk with deltas), on the host and on
 // clients, with the inclusive bounds of the changed samples in metres. A change between steps is emitted at once, one
 // inside a step at the step's commit (after an aborted step at the next step's start); readable in the next step. The
 // broadcast for game reactions and later engine consumers (nav, region summaries, colliders). Replicate::Never

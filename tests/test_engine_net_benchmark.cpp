@@ -82,6 +82,18 @@ void messages(MessageList& l)
     l.add<Small>(Reliability::Reliable, onSmall);
     l.addRaw(65, "Big", 1, Reliability::Reliable, Channel::ChunkData, onBig);
 }
+// S26: the handshake before the measured messages (game messages reach only admitted peers)
+void join(World& host, World& client)
+{
+    for (int k = 0; k < 32 && client.joinState() != JoinState::Joined; ++k)
+    {
+        host.step();
+        client.step();
+    }
+    host.step();
+    client.step();
+    EXPECT_EQ(client.joinState(), JoinState::Joined);
+}
 }  // namespace
 
 TEST(NetBenchmark, SmallMessagesAndALargeTransfer)
@@ -96,6 +108,8 @@ TEST(NetBenchmark, SmallMessagesAndALargeTransfer)
         s.role      = NetRole::Client;
         s.localPeer = 1;
         World client(s);
+        join(host, client);
+        const uint64_t packets0 = ht->stats().packetsOut[0];
         const int steps = 20, perStep = 10000;
         g_handled     = 0;
         const auto t0 = std::chrono::steady_clock::now();
@@ -109,7 +123,7 @@ TEST(NetBenchmark, SmallMessagesAndALargeTransfer)
         const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
         EXPECT_EQ(g_handled, uint64_t(steps) * perStep);
         std::cout << "small messages: " << perStep << " per step, " << ms / steps << " ms per step, "
-                  << double(ht->stats().packetsOut[0]) / steps << " packets per step" << std::endl;
+                  << double(ht->stats().packetsOut[0] - packets0) / steps << " packets per step" << std::endl;
     }
     {
         LoopbackOptions o;
@@ -123,6 +137,7 @@ TEST(NetBenchmark, SmallMessagesAndALargeTransfer)
         s.role      = NetRole::Client;
         s.localPeer = 1;
         World client(s);
+        join(host, client);
         std::vector<uint8_t> big(size_t(16) << 20, 1);
         g_handled     = 0;
         const auto t0 = std::chrono::steady_clock::now();

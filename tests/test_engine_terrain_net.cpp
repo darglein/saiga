@@ -4,9 +4,9 @@
  * See LICENSE file for more information.
  */
 
-// Terraforming over the network (docs/engine_design.md §13.2; S22): the TerrainModification and TerrainChunkState
-// messages, the client's validation and application, sequences and gaps, the host state list over steps and aborts,
-// late joiners and host loads, over LoopbackTransport.
+// Terraforming over the network (docs/engine_design.md §13.2; S22, S26): the TerrainModification message, the client's
+// validation and application, sequences and gaps (S26: re-requests), the host state list over steps and aborts, late
+// joiners and host loads (S26: the `all` subscription of a world without streaming), over LoopbackTransport.
 
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/EngineMessages.h"
@@ -132,7 +132,26 @@ struct Net
         }
         host = std::make_unique<World>(s);
         if (createClients)
+        {
             for (int i = 1; i <= n; ++i) addClient(i);
+            sync();
+        }
+    }
+    // S26: steps until every client joined, its spaces are indexed (the `all` subscription of a world without
+    // streaming) and no snapshot is pending
+    void sync()
+    {
+        auto done = [&]()
+        {
+            if (host->replication().subscriptions().queuedSnapshots() != 0) return false;
+            for (auto& c : clients)
+                if (c->joinState() != JoinState::Joined || !c->replication().chunkSync().allIndexed() ||
+                    c->replication().chunkSync().pendingCount() != 0)
+                    return false;
+            return true;
+        };
+        for (int k = 0; k < 64 && !done(); ++k) step();
+        EXPECT_TRUE(done());
     }
     void addClient(int i)
     {
@@ -232,21 +251,6 @@ TEST(TerrainMessages, RoundTrips)
             EXPECT_EQ(m.parts[i].deltas, parts[i].deltas);
         }
     }
-    // Chunk states with and without deltas
-    std::vector<int32_t> dense(129 * 129, 0);
-    dense[500] = 77;
-    for (bool deltas : {false, true})
-    {
-        std::vector<uint8_t> bytes;
-        encodeTerrainChunkState(2, chunk(3, 4), 9, 129, deltas ? &dense : nullptr, bytes);
-        TerrainChunkStateMessage m;
-        std::string e;
-        ASSERT_TRUE(decodeTerrainChunkState(bytes.data(), bytes.size(), m, e)) << e;
-        EXPECT_EQ(m.chunk, chunk(3, 4));
-        EXPECT_EQ(m.sequence, 9u);
-        EXPECT_EQ(m.hasDeltas, deltas);
-        EXPECT_EQ(m.deltas, deltas ? dense : std::vector<int32_t>());
-    }
 }
 
 // ---- the client's validation
@@ -300,24 +304,10 @@ TEST_F(TerrainNet, InvalidMessagesAreRejectedAndApplyNothing)
         o.push_back(0);
         bad.push_back(o);
     }
-    // A chunk state with another N, sequence 0, unknown flags
-    {
-        std::vector<int32_t> d(257 * 257, 1);
-        std::vector<uint8_t> a, b;
-        encodeTerrainChunkState(0, chunk(1, 1), 1, 257, &d, a);
-        encodeTerrainChunkState(0, chunk(1, 1), 0, 129, nullptr, b);
-        for (auto* m : {&a, &b})
-        {
-            n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), m->data(), m->size());
-        }
-        std::vector<uint8_t> f = b;
-        f[0]                   = 8;
-        n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), f.data(), f.size());
-    }
     for (const auto& m : bad) n.host->sendRaw(1, MessageId(EngineMessage::TerrainModification), m.data(), m.size());
     const uint64_t rejected = c.netStats().rejected;
     n.step();
-    EXPECT_EQ(c.netStats().rejected - rejected, bad.size() + 3);
+    EXPECT_EQ(c.netStats().rejected - rejected, bad.size());
     EXPECT_EQ(c.terrainEdits().chunkCount(), 0u);
     EXPECT_EQ(c.terrainEdits().blockCount(0), 0u);
     EXPECT_EQ(c.terrain().baseHookSamples(), h0);
@@ -342,35 +332,26 @@ TEST_F(TerrainNet, HostAuthorityOverNeighbours)
     expectSameState(*n.host, c);
     n.host->editTerrain(0, brush(TerrainBrush::Subtract, 256, 256, 20, 3));
     n.host->editTerrain(0, brush(TerrainBrush::Smooth, 258, 250, 16, 1));
-    // The client misses the modifications: a stale state of chunk (0, 0) arrives first (its border differs from the
-    // host's new one, the neighbours (1, 0), (0, 1), (1, 1) keep the old state)
-    n.host->replication().clearHostStates();
-    n.host->replication().sendChunkSnapshot(1);
     const uint64_t rejected = c.netStats().rejected;
     n.step();
     EXPECT_EQ(c.netStats().rejected, rejected);
     expectSameState(*n.host, c);
     for (int64_t k = 100; k <= 160; ++k)
         for (int64_t i = 100; i <= 160; ++i) ASSERT_EQ(c.terrainSample(0, i, k), n.host->terrainSample(0, i, k));
-    // A state whose neighbour is absent applies too; the neighbour's own state later agrees on the border
-    std::vector<int32_t> a(129 * 129, 0), b(129 * 129, 0);
-    for (int k = 10; k <= 20; ++k)
-    {
-        a[size_t(k * 129 + 128)] = 9;
-        b[size_t(k * 129 + 0)]   = 9;
-    }
-    a[size_t(50 * 129 + 50)] = 4;
-    std::vector<uint8_t> ma, mb;
-    encodeTerrainChunkState(0, chunk(5, 5), 1, 129, &a, ma);
-    encodeTerrainChunkState(0, chunk(6, 5), 1, 129, &b, mb);
-    n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), ma.data(), ma.size());
+    // A part whose neighbour has no state applies too (no neighbour check); the neighbour's own part later agrees on
+    // the border (S26: parts instead of the removed TerrainChunkState)
+    std::vector<uint8_t> ma  = modification(0, {part(5, 5, 1, 128, 10, 1, 11, 9)});
+    std::vector<uint8_t> ma2 = modification(0, {part(5, 5, 2, 50, 50, 1, 1, 4)});
+    std::vector<uint8_t> mb  = modification(0, {part(6, 5, 1, 0, 10, 1, 11, 9)});
+    n.host->sendRaw(1, MessageId(EngineMessage::TerrainModification), ma.data(), ma.size());
+    n.host->sendRaw(1, MessageId(EngineMessage::TerrainModification), ma2.data(), ma2.size());
     n.step();
-    EXPECT_EQ(c.terrainEdits().sequence(chunk(5, 5)), 1u);
+    EXPECT_EQ(c.terrainEdits().sequence(chunk(5, 5)), 2u);
     const TerrainChunkEdits* e55 = c.terrainEdits().entry(chunk(5, 5));
     ASSERT_NE(e55, nullptr);
     EXPECT_EQ(e55->nonZeroSamples, 12u);
     EXPECT_EQ(c.terrainEdits().delta(0, 6 * 128, 5 * 128 + 15), 9);  // the absent neighbour's border reads it
-    n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), mb.data(), mb.size());
+    n.host->sendRaw(1, MessageId(EngineMessage::TerrainModification), mb.data(), mb.size());
     n.step();
     const TerrainChunkEdits* e65 = c.terrainEdits().entry(chunk(6, 5));
     ASSERT_NE(e65, nullptr);
@@ -450,15 +431,21 @@ TEST_F(TerrainNet, DuplicatesGapsAndEpochs)
     send(modification(0, {part(3, 3, 1, 5, 5, 2, 2, 200)}));
     EXPECT_EQ(c.terrainEdits().delta(0, 3 * 128 + 5, 3 * 128 + 5), 100);
     EXPECT_EQ(c.replication().stats().terrainPartsDuplicate, 1u);
-    // A gap is applied, logged and counted
-    send(modification(0, {part(3, 3, 4, 5, 5, 2, 2, 300)}));
-    EXPECT_EQ(c.terrainEdits().delta(0, 3 * 128 + 5, 3 * 128 + 5), 300);
-    EXPECT_EQ(c.terrainEdits().sequence(chunk(3, 3)), 4u);
-    EXPECT_EQ(c.netStats().modificationGaps, 1u);
     // A message of another epoch is dropped
-    send(modification(7, {part(3, 3, 5, 5, 5, 2, 2, 400)}));
-    EXPECT_EQ(c.terrainEdits().delta(0, 3 * 128 + 5, 3 * 128 + 5), 300);
+    send(modification(7, {part(3, 3, 2, 5, 5, 2, 2, 400)}));
+    EXPECT_EQ(c.terrainEdits().delta(0, 3 * 128 + 5, 3 * 128 + 5), 100);
     EXPECT_EQ(c.replication().stats().terrainDroppedEpoch, 1u);
+    // S26 (D9): a gap applies nothing, is logged and counted, and re-requests the chunk (Pending with a new ticket,
+    // its present state kept until the host's snapshot replaces it)
+    const std::vector<uint8_t> gap = modification(0, {part(3, 3, 4, 5, 5, 2, 2, 300)});
+    n.host->sendRaw(1, MessageId(EngineMessage::TerrainModification), gap.data(), gap.size());
+    c.step();
+    EXPECT_EQ(c.terrainEdits().delta(0, 3 * 128 + 5, 3 * 128 + 5), 100);
+    EXPECT_EQ(c.terrainEdits().sequence(chunk(3, 3)), 1u);
+    EXPECT_EQ(c.netStats().modificationGaps, 1u);
+    EXPECT_EQ(c.netStats().chunkRerequests, 1u);
+    EXPECT_EQ(c.replication().chunkSync().state(chunk(3, 3)), ClientChunkSync::State::Pending);
+    EXPECT_NE(c.replication().chunkSync().ticket(chunk(3, 3)), 0u);
 }
 
 // ---- the host state list over steps
@@ -558,9 +545,13 @@ TEST_F(TerrainNet, LateJoinerGetsEveryChunkState)
         n.hostTransport->release();
         if (editInJoinStep) n.host->editTerrain(0, brush(TerrainBrush::Smooth, 256, 256, 12, 1));
         n.host->step();
+        n.client().step();  // the JoinRequest
+        n.host->step();
+        // S26: admitted one round later (the handshake)
         EXPECT_EQ(n.host->peersJoined(), std::vector<uint8_t>{1});
+        // The `all` subscription, the index and the snapshots of the edited chunks (D19)
         n.client().step();
-        n.step();
+        n.sync();
         expectSameState(*n.host, n.client());
         EXPECT_EQ(n.client().terrainEdits().sequence(chunk(10, 10)), 1u);
         EXPECT_FALSE(n.client().terrainEdits().hasDeltas(chunk(10, 10)));
@@ -580,9 +571,11 @@ TEST_F(TerrainNet, HostLoadSendsResyncThenTheStates)
     n.step(2);
     expectSameState(*n.host, n.client());
     EXPECT_EQ(n.client().terrainEdits().sequence(chunk(0, 0)), 2u);
-    // The save has lower sequences: the client ends with the loaded state
+    // The save has lower sequences: the client ends with the loaded state (S26: Resync v2, the `all` subscription of
+    // the new epoch, the index and the snapshots)
     n.host->load(saved);
-    n.step(2);
+    n.step();
+    n.sync();
     expectSameState(*n.host, n.client());
     EXPECT_EQ(n.client().terrainEdits().sequence(chunk(0, 0)), 1u);
     EXPECT_EQ(n.client().terrainEdits().sequence(chunk(5, 3)), 0u);

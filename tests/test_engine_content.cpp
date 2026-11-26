@@ -2371,7 +2371,7 @@ TEST(ContentSave, CommittedSaveLoads)
     EXPECT_EQ(again.hash(), w.hash());
 }
 
-// ---- GenerationState (S23a step 11) ---------------------------------------------------------------------------------
+// ---- the generation part of the handshake (S23a step 11; S26: JoinAccept, Resync v2, the host's checks) -------------
 
 namespace
 {
@@ -2406,13 +2406,22 @@ struct GenNet
         clientSetup.localPeer = 1;
         client                = std::make_unique<World>(clientSetup);
     }
+    // n rounds, then (S26) until a joined client is synced: its spaces indexed, no snapshot pending
     void step(int n = 3)
     {
-        for (int k = 0; k < n; ++k)
+        auto round = [&]()
         {
             host->step();
             client->step();
-        }
+        };
+        for (int k = 0; k < n; ++k) round();
+        auto synced = [&]()
+        {
+            const ClientChunkSync& s = client->replication().chunkSync();
+            return s.allIndexed() && s.pendingCount() == 0 &&
+                   host->replication().subscriptions().queuedSnapshots() == 0;
+        };
+        for (int k = 0; k < 32 && client->joinState() != JoinState::Rejected && !synced(); ++k) round();
     }
 };
 
@@ -2423,21 +2432,25 @@ std::string logSince(uint64_t sequence)
     return out;
 }
 
-// The client refuses: counted, nothing applied, generationMismatch set, the log names the difference
-void expectRefused(GenNet& n, const std::string& difference)
+// S26: the host rejects the join (JoinReject), or the client fails to adopt the host's generation (a local failure):
+// Rejected, nothing of the host's world arrived, the rejection (or the log) names the difference
+void expectRejected(GenNet& n, const std::string& difference, bool byHost = true)
 {
     const uint64_t log = engineLog().lastSequence();
     n.step();
-    EXPECT_TRUE(n.client->generationMismatch());
-    EXPECT_FALSE(n.client->generationChecked());
-    EXPECT_GE(n.client->netStats().rejected, 1u);
+    EXPECT_EQ(n.client->joinState(), JoinState::Rejected);
+    EXPECT_NE(n.client->joinRejection().find(difference), std::string::npos) << n.client->joinRejection();
     EXPECT_NE(logSince(log).find(difference), std::string::npos) << logSince(log);
+    EXPECT_EQ(n.host->netStats().joinsRejected, byHost ? 1u : 0u);
+    EXPECT_EQ(n.client->generationMismatch(), !byHost);
+    EXPECT_TRUE(n.client->replication().netIds().empty());
+    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
 }
 }  // namespace
 
-// Equal setups pass; on a join the state precedes the spawn set (an object of the instance space arrives after the
-// check), after a host load it follows the Resync
-TEST(GenerationState, EqualSetupsPass)
+// Equal setups pass; JoinAccept carries the generation info before the spawn set (an object of the instance space
+// arrives after the check), after a host load Resync v2 carries it again
+TEST(Handshake, EqualContentSetupsPass)
 {
     WorldSetup s = ContentTest::contentTestSetup(2);
     s.classes    = probeClasses;
@@ -2447,36 +2460,40 @@ TEST(GenerationState, EqualSetupsPass)
     g_probeChecked = -1;
     GenNet n(s, cs, [](World& h) { h.spawnIn<TestProbe>(2, Vec3(2176, 0, 2176)); });
     n.step();
+    EXPECT_EQ(n.client->joinState(), JoinState::Joined);
     EXPECT_TRUE(n.client->generationChecked());
     EXPECT_FALSE(n.client->generationMismatch());
-    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 1u);
     EXPECT_EQ(g_probeChecked, 1);
     EXPECT_EQ(n.client->netStats().rejected, 0u);
-    // A host load: Resync, then the state again
+    // A host load: Resync v2 with the generation info
     g_probeChecked  = -1;
     const auto blob = n.host->save();
     ASSERT_TRUE(n.host->tryLoad(blob).ok());
     n.step();
-    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 2u);
+    EXPECT_EQ(n.client->replication().epoch(), 1u);
     EXPECT_TRUE(n.client->generationChecked());
+    EXPECT_EQ(n.client->joinState(), JoinState::Joined);
     EXPECT_EQ(g_probeChecked, 1);
 }
 
-TEST(GenerationState, MismatchesAreRefused)
+TEST(Handshake, GenerationMismatchesAreRejected)
 {
     {
         WorldSetup c = ContentTest::contentTestSetup(2);
         c.seed       = 7;
         GenNet n(ContentTest::contentTestSetup(2), c);
-        expectRefused(n, "host seed 12345, this client's setup seed 7");
+        expectRejected(n, "seed 7, the host's 12345");
     }
     {
-        // The host loaded a v1 save (pins v1); a fresh v2 client pins v2
+        // S26 (E11): a fresh v2 client adopts the pins of a host that loaded a v1 save
         World v1(ContentTest::contentTestSetup(1));
         const auto blob = v1.save();
         GenNet n(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(2),
                  [&](World& h) { ASSERT_TRUE(h.tryLoad(blob).ok()); });
-        expectRefused(n, "host uses generator test_terrain pinned v1, this client pins v2");
+        n.step();
+        EXPECT_EQ(n.client->joinState(), JoinState::Joined);
+        EXPECT_EQ(n.client->generation().space(0).pinned, 1u);
+        EXPECT_TRUE(n.client->generationChecked());
     }
     {
         // A client binary whose newest version is below the host's current one (the pins agree: v1)
@@ -2484,7 +2501,7 @@ TEST(GenerationState, MismatchesAreRefused)
         const auto blob = v1.save();
         GenNet n(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(1),
                  [&](World& h) { ASSERT_TRUE(h.tryLoad(blob).ok()); });
-        expectRefused(n, "host places generator test_terrain at v2, this client's newest version is v1");
+        expectRejected(n, "test_terrain v1 on this client, the host places v2");
     }
     {
         WorldSetup c = ContentTest::contentTestSetup(2);
@@ -2495,18 +2512,19 @@ TEST(GenerationState, MismatchesAreRefused)
                   std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
         };
         GenNet n(ContentTest::contentTestSetup(2), c);
-        expectRefused(n, "generator test_terrain: the host's slot table differs");
+        expectRejected(n, "the host's slot table of test_terrain is not a prefix");
     }
     {
+        // The host cannot see other plans of equal versions: the client's adoption fails (D2: local)
         GenNet n(ContentTest::contentTestSetup(2),
                  ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::PlanChangeV2));
-        expectRefused(n, "the host's plans differ from this client's");
+        expectRejected(n, "the host's plans differ from this client's", false);
     }
 }
 
-// Regression (implementation review of S23a): after a refused GenerationState the client applied the host's terrain
-// edits (deltas against a generation it does not have); now they are rejected like S23b's record messages
-TEST(GenerationState, TerrainEditsAfterARefusalAreRejected)
+// Regression (S23a): a client of another generation applied the host's terrain edits (deltas against a generation it
+// does not have); S26: a rejected client receives nothing of the host's world, also no later edit
+TEST(Handshake, RejectedClientReceivesNoEdits)
 {
     WorldSetup c = ContentTest::contentTestSetup(2);
     c.seed       = 7;
@@ -2514,50 +2532,25 @@ TEST(GenerationState, TerrainEditsAfterARefusalAreRejected)
     b.center   = Vec3(300, 0, 300);
     b.radius   = 10;
     b.strength = 2;
-    // An edit before the join (the chunk snapshot) and one after the refusal (a TerrainModification)
     GenNet n(ContentTest::contentTestSetup(2), c, [&](World& h) { h.editTerrain(0, b); });
-    expectRefused(n, "host seed 12345, this client's setup seed 7");
-    const uint64_t rejected = n.client->netStats().rejected;
-    b.center                = Vec3(600, 0, 600);
+    expectRejected(n, "seed 7, the host's 12345");
+    b.center = Vec3(600, 0, 600);
     n.host->editTerrain(0, b);
     n.step();
-    EXPECT_GT(n.client->netStats().rejected, rejected);
     EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
+    EXPECT_TRUE(n.host->connectedPeers().empty());
 }
 
-// Regression: a client whose setup writes generation state accepted a flat host's join (no GenerationState arrives)
-// and generated its own, other terrain; the spawn set without a preceding GenerationState is refused
-TEST(GenerationState, MissingStateIsRefused)
+// Regression (S23a): a client whose setup generates content accepted a flat host's join and generated its own, other
+// terrain; S26: the host rejects it (the setups' schemas differ: the space templates)
+TEST(Handshake, FlatHostRejectsAContentClient)
 {
     WorldSetup h = WorldSetup{};
     h.classes    = probeClasses;
     WorldSetup c = ContentTest::contentTestSetup(2);
     c.classes    = probeClasses;
     GenNet n(h, c, [](World& host) { host.spawnIn<TestProbe>(0, Vec3(100, 0, 100)); });
-    expectRefused(n, "the host sent no generation state");
-    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
-}
-
-// Regression (PR review): a host that sends no GenerationState (a legacy setup) and no spawn set left a client whose
-// setup writes generation state unchecked, and the host's terrain states were applied (a join's chunk snapshot, and
-// after a Resync of a host load, which also resets the refusal, the chunk states arrive before the spawn set)
-TEST(GenerationState, TerrainBeforeAStateIsRejected)
-{
-    TerrainBrush b;
-    b.center   = Vec3(300, 0, 300);
-    b.radius   = 10;
-    b.strength = 2;
-    GenNet n(WorldSetup{}, ContentTest::contentTestSetup(2), [&](World& h) { h.editTerrain(0, b); });
-    n.step();
-    EXPECT_GT(n.host->terrainEdits().chunkCount(), 0u);
-    EXPECT_GE(n.client->netStats().rejected, 1u);
-    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
-    const auto blob = n.host->save();
-    ASSERT_TRUE(n.host->tryLoad(blob).ok());
-    const uint64_t rejected = n.client->netStats().rejected;
-    n.step();
-    EXPECT_GT(n.client->netStats().rejected, rejected);
-    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
+    expectRejected(n, "schema: templates");
 }
 
 namespace
@@ -2581,28 +2574,27 @@ void spaceZoneComponents(Registry& r)
 }
 }  // namespace
 
-// Regression: after a refused GenerationState the host's space-state entity of a space the client does not have (the
-// host has 3 spaces, the flat client 1) ended the client process (SAIGA_EXIT_ERROR); now the spawn is refused
-TEST(GenerationState, StateOfAMissingSpaceAfterARefusal)
+// Regression (S23a): the host's space-state entity of a space the client does not have (the host has 3 spaces, the
+// flat client 1) ended the client process (SAIGA_EXIT_ERROR); S26: the host rejects the join, nothing arrives
+TEST(Handshake, ClientWithFewerSpacesIsRejected)
 {
     WorldSetup h = ContentTest::contentTestSetup(2);
     h.components = spaceZoneComponents;
     WorldSetup c = WorldSetup{};
     c.components = spaceZoneComponents;
     GenNet n(h, c, [](World& host) { host.get<TestSpaceZone>(host.spaceStateEntity(0)).level = 5; });
-    expectRefused(n, "names a state entity this client does not have (after a refused GenerationState)");
+    expectRejected(n, "templates differ");
     ASSERT_EQ(n.client->spaceCount(), 1u);
-    // The state of the space both have is applied
-    EXPECT_EQ(n.client->read<TestSpaceZone>(n.client->spaceStateEntity(0)).level, 5);
+    EXPECT_EQ(n.client->read<TestSpaceZone>(n.client->spaceStateEntity(0)).level, 0);
 }
 
-// Flat and hook worlds send no GenerationState; the non-integer warning is logged once
-TEST(GenerationState, LegacyWorldsSendNothing)
+// Flat and hook worlds send no generation info (JoinAccept without it); the non-integer warning is logged once
+TEST(Handshake, LegacyWorldsSendNoGenerationInfo)
 {
     {
         GenNet n(WorldSetup{}, WorldSetup{});
         n.step();
-        EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
+        EXPECT_EQ(n.client->joinState(), JoinState::Joined);
         EXPECT_FALSE(n.client->generationChecked());
         EXPECT_FALSE(n.client->generationMismatch());
     }
@@ -2635,7 +2627,7 @@ TEST(GenerationState, LegacyWorldsSendNothing)
             for (auto& c : clients) c->step();
         }
     }
-    EXPECT_EQ(host.replication().stats().generationStatesSent, 0u);
+    for (auto& c : clients) EXPECT_EQ(c->joinState(), JoinState::Joined);
     const std::string lines   = logSince(log);
     const std::string warning = "generator 'float_hook' is not integer-only";
     const size_t first        = lines.find(warning);
@@ -2943,7 +2935,7 @@ TEST(TombstoneDeathTest, InvalidKeysStop)
     EXPECT_FALSE(w.checkTombstone(chunkAt(0, 0, 2), key(0, 0), &error));
     EXPECT_NE(error.find("has no slot 0"), std::string::npos) << error;
     // An enclosed space whose generator has slots: a tombstone made a sequence-only S22 entry that the save loader
-    // (TERR) and the client (TerrainChunkState) refuse
+    // (TERR) refuses
     {
         WorldSetup s = stepTombstoneSetup();
         s.generators = [](GeneratorList& l)
@@ -3064,7 +3056,7 @@ TEST(ChunkRecords, CommittedSaveLoads)
     EXPECT_EQ(again.hash(), w.hash());
 }
 
-// ---- tombstone and record messages (S23b step 4) -------------------------------------------------------------------
+// ---- tombstone messages and chunk records over the network (S23b step 4; S26: snapshots) ---------------------------
 
 namespace
 {
@@ -3072,12 +3064,6 @@ std::vector<uint8_t> tombstoneMessage(uint32_t epoch, SpaceId space, const std::
 {
     std::vector<uint8_t> out;
     encodeTombstoneModification(epoch, space, entries, out);
-    return out;
-}
-std::vector<uint8_t> recordMessage(uint32_t epoch, SpaceId space, const std::vector<ChunkRecordPart>& parts)
-{
-    std::vector<uint8_t> out;
-    encodeChunkRecordState(epoch, space, parts, out);
     return out;
 }
 TombstoneEntry entry(int32_t x, int32_t z, uint16_t version, uint32_t sequence, InstanceKey k)
@@ -3090,27 +3076,15 @@ TombstoneEntry entry(int32_t x, int32_t z, uint16_t version, uint32_t sequence, 
     e.key              = k;
     return e;
 }
-ChunkRecordPart part(int32_t x, int32_t z, uint16_t version, std::vector<InstanceKey> keys)
-{
-    ChunkRecordPart p;
-    p.x                = x;
-    p.z                = z;
-    p.placementVersion = version;
-    p.keys             = std::move(keys);
-    return p;
-}
 void deliverTombstones(World& c, const std::vector<uint8_t>& m)
 {
-    c.replication().onTombstoneModification(0, m.data(), m.size());
-}
-void deliverRecords(World& c, const std::vector<uint8_t>& m)
-{
-    c.replication().onChunkRecordState(0, m.data(), m.size());
+    c.replication().chunkSync().onTombstoneModification(0, m.data(), m.size());
 }
 }  // namespace
 
-// Sequences: an old one is dropped, a gap logged and counted (and applied), another epoch dropped; two entries of one
-// chunk in one message apply with consecutive sequences, a skip in the second is a gap only for that entry
+// Sequences: an old one is dropped, another epoch dropped, a gap logged and counted (S26: not applied, the chunk is
+// re-requested); two entries of one chunk in one message apply with consecutive sequences, a skip in the second is a
+// gap only for that entry
 TEST(TombstoneNet, SequencesGapsAndEpochs)
 {
     const WorldSetup s = ContentTest::contentTestSetup(2);
@@ -3128,17 +3102,20 @@ TEST(TombstoneNet, SequencesGapsAndEpochs)
     deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 2, key(0, 12))}));
     EXPECT_FALSE(c.isTombstoned(k45, key(0, 12)));
     EXPECT_EQ(c.replication().stats().tombstonesDuplicate, 1u);
-    // The second entry skips: a gap only for it (3 applies, 5 is a gap)
-    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 3, key(0, 12)), entry(4, 5, 2, 5, key(0, 13))}));
-    EXPECT_EQ(c.netStats().modificationGaps, 1u);
-    EXPECT_EQ(c.terrainEdits().sequence(k45), 5u);
-    EXPECT_TRUE(c.isTombstoned(k45, key(0, 13)));
     // Another epoch: dropped, not counted as rejected
     const uint64_t rejected = c.netStats().rejected;
-    deliverTombstones(c, tombstoneMessage(7, 0, {entry(4, 5, 2, 6, key(0, 14))}));
+    deliverTombstones(c, tombstoneMessage(7, 0, {entry(4, 5, 2, 3, key(0, 14))}));
     EXPECT_FALSE(c.isTombstoned(k45, key(0, 14)));
     EXPECT_EQ(c.netStats().rejected, rejected);
     EXPECT_EQ(c.replication().stats().recordsDroppedEpoch, 1u);
+    // The second entry skips: a gap only for it (3 applies, 5 is a gap: not applied, the chunk re-requested)
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 3, key(0, 12)), entry(4, 5, 2, 5, key(0, 13))}));
+    EXPECT_EQ(c.netStats().modificationGaps, 1u);
+    EXPECT_EQ(c.netStats().chunkRerequests, 1u);
+    EXPECT_EQ(c.terrainEdits().sequence(k45), 3u);
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 12)));
+    EXPECT_FALSE(c.isTombstoned(k45, key(0, 13)));
+    EXPECT_EQ(c.replication().chunkSync().state(k45), ClientChunkSync::State::Pending);
 }
 
 // Rejected, counted, nothing applied
@@ -3148,51 +3125,25 @@ TEST(TombstoneNet, RejectionsApplyNothing)
     GenNet n(s, s);
     n.step();
     World& c            = *n.client;
-    auto expectRejected = [&](const std::vector<uint8_t>& m, bool records, const std::string& what)
+    auto expectRejected = [&](const std::vector<uint8_t>& m, const std::string& what)
     {
         const uint64_t before = c.netStats().rejected;
         const uint64_t hash   = c.hash();
-        if (records)
-            deliverRecords(c, m);
-        else
-            deliverTombstones(c, m);
+        deliverTombstones(c, m);
         EXPECT_EQ(c.netStats().rejected, before + 1) << what;
         EXPECT_EQ(c.hash(), hash) << what;
         EXPECT_TRUE(c.contentRecords().records().empty()) << what;
     };
-    expectRejected(tombstoneMessage(0, 0, {entry(128, 5, 2, 1, key(0, 1))}), false, "a chunk outside the space");
-    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 3, 1, key(0, 1))}), false, "a version above the current one");
-    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(2, 1))}), false, "a slot beyond the table");
-    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(1, 1024))}), false, "a counter out of range");
-    expectRejected(tombstoneMessage(0, 2, {entry(0, 0, 1, 1, key(0, 1))}), false, "keys in a space without slots");
-    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 1)), entry(4, 6, 2, 1, key(9, 1))}), false,
+    expectRejected(tombstoneMessage(0, 0, {entry(128, 5, 2, 1, key(0, 1))}), "a chunk outside the space");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 3, 1, key(0, 1))}), "a version above the current one");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(2, 1))}), "a slot beyond the table");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(1, 1024))}), "a counter out of range");
+    expectRejected(tombstoneMessage(0, 2, {entry(0, 0, 1, 1, key(0, 1))}), "keys in a space without slots");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 1)), entry(4, 6, 2, 1, key(9, 1))}),
                    "one invalid entry among valid ones");
-    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5), key(0, 4)})}), true, "unsorted keys");
-    expectRejected(recordMessage(0, 0, {part(4, 5, 3, {key(0, 5)})}), true, "a version above the current one");
-    expectRejected(recordMessage(0, 0, {part(4, 5, 1, {key(0, 5)})}), true, "a version below the pin");
-    expectRejected(recordMessage(0, 2, {part(0, 0, 1, {key(0, 5)})}), true, "keys in a space without slots");
-    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5)}), part(4, 5, 1, {key(0, 6)})}), true,
-                   "parts of one chunk with different versions");
-    // A part without keys needs no slots (the dungeon at its current version)
-    deliverRecords(c, recordMessage(0, 2, {part(0, 0, 1, {})}));
-    EXPECT_TRUE(c.chunkRecord(chunkAt(0, 0, 2)));
-    // A version differing from the chunk's effective one (its record's)
-    {
-        const uint64_t before = c.netStats().rejected;
-        deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
-        deliverRecords(c, recordMessage(0, 2, {part(0, 0, 2, {})}));
-        EXPECT_EQ(c.netStats().rejected, before + 2);
-        EXPECT_EQ(c.chunkRecord(chunkAt(0, 0, 2))->placementVersion, 1);
-    }
-    // A record message after a refused GenerationState
-    GenNet refused(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(1));
-    refused.step();
-    ASSERT_TRUE(refused.client->generationMismatch());
-    const uint64_t before = refused.client->netStats().rejected;
-    deliverTombstones(*refused.client, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
-    deliverRecords(*refused.client, recordMessage(0, 0, {part(4, 5, 1, {key(0, 1)})}));
-    EXPECT_EQ(refused.client->netStats().rejected, before + 2);
-    EXPECT_TRUE(refused.client->contentRecords().records().empty());
+    // A version differing from the chunk's effective one (S26: checked for a Synced chunk)
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}), "a version below the effective one");
+    // The chunk records of snapshots are checked in test_engine_world_net (ChunkSync.InvalidSnapshotsApplyNothing)
 }
 
 // The live path: host tombstones reach the client in application order with the terrain edits (sequences equal); a
@@ -3234,9 +3185,10 @@ TEST(TombstoneNet, LiveAndFlatJoiner)
         EXPECT_EQ(flat.client->terrainEdits().sequence(kv.first), flat.host->terrainEdits().sequence(kv.first));
 }
 
-// A late joiner gets the records of chunks tombstoned before it joined, the ChunkRecordState before the
-// TerrainChunkState (E5); the tombstones pending in the joining step arrive in the snapshot, not again live
-TEST(TombstoneNet, LateJoinerSnapshotOrder)
+// A late joiner gets the records of chunks tombstoned before it joined; S26: the record and the terrain state arrive
+// in one ChunkSnapshot (the record change sees the snapshot's sequence); the tombstones pending in the joining step
+// arrive in the snapshot, not live (the joiner subscribed after them)
+TEST(TombstoneNet, LateJoinerSnapshot)
 {
     const WorldSetup s = ContentTest::contentTestSetup(2);
     const ChunkId c    = chunkAt(4, 5);
@@ -3257,16 +3209,15 @@ TEST(TombstoneNet, LateJoinerSnapshotOrder)
                  pending = k.accepted[1];
                  h.tombstone(c, pending);
              });
-    // The record arrives before the chunk's terrain state
-    int recordBeforeTerrain = -1;
+    // The record and the terrain state together
+    int64_t sequenceAtRecord = -1;
     n.client->addRecordListener(
         [&](const ChunkId& changed)
         {
-            if (changed == c && recordBeforeTerrain < 0)
-                recordBeforeTerrain = n.client->terrainEdits().sequence(c) == 0 ? 1 : 0;
+            if (changed == c && sequenceAtRecord < 0) sequenceAtRecord = n.client->terrainEdits().sequence(c);
         });
     n.step();
-    EXPECT_EQ(recordBeforeTerrain, 1);
+    EXPECT_EQ(sequenceAtRecord, int64_t(n.host->terrainEdits().sequence(c)));
     EXPECT_TRUE(n.client->isTombstoned(c, pending));
     EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
     EXPECT_EQ(n.client->terrainEdits().sequence(c), n.host->terrainEdits().sequence(c));
@@ -3277,7 +3228,7 @@ TEST(TombstoneNet, LateJoinerSnapshotOrder)
 }
 
 // A host load (Resync): the client clears records and S22's store together; a tombstone made after the save is gone,
-// one in the save comes back with the ChunkRecordState; equal sequences afterwards
+// one in the save comes back with the chunk's snapshot (S26); equal sequences afterwards
 TEST(TombstoneNet, HostLoadResyncs)
 {
     const WorldSetup s = ContentTest::contentTestSetup(2);
@@ -3303,8 +3254,8 @@ TEST(TombstoneNet, HostLoadResyncs)
     EXPECT_EQ(n.client->netStats().rejected, 0u);
 }
 
-// Bounds: 4096 tombstones in one step arrive in one message, 4097 in two; 3000 injected records in three
-// ChunkRecordStates; one record of 10000 keys in two, united on the client
+// Bounds: 4096 tombstones in one step arrive in one message, 4097 in two; S26: 3000 injected records arrive in 3000
+// snapshots after the `all` index, one record of 10000 keys in one snapshot
 TEST(TombstoneNet, MessageBounds)
 {
     const WorldSetup s = ContentTest::contentTestSetup(2);
@@ -3335,7 +3286,7 @@ TEST(TombstoneNet, MessageBounds)
                         h.contentRecordsForUpdate().injectForTests(chunkAt(i % 128, i / 128), 2, {key(0, 1)});
                 });
     many.step();
-    EXPECT_EQ(many.host->replication().stats().recordStatesSent, 3u);
+    EXPECT_EQ(many.host->replication().subscriptions().stats().snapshotsSent, 3000u);
     EXPECT_EQ(many.client->contentRecords().records().size(), 3000u);
     EXPECT_EQ(many.client->netStats().rejected, 0u);
 
@@ -3347,7 +3298,7 @@ TEST(TombstoneNet, MessageBounds)
                    h.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, k);
                });
     big.step();
-    EXPECT_EQ(big.host->replication().stats().recordStatesSent, 2u);
+    EXPECT_EQ(big.host->replication().subscriptions().stats().snapshotsSent, 1u);
     ASSERT_TRUE(big.client->chunkRecord(chunkAt(4, 5)));
     EXPECT_EQ(big.client->chunkRecord(chunkAt(4, 5))->tombstones.size(), 10000u);
 }
@@ -3748,7 +3699,7 @@ TEST(ContentRender, OlderPlacementVersions)
 }
 
 // A client: a record change applied in stepNetworkOnly reaches its sink at once; after a host load the Resync clear
-// restores the instances (updateInstances with the original), and the following ChunkRecordState hides the saved one
+// restores the instances (updateInstances with the original), and the following ChunkSnapshot (S26) hides the saved one
 TEST(ContentRender, ClientRecordChanges)
 {
     const WorldSetup s = contentRenderSetup();

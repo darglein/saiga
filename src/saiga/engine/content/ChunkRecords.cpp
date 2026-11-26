@@ -96,6 +96,19 @@ void ChunkRecords::replace(Map records, std::set<ChunkId> stamped)
     stampedChunks = std::move(stamped);
 }
 
+void ChunkRecords::erase(const ChunkId& chunk)
+{
+    byChunk.erase(chunk);
+}
+
+ChunkRecord& ChunkRecords::set(const ChunkId& chunk, uint16_t placementVersion, std::vector<InstanceKey> keys)
+{
+    ChunkRecord& r     = byChunk[chunk];
+    r.placementVersion = placementVersion;
+    r.tombstones       = std::move(keys);
+    return r;
+}
+
 void ChunkRecords::clear()
 {
     byChunk.clear();

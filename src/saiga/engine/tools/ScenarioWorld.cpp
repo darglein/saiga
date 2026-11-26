@@ -92,15 +92,73 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
             clientWorlds.back()->setTickEveryStep(true);
             clientWorlds.back()->setStreamingSynchronous(true);
             clientSinks.push_back(giveSink(*clientWorlds.back()));
-            // The render name tables must match (S26's handshake compares them; S19b)
-            if (clientWorlds.back()->renderTableHash() != w->renderTableHash())
-                failed.push_back("the render name tables (meshes, materials, aliases) of the host and client " +
-                                 std::to_string(i) + " differ");
             clientWorlds.back()->replication().setWriteDetector(report);
             clientSteps.push_back(0);
         }
+        joinClients();
     }
     attach();
+}
+
+void ScenarioWorld::joinClients()
+{
+    // S26 (§17.3): network-only steps (no host step: its step count and hash are unchanged) until every client joined
+    // (the handshake checks the render tables, the schema and the generation) and, in a world without streaming, its
+    // `all` subscriptions are indexed and the initial snapshots applied (a client-owned character's first steps stand
+    // on the edited surface)
+    auto joined = [&]()
+    {
+        for (auto& c : clientWorlds)
+            if (c->joinState() != JoinState::Joined) return false;
+        return true;
+    };
+    auto rejected = [&]()
+    {
+        for (auto& c : clientWorlds)
+            if (c->joinState() == JoinState::Rejected) return true;
+        return false;
+    };
+    const int bound = 4 * network.delaySteps + 8;
+    int pumps       = 0;
+    for (; pumps < bound && !joined() && !rejected(); ++pumps)
+    {
+        w->stepNetworkOnly();
+        for (auto& c : clientWorlds) c->stepNetworkOnly();
+    }
+    if (!joined())
+    {
+        reportJoinFailures("join");
+        if (!joinFailureReported)
+            failed.push_back("join: the clients did not join within " + std::to_string(bound) + " network steps");
+        return;
+    }
+    for (int k = 0; k < 600 && !chunksSynced(); ++k)
+    {
+        w->stepNetworkOnly();
+        for (auto& c : clientWorlds) c->stepNetworkOnly();
+    }
+    if (!chunksSynced()) failed.push_back("join: the initial chunk snapshots did not arrive within 600 network steps");
+}
+
+void ScenarioWorld::reportJoinFailures(const std::string& when)
+{
+    for (size_t i = 0; i < clientWorlds.size() && !joinFailureReported; ++i)
+        if (clientWorlds[i]->joinState() == JoinState::Rejected)
+        {
+            joinFailureReported = true;
+            failed.push_back(when + ": client " + std::to_string(i + 1) +
+                             " was rejected: " + clientWorlds[i]->joinRejection());
+        }
+}
+
+void ScenarioWorld::holdChunk(int peer, const ChunkId& chunk)
+{
+    if (network.enabled) client(peer).replication().chunkSync().hold(chunk);
+}
+
+void ScenarioWorld::releaseChunk(int peer, const ChunkId& chunk)
+{
+    if (network.enabled) client(peer).replication().chunkSync().release(chunk);
 }
 
 World& ScenarioWorld::client(int peer)
@@ -290,14 +348,9 @@ void ScenarioWorld::onStep()
     if (network.enabled)
     {
         stepClients();
-        // S23a: a client that refused the host's generation state fails the variant (once)
-        for (size_t i = 0; i < clientWorlds.size(); ++i)
-            if (clientWorlds[i]->generationMismatch() && !generationMismatchReported)
-            {
-                generationMismatchReported = true;
-                failed.push_back("step " + std::to_string(observedSteps) + ": client " + std::to_string(i + 1) +
-                                 " refused the host's generation state (see the log)");
-            }
+        // S23a, S26: a client whose join failed (or whose adoption of a host load's generation failed) fails the
+        // variant (once)
+        reportJoinFailures("step " + std::to_string(observedSteps));
     }
     if (control.hashes) control.hashes->push_back(w->hash());
     for (Trace& t : traces)
@@ -473,102 +526,114 @@ int32_t ScenarioWorld::terrainSample(int64_t i, int64_t k, std::optional<int> pe
     return world.terrainSample(space, i, k);
 }
 
-bool ScenarioWorld::terrainSynced()
+bool ScenarioWorld::chunksSynced()
 {
+    if (w->replication().subscriptions().queuedSnapshots() != 0) return false;
     const TerrainEditStore& h = w->terrainEdits();
     for (auto& c : clientWorlds)
     {
+        if (c->joinState() != JoinState::Joined) continue;
+        const ClientChunkSync& sync = c->replication().chunkSync();
+        if (sync.pendingCount() != 0 || sync.queuedParts() != 0) return false;
+        if (!c->streaming() && !sync.allIndexed()) return false;
         const TerrainEditStore& s = c->terrainEdits();
+        if (c->streaming())
+        {
+            for (const auto& [chunk, e] : sync.chunks())
+                if (e.state == ClientChunkSync::State::Synced && s.sequence(chunk) != h.sequence(chunk)) return false;
+            continue;
+        }
+        // Without streaming every chunk is Synced: the chunks with state on either side
         for (size_t i = 0; i < h.spaceCount(); ++i)
         {
-            const auto& a = h.chunks(SpaceId(i));
-            const auto& b = s.chunks(SpaceId(i));
-            if (a.size() != b.size()) return false;
-            for (auto ia = a.begin(), ib = b.begin(); ia != a.end(); ++ia, ++ib)
-                if (ia->first != ib->first || ia->second.sequence != ib->second.sequence) return false;
+            for (const auto& kv : h.chunks(SpaceId(i)))
+                if (s.sequence(kv.first) != kv.second.sequence) return false;
+            for (const auto& kv : s.chunks(SpaceId(i)))
+                if (h.sequence(kv.first) != kv.second.sequence) return false;
         }
     }
     return true;
 }
 
-void ScenarioWorld::compareTerrain()
+void ScenarioWorld::compareChunks()
 {
     const TerrainEditStore& h = w->terrainEdits();
     int reported              = 0;
     auto fail                 = [&](const std::string& m)
     {
-        if (reported++ < 10) check(false, "terrain replicas differ: " + m);
+        if (reported++ < 10) check(false, "chunk replicas differ: " + m);
     };
     std::vector<int32_t> da, db;
     for (size_t p = 0; p < clientWorlds.size(); ++p)
     {
-        const World& cw        = *clientWorlds[p];
-        const std::string peer = "peer " + std::to_string(p + 1);
-        check(cw.netStats().modificationGaps == 0,
-              peer + ": " + std::to_string(cw.netStats().modificationGaps) + " terrain modification gaps");
+        const World& cw             = *clientWorlds[p];
+        const std::string peer      = "peer " + std::to_string(p + 1);
+        const World::NetStats& ns   = cw.netStats();
+        const ClientChunkSync& sync = cw.replication().chunkSync();
+        check(ns.modificationGaps == 0, peer + ": " + std::to_string(ns.modificationGaps) + " modification gaps");
+        check(ns.chunkRerequests == 0, peer + ": " + std::to_string(ns.chunkRerequests) + " chunk re-requests");
+        check(sync.stats().queueOverflows == 0,
+              peer + ": " + std::to_string(sync.stats().queueOverflows) + " queue overflows");
         const TerrainEditStore& s = cw.terrainEdits();
-        for (size_t i = 0; i < h.spaceCount(); ++i)
-        {
-            // The union of the chunks with state on either side
-            std::set<ChunkId> chunks;
-            for (const auto& kv : h.chunks(SpaceId(i))) chunks.insert(kv.first);
-            for (const auto& kv : s.chunks(SpaceId(i))) chunks.insert(kv.first);
-            for (const ChunkId& c : chunks)
-            {
-                const std::string what = peer + ", space " + std::to_string(c.space) + " chunk (" +
-                                         std::to_string(c.x) + ", " + std::to_string(c.z) + ")";
-                const uint32_t sa = h.sequence(c), sb = s.sequence(c);
-                if (sa != sb)
-                {
-                    fail(what + ": sequence " + std::to_string(sb) + ", the host's " + std::to_string(sa));
-                    continue;
-                }
-                if (!h.hasDeltas(c) && !s.hasDeltas(c)) continue;
-                h.denseDelta(c, da);
-                s.denseDelta(c, db);
-                for (size_t k = 0; k < da.size(); ++k)
-                    if (da[k] != db[k])
-                    {
-                        const size_t N = size_t(h.chunkSamples(c.space) + 1);
-                        fail(what + " (sequence " + std::to_string(sa) + "): the sample (" + std::to_string(k % N) +
-                             ", " + std::to_string(k / N) + ") has the delta " + std::to_string(db[k]) +
-                             ", the host's " + std::to_string(da[k]));
-                        break;
-                    }
-            }
-        }
-    }
-}
-
-bool ScenarioWorld::recordsSynced(std::string* difference)
-{
-    const ChunkRecords& h = w->contentRecords();
-    for (size_t p = 0; p < clientWorlds.size(); ++p)
-    {
-        const World& cw = *clientWorlds[p];
+        // The chunks to compare: without streaming every chunk with state on either side (all Synced); with streaming
+        // the Synced chunks of the client's table
         std::set<ChunkId> chunks;
-        for (const auto& kv : h.records()) chunks.insert(kv.first);
-        for (const auto& kv : cw.contentRecords().records()) chunks.insert(kv.first);
+        if (!cw.streaming())
+        {
+            for (size_t i = 0; i < h.spaceCount(); ++i)
+            {
+                for (const auto& kv : h.chunks(SpaceId(i))) chunks.insert(kv.first);
+                for (const auto& kv : s.chunks(SpaceId(i))) chunks.insert(kv.first);
+            }
+            for (const auto& kv : w->contentRecords().records()) chunks.insert(kv.first);
+            for (const auto& kv : cw.contentRecords().records()) chunks.insert(kv.first);
+        }
+        else
+        {
+            for (const auto& [c, e] : sync.chunks())
+                if (e.state == ClientChunkSync::State::Synced) chunks.insert(c);
+            // A chunk that is not subscribed has no state on the client (D10)
+            for (size_t i = 0; i < s.spaceCount(); ++i)
+                for (const auto& kv : s.chunks(SpaceId(i)))
+                    if (!sync.chunks().count(kv.first))
+                        fail(peer + ": space " + std::to_string(kv.first.space) + " chunk (" +
+                             std::to_string(kv.first.x) + ", " + std::to_string(kv.first.z) +
+                             ") has terrain state but is not subscribed");
+            for (const auto& kv : cw.contentRecords().records())
+                if (!sync.chunks().count(kv.first))
+                    fail(peer + ": space " + std::to_string(kv.first.space) + " chunk (" + std::to_string(kv.first.x) +
+                         ", " + std::to_string(kv.first.z) + ") has a record but is not subscribed");
+        }
         for (const ChunkId& c : chunks)
         {
-            const ChunkRecord a = w->effectiveRecord(c), b = cw.effectiveRecord(c);
-            if (a == b) continue;
-            if (difference)
-                *difference = "peer " + std::to_string(p + 1) + ", space " + std::to_string(c.space) + " chunk (" +
-                              std::to_string(c.x) + ", " + std::to_string(c.z) + "): placement version " +
-                              std::to_string(b.placementVersion) + " with " + std::to_string(b.tombstones.size()) +
-                              " tombstones, the host's " + std::to_string(a.placementVersion) + " with " +
-                              std::to_string(a.tombstones.size());
-            return false;
+            const std::string what = peer + ", space " + std::to_string(c.space) + " chunk (" + std::to_string(c.x) +
+                                     ", " + std::to_string(c.z) + ")";
+            const uint32_t sa = h.sequence(c), sb = s.sequence(c);
+            if (sa != sb)
+            {
+                fail(what + ": sequence " + std::to_string(sb) + ", the host's " + std::to_string(sa));
+                continue;
+            }
+            const ChunkRecord ra = w->effectiveRecord(c), rb = cw.effectiveRecord(c);
+            if (ra != rb)
+                fail(what + ": placement version " + std::to_string(rb.placementVersion) + " with " +
+                     std::to_string(rb.tombstones.size()) + " tombstones, the host's " +
+                     std::to_string(ra.placementVersion) + " with " + std::to_string(ra.tombstones.size()));
+            if (w->spaceTemplate(c.space).kind != SpaceKind::OpenWorld || (!h.hasDeltas(c) && !s.hasDeltas(c)))
+                continue;
+            h.denseDelta(c, da);
+            s.denseDelta(c, db);
+            for (size_t k = 0; k < da.size(); ++k)
+                if (da[k] != db[k])
+                {
+                    const size_t N = size_t(h.chunkSamples(c.space) + 1);
+                    fail(what + " (sequence " + std::to_string(sa) + "): the sample (" + std::to_string(k % N) + ", " +
+                         std::to_string(k / N) + ") has the delta " + std::to_string(db[k]) + ", the host's " +
+                         std::to_string(da[k]));
+                    break;
+                }
         }
     }
-    return true;
-}
-
-void ScenarioWorld::compareRecords()
-{
-    std::string difference;
-    if (!recordsSynced(&difference)) check(false, "chunk record replicas differ: " + difference);
 }
 
 double ScenarioWorld::distance(Entity a, Entity b)
@@ -793,20 +858,12 @@ void ScenarioWorld::finishNetwork()
         {
             synced = true;
             for (auto& c : clientWorlds) synced = synced && c->replication().snapshotSequence() >= needed;
-            // S22: and every client has the host's terrain chunk sequences
-            synced = synced && terrainSynced();
-            // S23b: and the host's effective chunk records
-            synced = synced && recordsSynced();
+            // S26: and the chunk sync is done (no pending chunk, queued part or queued snapshot; equal sequences)
+            synced = synced && chunksSynced();
         }
     }
-    // S23a: a refusal received during the drain fails the variant too (once; PR review: only onStep reported it)
-    for (size_t i = 0; i < clientWorlds.size(); ++i)
-        if (clientWorlds[i]->generationMismatch() && !generationMismatchReported)
-        {
-            generationMismatchReported = true;
-            failed.push_back("final network sync: client " + std::to_string(i + 1) +
-                             " refused the host's generation state (see the log)");
-        }
+    // A failure received during the drain fails the variant too (once; PR review of S23a: only onStep reported it)
+    reportJoinFailures("final network sync");
     if (!check(synced, "the final network sync did not finish in 600 steps")) return;
     check(steps <= bound, "the final network sync took " + std::to_string(steps) + " steps (at most " +
                               std::to_string(bound) + " without loss)");
@@ -815,8 +872,7 @@ void ScenarioWorld::finishNetwork()
 
 void ScenarioWorld::compareReplicas()
 {
-    compareTerrain();
-    compareRecords();
+    compareChunks();
     // For every replicated component the authority's value (the host, or the owner for owner-authoritative components
     // of client-owned entities) equals every other peer's copy: within 2 Quantize steps, exact otherwise; Entity
     // fields through NetIds; the derived Transform of a child is not compared (its Parent and LocalTransform are)

@@ -1576,7 +1576,11 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     const Entity lamp = host.create();
     host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
     host.add<LightSource>(lamp, LightSource());
+    // S26: the handshake's round trip at delay 20 comes first (until the replica arrived, at most 100 frames)
     app.runFrames(30, 1.0 / 60);
+    for (int k = 0; k < 70 && !app.world().replication().entityOfNetId(host.replication().netIdOf(lamp)).valid(); ++k)
+        app.runFrames(1, 1.0 / 60);
+    app.runFrames(1, 1.0 / 60);
     // The client's replica and its rendered light
     const NetId id = host.replication().netIdOf(lamp);
     ASSERT_NE(id, 0u);

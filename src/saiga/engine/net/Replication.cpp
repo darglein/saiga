@@ -21,8 +21,11 @@
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/net/ChunkMessages.h"
 #include "saiga/engine/net/EngineMessages.h"
-#include "saiga/engine/net/GenerationStateMessage.h"
+#include "saiga/engine/net/GenerationInfo.h"
+#include "saiga/engine/net/JoinCheck.h"
+#include "saiga/engine/net/JoinMessages.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainMessages.h"
@@ -70,16 +73,6 @@ bool presenceComponent(const Registry& reg, ComponentId id)
     const Registry::ComponentInfo& info = reg.componentInfo(id);
     return info.registered && info.replicate == Replicate::Never && info.saved == Saved::Yes && id != Behaviour::id &&
            id != NetLocal::id && id != Transform::id;
-}
-
-void putU8(std::vector<uint8_t>& out, uint8_t v)
-{
-    out.push_back(v);
-}
-void putU16(std::vector<uint8_t>& out, uint16_t v)
-{
-    out.push_back(uint8_t(v & 0xFF));
-    out.push_back(uint8_t(v >> 8));
 }
 
 // Reads untrusted input; every error is remembered (never asserts)
@@ -174,7 +167,10 @@ struct Immediate
 };
 }  // namespace
 
-Replication::Replication(World& world) : w(world)
+Replication::Replication(World& world)
+    : hostChunks(std::make_unique<HostChunkSubscriptions>(world)),
+      clientChunks(std::make_unique<ClientChunkSync>(world)),
+      w(world)
 {
     if (w.isHost()) logConsumer = w.log.addConsumer();
 }
@@ -414,12 +410,18 @@ void Replication::commit()
     netIdUndo.clear();
     teleportUndo.clear();
     replicatedThisStep = false;
+    // S26: the snapshots served and the interest sent in phase 8
+    hostChunks->commit();
+    clientChunks->commit();
 }
 
 void Replication::abort(Phase aborted)
 {
     // The host state list stays whole (the next extract sends it again)
     hostStatesSent = 0;
+    // S26 (D16): staged in phase 8 only; the outbox drops the encoded messages
+    hostChunks->abort();
+    clientChunks->abort();
     // In reverse order, only what the aborted phase staged (finished phases keep their changes, as their messages)
     for (size_t i = slotUndo.size(); i-- > 0;)
         if (slotUndo[i].phase == aborted) host[slotUndo[i].index] = slotUndo[i].old;
@@ -500,14 +502,20 @@ void Replication::onHostLoad()
     slotUndo.clear();
     hashUndo.clear();
     netIdUndo.clear();
+    // S26 (D11): every subscription goes; the clients subscribe again in the new epoch
+    hostChunks->clear();
     if (w.net)
+    {
+        // Resync v2: the epoch and the loaded generation info (the clients adopt the loaded pins)
+        JoinAccept resync;
+        resync.epoch         = currentEpoch;
+        resync.hasGeneration = w.writesGenerationState();
+        if (resync.hasGeneration) resync.generation = generationInfoOf(w);
+        record.clear();
+        encodeJoinAccept(resync, record);
         for (uint8_t p : w.connectedPeers())
-        {
-            w.send(p, ResyncMessage{currentEpoch});
-            // S23a: the loaded generation state, then S22's terrain modification state
-            sendGenerationState(p);
-            sendChunkSnapshot(p);
-        }
+            w.sendRaw(p, MessageId(EngineMessage::Resync), record.data(), record.size());
+    }
 }
 
 // ---- terrain (S22) ------------------------------------------------------------------------------------------------
@@ -515,141 +523,245 @@ void Replication::onHostLoad()
 void Replication::sendHostStates()
 {
     hostStatesSent = hostStates.size();
-    if (regularPeers.empty() || hostStates.empty()) return;
+    if (hostStates.empty() || !w.net) return;
+    const std::vector<uint8_t>& peers = w.connectedPeers();
+    if (peers.empty()) return;
+    HostChunkSubscriptions::Stats& ss = hostChunks->statsForUpdate();
+    // S26 (D8): per peer only the parts / entries of the chunks it subscribed; the full encoding is shared by the peers
+    // that subscribed every chunk of an entry
+    std::vector<TerrainPart> parts;
+    std::vector<TombstoneEntry> entries;
     for (const HostStateEntry& e : hostStates)
     {
+        const bool tomb = e.kind == HostStateEntry::Kind::TombstoneModification;
+        if (tomb && e.tombstones.empty()) continue;
         record.clear();
-        if (e.kind == HostStateEntry::Kind::TombstoneModification)
+        for (uint8_t p : peers)
         {
-            if (e.tombstones.empty()) continue;
-            encodeTombstoneModification(currentEpoch, e.space, e.tombstones, record);
-            sendToAll(regularPeers, MessageId(EngineMessage::TombstoneModification), record);
-            counts.tombstoneMessagesSent += regularPeers.size();
-            continue;
+            const std::vector<uint8_t>* payload = nullptr;
+            size_t kept = 0, total = 0;
+            if (tomb)
+            {
+                total = e.tombstones.size();
+                entries.clear();
+                for (const TombstoneEntry& t : e.tombstones)
+                {
+                    ChunkId c;
+                    c.space = e.space;
+                    c.x     = t.x;
+                    c.z     = t.z;
+                    if (hostChunks->subscribed(p, c)) entries.push_back(t);
+                }
+                kept = entries.size();
+                ss.entriesFiltered += total - kept;
+            }
+            else
+            {
+                total = e.parts.size();
+                parts.clear();
+                for (const TerrainPart& t : e.parts)
+                    if (hostChunks->subscribed(p, t.chunk)) parts.push_back(t);
+                kept = parts.size();
+                ss.partsFiltered += total - kept;
+            }
+            if (kept == 0) continue;
+            if (kept == total)
+            {
+                // The whole entry: encoded once per step entry
+                if (record.empty())
+                {
+                    if (tomb)
+                        encodeTombstoneModification(currentEpoch, e.space, e.tombstones, record);
+                    else
+                        encodeTerrainModification(currentEpoch, e.space, e.parts, record);
+                }
+                payload = &record;
+            }
+            else
+            {
+                filtered.clear();
+                if (tomb)
+                    encodeTombstoneModification(currentEpoch, e.space, entries, filtered);
+                else
+                    encodeTerrainModification(currentEpoch, e.space, parts, filtered);
+                payload = &filtered;
+            }
+            const MessageId id =
+                MessageId(tomb ? EngineMessage::TombstoneModification : EngineMessage::TerrainModification);
+            w.sendRaw(p, id, payload->data(), payload->size());
+            if (tomb)
+                counts.tombstoneMessagesSent++;
+            else
+            {
+                counts.terrainMessagesSent++;
+                counts.terrainBytesSent += payload->size();
+            }
         }
-        encodeTerrainModification(currentEpoch, e.space, e.parts, record);
-        sendToAll(regularPeers, MessageId(EngineMessage::TerrainModification), record);
-        counts.terrainMessagesSent += regularPeers.size();
-        counts.terrainBytesSent += record.size() * regularPeers.size();
     }
 }
 
-void Replication::sendGenerationState(uint8_t peer)
+// ---- the handshake (S26) ------------------------------------------------------------------------------------------
+
+void Replication::sendJoinRequest()
 {
-    if (!w.writesGenerationState()) return;
-    encodeGenerationState(generationStateOf(w, currentEpoch), record);
-    w.sendRaw(peer, MessageId(EngineMessage::GenerationState), record.data(), record.size());
-    counts.generationStatesSent++;
+    record.clear();
+    encodeJoinRequest(joinRequestOf(w), record);
+    w.sendRaw(0, MessageId(EngineMessage::JoinRequest), record.data(), record.size());
 }
 
-void Replication::onGenerationState(uint8_t from, const uint8_t* data, size_t size)
+void Replication::onJoinRequest(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (!w.isHost() || from == 0)
+    {
+        w.rejectInput(from, "JoinRequest: only clients send it to the host");
+        return;
+    }
+    if (std::find(w.peers.begin(), w.peers.end(), from) != w.peers.end())
+    {
+        // Already admitted: ignored
+        w.rejectInput(from, "JoinRequest: the peer was admitted already");
+        return;
+    }
+    auto refuse = [&](JoinRejectReason reason, const std::string& text)
+    {
+        JoinReject r;
+        r.reason = reason;
+        r.text   = text;
+        record.clear();
+        encodeJoinReject(r, record);
+        w.sendRaw(from, MessageId(EngineMessage::JoinReject), record.data(), record.size());
+        w.netCounts.joinsRejected++;
+        SAIGA_LOG("net", "peer %d rejected (%s): %s", int(from), joinRejectReasonName(reason), text.c_str());
+    };
+    // D3: the frozen prefix first; another protocol version may change everything after it
+    uint32_t version = 0;
+    if (joinRequestVersion(data, size, version) && version != kProtocolVersion)
+    {
+        refuse(JoinRejectReason::ProtocolVersion,
+               "protocol version " + std::to_string(version) + ", the host's " + std::to_string(kProtocolVersion));
+        return;
+    }
+    JoinRequest request;
+    std::string error;
+    if (!decodeJoinRequest(data, size, request, error))
+    {
+        w.rejectInput(from, error);
+        refuse(JoinRejectReason::Malformed, error);
+        return;
+    }
+    if (auto failure = checkJoinRequest(w, request))
+    {
+        refuse(failure->first, failure->second);
+        return;
+    }
+    // Admitted (D13): the peer lists see it from now on; phase 8 sends JoinAccept and the spawn set
+    w.joining.erase(std::remove(w.joining.begin(), w.joining.end(), from), w.joining.end());
+    w.peers.push_back(from);
+    w.joined.push_back(from);
+    SAIGA_LOG("net", "peer %d joined", int(from));
+}
+
+void Replication::onJoinReject(uint8_t from, const uint8_t* data, size_t size)
 {
     if (w.isHost() || from != 0)
     {
-        w.rejectInput(from, "GenerationState: only the host sends it to clients");
+        w.rejectInput(from, "JoinReject: only the host sends it to clients");
         return;
     }
-    GenerationStateMessage m;
+    JoinReject m;
     std::string error;
-    if (!decodeGenerationState(data, size, m, error))
+    if (!decodeJoinReject(data, size, m, error))
     {
         w.rejectInput(from, error);
         return;
     }
-    if (m.epoch != currentEpoch)
+    if (w.joinStateValue != JoinState::Joining)
     {
-        counts.generationStatesDroppedEpoch++;
+        w.rejectInput(from, "JoinReject: not joining");
         return;
     }
-    const std::string difference = generationStateDifference(w, m);
-    if (!difference.empty())
+    w.joinStateValue    = JoinState::Rejected;
+    w.joinRejectionText = m.text.empty() ? std::string(joinRejectReasonName(m.reason)) : m.text;
+    SAIGA_LOG("net", "the host rejected the join (%s): %s", joinRejectReasonName(m.reason), m.text.c_str());
+}
+
+bool Replication::adoptGeneration(const GenerationInfo& host, std::string& error)
+{
+    GenerationPins pins;
+    if (!adoptablePins(w, host, pins, error)) return false;
+    const GenerationPlans& cur = w.pipeline->plans();
+    if (pins.pinned != cur.pinned || pins.current != cur.current)
     {
-        // Refused (until S26's handshake adopts the host's versions): nothing is applied
+        // E11: the plans of the host's pins (phase A and B), with this client's space table
+        GenerationPlans plans = GenerationPipeline::build(w.generationSetup, pins, w.pipeline->cache());
+        if (!plans.ok()) return (error = "the plans of the host's generator versions: " + plans.error, false);
+        const std::string entities = GenerationPipeline::validateEntities(w, plans);
+        if (!entities.empty()) return (error = entities, false);
+        bool sameTable = plans.spaces.size() == cur.spaces.size();
+        for (size_t i = 0; sameTable && i < cur.spaces.size(); ++i)
+            sameTable = plans.spaces[i]->instance.templateIndex == cur.spaces[i]->instance.templateIndex;
+        if (!sameTable)
+            return (error = "the host's world has " + std::to_string(host.spaceCount) + " spaces, this client's plan " +
+                            std::to_string(cur.spaces.size()) + " (another space table)",
+                    false);
+        if (plans.spaces.size() != host.spaceCount || plans.combinedHash != host.combinedHash)
+            return (error = "the plans of the host's generator versions differ from the host's (combined plan hash)",
+                    false);
+        w.replaceGeneration(std::move(plans));
+        return true;
+    }
+    if (cur.spaces.size() != host.spaceCount)
+        return (error = "the host's world has " + std::to_string(host.spaceCount) + " spaces, this client's plan " +
+                        std::to_string(cur.spaces.size()),
+                false);
+    if (cur.combinedHash != host.combinedHash)
+        return (error = "the host's plans differ from this client's (combined plan hash)", false);
+    return true;
+}
+
+void Replication::onJoinAccept(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "JoinAccept: only the host sends it to clients");
+        return;
+    }
+    JoinAccept m;
+    std::string error;
+    if (!decodeJoinAccept(data, size, m, error))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (w.joinStateValue != JoinState::Joining)
+    {
+        w.rejectInput(from, "JoinAccept: not joining");
+        return;
+    }
+    if (m.hasGeneration && !adoptGeneration(m.generation, error))
+    {
+        // D2: a local failure (the host learns it with S33's disconnect)
+        w.joinStateValue         = JoinState::Rejected;
+        w.joinRejectionText      = "generation: " + error;
         w.generationMismatchFlag = true;
-        w.rejectInput(from, "GenerationState: " + difference);
-        SAIGA_LOG("content", "the host's generation state differs: %s", difference.c_str());
+        SAIGA_LOG("content", "the host's generation cannot be adopted: %s", error.c_str());
         return;
     }
-    // The client generates the host's content already: nothing changes
-    w.generationCheckedFlag = true;
-}
-
-bool Replication::terrainRefused(uint8_t from, const char* what)
-{
-    if (w.generationMismatch())
+    if (!m.hasGeneration && w.generation().nonLegacy())
     {
-        w.rejectInput(from, std::string(what) + " after a refused GenerationState");
-        return true;
+        w.joinStateValue         = JoinState::Rejected;
+        w.joinRejectionText      = "generation: the host sent no generation info";
+        w.generationMismatchFlag = true;
+        SAIGA_LOG("content", "the host sent no generation info, this client's setup generates content");
+        return;
     }
-    // PR review: after a Resync from a host that sends no GenerationState (a legacy setup) the host's chunk states
-    // arrive before the spawn set that refuses it, and were applied
-    if (w.writesGenerationState() && !w.generationChecked())
-    {
-        w.rejectInput(from, std::string(what) + " before a GenerationState");
-        return true;
-    }
-    return false;
-}
-
-void Replication::sendRecordStates(uint8_t peer)
-{
-    // Only the records that differ from the effective record of a chunk without one: tombstones or another version
-    const ChunkRecords& records = w.contentRecords();
-    std::vector<ChunkRecordPart> parts;
-    size_t keys       = 0;
-    SpaceId partSpace = 0;
-    auto flush        = [&]()
-    {
-        if (parts.empty()) return;
-        record.clear();
-        encodeChunkRecordState(currentEpoch, partSpace, parts, record);
-        w.sendRaw(peer, MessageId(EngineMessage::ChunkRecordState), record.data(), record.size());
-        counts.recordStatesSent++;
-        parts.clear();
-        keys = 0;
-    };
-    for (const auto& [c, r] : records.records())
-    {
-        if (r.tombstones.empty() && r.placementVersion == w.generation().space(c.space).current) continue;
-        if (c.space != partSpace) flush();
-        partSpace     = c.space;
-        size_t offset = 0;
-        do
-        {
-            if (keys == kMaxRecordKeys || parts.size() == kMaxRecordParts) flush();
-            const size_t take = std::min(r.tombstones.size() - offset, kMaxRecordKeys - keys);
-            ChunkRecordPart p;
-            p.x                = c.x;
-            p.z                = c.z;
-            p.placementVersion = r.placementVersion;
-            p.keys.assign(r.tombstones.begin() + std::ptrdiff_t(offset),
-                          r.tombstones.begin() + std::ptrdiff_t(offset + take));
-            parts.push_back(std::move(p));
-            keys += take;
-            offset += take;
-        } while (offset < r.tombstones.size());
-    }
-    flush();
-}
-
-void Replication::sendChunkSnapshot(uint8_t peer)
-{
-    // S23b: the chunk records before the terrain states (E5)
-    sendRecordStates(peer);
-    const TerrainEditStore& st = w.terrainEdits();
-    std::vector<int32_t> dense;
-    for (size_t i = 0; i < st.spaceCount(); ++i)
-        for (const auto& [c, e] : st.chunks(SpaceId(i)))
-        {
-            const bool deltas = e.nonZeroSamples > 0;
-            if (deltas) st.denseDelta(c, dense);
-            record.clear();
-            encodeTerrainChunkState(currentEpoch, c, e.sequence, uint16_t(st.chunkSamples(c.space) + 1),
-                                    deltas ? &dense : nullptr, record);
-            w.sendRaw(peer, MessageId(EngineMessage::TerrainChunkState), record.data(), record.size());
-            counts.terrainMessagesSent++;
-            counts.terrainBytesSent += record.size();
-        }
+    currentEpoch            = m.epoch;
+    w.generationCheckedFlag = m.hasGeneration;
+    w.joinStateValue        = JoinState::Joined;
+    w.peers.push_back(0);
+    w.joined.push_back(0);
+    clientChunks->onJoined();
+    SAIGA_LOG("net", "joined the host's world (epoch %u)", m.epoch);
 }
 
 namespace
@@ -666,176 +778,6 @@ SampleRect chunkBox(const TerrainEditStore& st, const ChunkId& c)
 }
 }  // namespace
 
-void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_t size)
-{
-    if (w.isHost() || from != 0)
-    {
-        w.rejectInput(from, "TerrainModification: only the host sends it to clients");
-        return;
-    }
-    TerrainModificationMessage m;
-    std::string error;
-    if (!decodeTerrainModification(data, size, m, error))
-    {
-        w.rejectInput(from, error);
-        return;
-    }
-    if (m.epoch != currentEpoch)
-    {
-        counts.terrainDroppedEpoch++;
-        return;
-    }
-    // S23a: the deltas are relative to the host's generation, which this client refused or has not checked yet
-    if (terrainRefused(from, "TerrainModification")) return;
-    // Validation against the world, in scratch: nothing is allocated in the store before every part passed
-    if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
-    {
-        w.rejectInput(from, "TerrainModification: unknown or enclosed space " + std::to_string(m.space));
-        return;
-    }
-    TerrainEditStore& st = w.terrainEditsForUpdate();
-    const int64_t S = st.chunkSamples(m.space), N = S + 1;
-    std::map<std::pair<int64_t, int64_t>, int32_t> shared;
-    std::set<ChunkId> partChunks;
-    for (const TerrainPart& p : m.parts)
-    {
-        if (p.chunk.x < 0 || p.chunk.z < 0 || p.chunk.x >= st.sizeChunks(m.space) ||
-            p.chunk.z >= st.sizeChunks(m.space) || p.x0 + p.w > N || p.z0 + p.h > N || p.sequence == 0)
-        {
-            w.rejectInput(from, "TerrainModification: a part outside the space or its tile, or sequence 0");
-            return;
-        }
-        // One part per chunk (PR review: two parts of a new chunk reserved two entries for it and could move its
-        // sequence backward)
-        if (!partChunks.insert(p.chunk).second)
-        {
-            w.rejectInput(from, "TerrainModification: two parts of one chunk");
-            return;
-        }
-        // Parts of one message that share samples (chunk borders) carry equal values there
-        for (int z = 0; z < p.h; ++z)
-            for (int x = 0; x < p.w; ++x)
-            {
-                const int64_t li = p.x0 + x, lk = p.z0 + z;
-                if (li != 0 && li != S && lk != 0 && lk != S) continue;
-                const auto key      = std::make_pair(int64_t(p.chunk.x) * S + li, int64_t(p.chunk.z) * S + lk);
-                const int32_t v     = p.deltas[size_t(z * p.w + x)];
-                auto [it, inserted] = shared.emplace(key, v);
-                if (!inserted && it->second != v)
-                {
-                    w.rejectInput(from, "TerrainModification: parts disagree on a shared sample");
-                    return;
-                }
-            }
-    }
-    // Per part against the chunk's sequence: a duplicate is dropped, a gap logged, counted and applied
-    std::vector<const TerrainPart*> apply;
-    for (const TerrainPart& p : m.parts)
-    {
-        const uint32_t current = st.sequence(p.chunk);
-        if (p.sequence <= current)
-        {
-            counts.terrainPartsDuplicate++;
-            continue;
-        }
-        if (p.sequence > current + 1)
-        {
-            SAIGA_LOG("net", "TerrainModification: a gap in chunk (%d, %d) of space %d: sequence %u after %u",
-                      int(p.chunk.x), int(p.chunk.z), int(m.space), p.sequence, current);
-            w.netCounts.modificationGaps++;
-        }
-        apply.push_back(&p);
-    }
-    if (apply.empty()) return;
-    // Reserve: the blocks of non-zero changed deltas, the entries, the change-list slot
-    std::vector<TerrainEditStore::EntryNode> entries;
-    for (const TerrainPart* p : apply)
-    {
-        for (int z = 0; z < p->h; ++z)
-            for (int x = 0; x < p->w; ++x)
-                st.reserveFor(m.space, int64_t(p->chunk.x) * S + p->x0 + x, int64_t(p->chunk.z) * S + p->z0 + z,
-                              p->deltas[size_t(z * p->w + x)]);
-        if (!st.entry(p->chunk)) entries.push_back(st.makeEntry(p->chunk));
-    }
-    w.reserveTerrainChange();
-    // Commit: no allocation
-    for (TerrainEditStore::EntryNode& e : entries) st.insertEntry(std::move(e));
-    SampleRect box;
-    box.i0 = box.k0 = std::numeric_limits<int64_t>::max();
-    box.i1 = box.k1 = std::numeric_limits<int64_t>::min();
-    for (const TerrainPart* p : apply)
-    {
-        const int64_t gi = int64_t(p->chunk.x) * S + p->x0, gk = int64_t(p->chunk.z) * S + p->z0;
-        for (int z = 0; z < p->h; ++z)
-            for (int x = 0; x < p->w; ++x) st.writeDelta(m.space, gi + x, gk + z, p->deltas[size_t(z * p->w + x)]);
-        st.setSequence(p->chunk, p->sequence);
-        box.i0 = std::min(box.i0, gi);
-        box.k0 = std::min(box.k0, gk);
-        box.i1 = std::max(box.i1, gi + p->w - 1);
-        box.k1 = std::max(box.k1, gk + p->h - 1);
-    }
-    w.onTerrainChanged(m.space, box);
-    counts.terrainMessagesApplied++;
-}
-
-void Replication::onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size)
-{
-    if (w.isHost() || from != 0)
-    {
-        w.rejectInput(from, "TerrainChunkState: only the host sends it to clients");
-        return;
-    }
-    TerrainChunkStateMessage m;
-    std::string error;
-    if (!decodeTerrainChunkState(data, size, m, error))
-    {
-        w.rejectInput(from, error);
-        return;
-    }
-    if (m.epoch != currentEpoch)
-    {
-        counts.terrainDroppedEpoch++;
-        return;
-    }
-    if (terrainRefused(from, "TerrainChunkState")) return;
-    const SpaceId space = m.chunk.space;
-    if (space >= w.spaceCount() || w.spaceTemplate(space).kind != SpaceKind::OpenWorld)
-    {
-        w.rejectInput(from, "TerrainChunkState: unknown or enclosed space " + std::to_string(space));
-        return;
-    }
-    TerrainEditStore& st = w.terrainEditsForUpdate();
-    const int64_t S = st.chunkSamples(space), N = S + 1;
-    if (m.chunk.x < 0 || m.chunk.z < 0 || m.chunk.x >= st.sizeChunks(space) || m.chunk.z >= st.sizeChunks(space) ||
-        m.N != N || m.sequence == 0)
-    {
-        w.rejectInput(from, "TerrainChunkState: a chunk outside the space, another N or sequence 0");
-        return;
-    }
-    // Replaces the chunk's deltas and sequence if its sequence is not older
-    if (m.sequence < st.sequence(m.chunk))
-    {
-        counts.terrainPartsDuplicate++;
-        return;
-    }
-    const bool had   = st.hasDeltas(m.chunk);
-    const int64_t i0 = int64_t(m.chunk.x) * S, k0 = int64_t(m.chunk.z) * S;
-    auto value = [&](int64_t i, int64_t k) { return m.hasDeltas ? m.deltas[size_t(k * N + i)] : 0; };
-    // Reserve
-    for (int64_t k = 0; k < N; ++k)
-        for (int64_t i = 0; i < N; ++i) st.reserveFor(space, i0 + i, k0 + k, value(i, k));
-    TerrainEditStore::EntryNode node;
-    if (!st.entry(m.chunk)) node = st.makeEntry(m.chunk);
-    w.reserveTerrainChange();
-    // Commit: the entry first (its count follows the writes), then the deltas (the neighbours' counts per written
-    // border sample), then the sequence
-    if (!node.empty()) st.insertEntry(std::move(node));
-    for (int64_t k = 0; k < N; ++k)
-        for (int64_t i = 0; i < N; ++i) st.writeDelta(space, i0 + i, k0 + k, value(i, k));
-    st.setSequence(m.chunk, m.sequence);
-    if (had || st.hasDeltas(m.chunk)) w.onTerrainChanged(space, chunkBox(st, m.chunk));
-    counts.terrainMessagesApplied++;
-}
 
 // ---- encoding -----------------------------------------------------------------------------------------------------
 
@@ -1027,7 +969,10 @@ void Replication::hostReplicate(bool networkOnly)
     nextNetIdBefore    = nextNetId;
     snapshotSeqBefore  = snapshotSeq;
 
-    // A peer that joined in this receive gets the full spawn set of the current state; the others the regular messages
+    // S26: a peer that left loses its chunk subscriptions
+    for (uint8_t p : w.peersLeft()) hostChunks->removePeer(p);
+    // A peer admitted in this receive gets JoinAccept and the full spawn set of the current state; the others the
+    // regular messages
     regularPeers.clear();
     joinedPeers.clear();
     for (uint8_t p : w.connectedPeers())
@@ -1288,8 +1233,19 @@ void Replication::hostReplicate(bool networkOnly)
         }
     }
 
-    // 5b. The host state list (terrain modifications, S22): after the component changes, before the snapshot
+    // 5b. The host state list (terrain modifications, S22; per peer by its subscriptions, S26): after the component
+    // changes, before the snapshot
     sendHostStates();
+    // 5c. S26 (D12): the ChunkIndex messages of new `all` subscriptions, then the snapshot queue under the budget
+    if (w.net)
+    {
+        const size_t bytes = hostChunks->serve(currentEpoch);
+        if (w.counterSnapshotBytes >= 0)
+        {
+            w.prof.addCounter(w.counterSnapshotBytes, double(bytes));
+            w.prof.addCounter(w.counterSnapshots, double(hostChunks->servedCount()));
+        }
+    }
 
     if (!anyPeer) return;
 
@@ -1308,14 +1264,19 @@ void Replication::hostReplicate(bool networkOnly)
         }
     }
 
-    // 7. Joined peers: the epoch of the host's last load (the joiner starts at 0 and would drop the snapshots), then
-    // the full spawn set (roots first, then by depth)
+    // 7. Admitted peers (S26): JoinAccept with the epoch of the host's last load and the generation info (the client
+    // adopts the pins first), then the full spawn set (roots first, then by depth); no chunk state (the client
+    // subscribes)
     if (!joinedPeers.empty())
     {
-        if (currentEpoch != 0)
-            for (uint8_t p : joinedPeers) w.send(p, ResyncMessage{currentEpoch});
-        // S23a: the generation state before the spawn set (a client checks it first); the non-integer warning once
-        for (uint8_t p : joinedPeers) sendGenerationState(p);
+        JoinAccept accept;
+        accept.epoch         = currentEpoch;
+        accept.hasGeneration = w.writesGenerationState();
+        if (accept.hasGeneration) accept.generation = generationInfoOf(w);
+        record.clear();
+        encodeJoinAccept(accept, record);
+        sendToAll(joinedPeers, MessageId(EngineMessage::JoinAccept), record);
+        // The non-integer warning once
         if (!w.nonIntegerWarned)
         {
             w.nonIntegerWarned = true;
@@ -1343,8 +1304,6 @@ void Replication::hostReplicate(bool networkOnly)
             encodeSpawn(x.second, record);
             sendToAll(joinedPeers, MessageId(EngineMessage::Spawn), record);
         }
-        // The terrain modification state after the spawn set (it includes this pass's host state list, S22)
-        for (uint8_t p : joinedPeers) sendChunkSnapshot(p);
     }
 
     // 8. One snapshot of all replicated entities to every connected peer
@@ -1769,7 +1728,11 @@ void Replication::extract(bool networkOnly)
         if (w.debugAfterReplication) w.debugAfterReplication();
     }
     else
+    {
         ownerStateSend(networkOnly);
+        // S26 (D16): the chunk interest of this phase 8 (staged; commit applies it)
+        clientChunks->extract();
+    }
     if (!networkOnly) interpolationSystem(w, w.stepDt);
 }
 
@@ -1876,17 +1839,6 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
         w.rejectInput(from, "Spawn: only the host sends it to clients");
         return;
     }
-    // S23a: a host whose world writes generation state sends it before the spawn set (join and Resync). A client whose
-    // setup writes it and has received none joined a host of another setup (e.g. legacy terrain), which generates
-    // other terrain: refused as a differing GenerationState (the spawn itself is applied, as after such a refusal)
-    if (w.writesGenerationState() && !w.generationChecked() && !w.generationMismatch())
-    {
-        w.generationMismatchFlag = true;
-        w.rejectInput(from, "Spawn before a GenerationState");
-        SAIGA_LOG("content",
-                  "the host sent no generation state: its setup writes none, this client's setup does (another "
-                  "generator setup)");
-    }
     Registry& reg = w.reg;
     ByteReader r(data, size);
     const uint64_t id64   = r.varint();
@@ -1917,15 +1869,6 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
             e = w.worldState;
         else if (netId >= kFirstSpaceStateNetId && netId - kFirstSpaceStateNetId < w.spaceStates.size())
             e = w.spaceStates[netId - kFirstSpaceStateNetId];
-        // After a refused GenerationState the host's space list may differ (another generator setup): the state
-        // entity of a space this client does not have is refused, the client keeps running (PR review: it exited)
-        if (!e.valid() && w.generationMismatch())
-        {
-            w.rejectInput(from,
-                          "Spawn: the bound NetId " + std::to_string(netId) +
-                              " names a state entity this client does not have (after a refused GenerationState)");
-            return;
-        }
         // Every build: the host has state components this client does not register
         if (!e.valid())
             SAIGA_EXIT_ERROR("Spawn: the bound NetId " + std::to_string(netId) +
@@ -2418,18 +2361,37 @@ void Replication::onPong(uint8_t from, const PongMessage& m)
     hostClock.observePong(m.clientStep, m.hostStep, w.steps);
 }
 
-void Replication::onResync(uint8_t from, const ResyncMessage& m)
+void Replication::onResync(uint8_t from, const uint8_t* data, size_t size)
 {
     if (w.isHost() || from != 0)
     {
         w.rejectInput(from, "Resync: only the host sends it to clients");
         return;
     }
+    JoinAccept m;
+    std::string error;
+    if (!decodeJoinAccept(data, size, m, error, "Resync"))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (w.joinStateValue != JoinState::Joined)
+    {
+        w.rejectInput(from, "Resync: not joined");
+        return;
+    }
     Immediate scope(w.flushing);
     currentEpoch = m.epoch;
-    // S23a: the host's GenerationState of the new epoch follows
-    w.generationCheckedFlag  = false;
-    w.generationMismatchFlag = false;
+    // S26 (D6): the loaded generation info is adopted (a failure as at the join: Rejected, local)
+    if (m.hasGeneration && !adoptGeneration(m.generation, error))
+    {
+        w.joinStateValue         = JoinState::Rejected;
+        w.joinRejectionText      = "generation: " + error;
+        w.generationMismatchFlag = true;
+        SAIGA_LOG("content", "the host's loaded generation cannot be adopted: %s", error.c_str());
+    }
+    else
+        w.generationCheckedFlag = m.hasGeneration;
     // Every replicated entity goes without callbacks; the bound state entities stay (the spawns overwrite them)
     std::vector<Entity> all;
     for (const auto& kv : clientByNetId)
@@ -2444,8 +2406,10 @@ void Replication::onResync(uint8_t from, const ResyncMessage& m)
     pendingSnapshots.clear();
     buffers.clear();
     written.clear();
-    // S22, S23b: the terrain modification state and the chunk records go (the host's record and chunk states follow)
+    // S22, S23b: the terrain modification state and the chunk records go; S26 (D11): every chunk is subscribed again
+    // in the new epoch
     clearReplicatedChunkState();
+    clientChunks->reset();
 }
 
 void Replication::clearReplicatedChunkState()
@@ -2463,247 +2427,6 @@ void Replication::clearReplicatedChunkState()
     records.clear();
     for (const ChunkId& c : cleared) w.onTerrainChanged(c.space, chunkBox(st, c));
     for (const ChunkId& c : clearedRecords) w.onRecordChanged(c);
-}
-
-// ---- chunk records (S23b) -----------------------------------------------------------------------------------------
-
-void Replication::rejectContent(uint8_t from, const std::string& why)
-{
-    w.rejectInput(from, why);
-    SAIGA_LOG("content", "rejected a record message from peer %d: %s", int(from), why.c_str());
-}
-
-namespace
-{
-// The checks of one chunk and its keys against the client's generation (everything but sequences)
-bool checkRecordKeys(const World& w, const SpaceGeneration& g, const std::vector<InstanceKey>& keys, std::string& error)
-{
-    if (keys.empty()) return true;
-    const size_t slots = w.generators().find(g.generatorId)->slots.size();
-    if (slots == 0)
-    {
-        error = "keys in space " + std::to_string(g.id) + " whose generator has no slots";
-        return false;
-    }
-    for (const InstanceKey& k : keys)
-    {
-        if (k.generatorSlot >= slots)
-        {
-            error =
-                "slot " + std::to_string(k.generatorSlot) + " beyond the slot table (" + std::to_string(slots) + ")";
-            return false;
-        }
-        if (k.counter >= g.generator->candidatesPerChunk(k.generatorSlot))
-        {
-            error = "counter " + std::to_string(k.counter) + " of slot " + std::to_string(k.generatorSlot) +
-                    " out of range";
-            return false;
-        }
-    }
-    return true;
-}
-}  // namespace
-
-void Replication::onTombstoneModification(uint8_t from, const uint8_t* data, size_t size)
-{
-    if (w.isHost() || from != 0)
-    {
-        w.rejectInput(from, "TombstoneModification: only the host sends it to clients");
-        return;
-    }
-    TombstoneModificationMessage m;
-    std::string error;
-    if (!decodeTombstoneModification(data, size, m, error))
-    {
-        rejectContent(from, error);
-        return;
-    }
-    if (m.epoch != currentEpoch)
-    {
-        counts.recordsDroppedEpoch++;
-        return;
-    }
-    if (w.generationMismatch())
-    {
-        rejectContent(from, "TombstoneModification after a refused GenerationState");
-        return;
-    }
-    if (m.space >= w.spaceCount())
-    {
-        rejectContent(from, "TombstoneModification: unknown space " + std::to_string(m.space));
-        return;
-    }
-    // Validation of every entry before anything applies
-    const SpaceGeneration& g    = w.generation().space(m.space);
-    const ChunkRecords& records = w.contentRecords();
-    for (const TombstoneEntry& e : m.entries)
-    {
-        const std::string where = "TombstoneModification: chunk (" + std::to_string(e.x) + ", " + std::to_string(e.z) +
-                                  ") of space " + std::to_string(m.space);
-        if (e.x < 0 || e.z < 0 || e.x >= g.settings.sizeChunks || e.z >= g.settings.sizeChunks || e.sequence == 0)
-        {
-            rejectContent(from, where + ": outside the space or sequence 0");
-            return;
-        }
-        ChunkId c;
-        c.space                = m.space;
-        c.x                    = e.x;
-        c.z                    = e.z;
-        const ChunkRecord* r   = records.find(c);
-        const uint16_t version = r ? r->placementVersion : g.current;
-        if (e.placementVersion != version)
-        {
-            rejectContent(from, where + ": placement version " + std::to_string(e.placementVersion) +
-                                    ", the chunk's effective version " + std::to_string(version));
-            return;
-        }
-        if (!checkRecordKeys(w, g, {e.key}, error))
-        {
-            rejectContent(from, where + ": " + error);
-            return;
-        }
-    }
-    // Sequences per chunk, cumulative within the message: a duplicate is dropped, a gap logged, counted and applied
-    TerrainEditStore& st = w.terrainEditsForUpdate();
-    std::map<ChunkId, uint32_t> running;
-    std::map<ChunkId, size_t> perChunk;
-    std::vector<const TombstoneEntry*> apply;
-    for (const TombstoneEntry& e : m.entries)
-    {
-        ChunkId c;
-        c.space = m.space;
-        c.x     = e.x;
-        c.z     = e.z;
-        auto it = running.find(c);
-        if (it == running.end()) it = running.emplace(c, st.sequence(c)).first;
-        if (e.sequence <= it->second)
-        {
-            counts.tombstonesDuplicate++;
-            continue;
-        }
-        if (e.sequence > it->second + 1)
-        {
-            SAIGA_LOG("net", "TombstoneModification: a gap in chunk (%d, %d) of space %d: sequence %u after %u",
-                      int(e.x), int(e.z), int(m.space), e.sequence, it->second);
-            w.netCounts.modificationGaps++;
-        }
-        it->second = e.sequence;
-        perChunk[c]++;
-        apply.push_back(&e);
-    }
-    if (apply.empty()) return;
-    // Reserve: S22's entries, the records and their key capacity
-    ChunkRecords& rec = w.contentRecordsForUpdate();
-    std::vector<TerrainEditStore::EntryNode> entries;
-    for (const auto& [c, n] : perChunk)
-    {
-        if (!st.entry(c)) entries.push_back(st.makeEntry(c));
-        rec.reserve(c, records.find(c) ? records.find(c)->placementVersion : g.current, n);
-    }
-    // Commit
-    for (TerrainEditStore::EntryNode& e : entries) st.insertEntry(std::move(e));
-    for (const TombstoneEntry* e : apply)
-    {
-        ChunkId c;
-        c.space = m.space;
-        c.x     = e->x;
-        c.z     = e->z;
-        rec.insert(c, e->key);
-        st.setSequence(c, e->sequence);
-        counts.tombstonesApplied++;
-    }
-    for (const auto& kv : perChunk) w.onRecordChanged(kv.first);
-    counts.recordMessagesApplied++;
-}
-
-void Replication::onChunkRecordState(uint8_t from, const uint8_t* data, size_t size)
-{
-    if (w.isHost() || from != 0)
-    {
-        w.rejectInput(from, "ChunkRecordState: only the host sends it to clients");
-        return;
-    }
-    ChunkRecordStateMessage m;
-    std::string error;
-    if (!decodeChunkRecordState(data, size, m, error))
-    {
-        rejectContent(from, error);
-        return;
-    }
-    if (m.epoch != currentEpoch)
-    {
-        counts.recordsDroppedEpoch++;
-        return;
-    }
-    if (w.generationMismatch())
-    {
-        rejectContent(from, "ChunkRecordState after a refused GenerationState");
-        return;
-    }
-    if (m.space >= w.spaceCount())
-    {
-        rejectContent(from, "ChunkRecordState: unknown space " + std::to_string(m.space));
-        return;
-    }
-    const SpaceGeneration& g    = w.generation().space(m.space);
-    const ChunkRecords& records = w.contentRecords();
-    // Validation of every part before anything applies; the version a chunk will have (its record's, else the first
-    // part's)
-    std::map<ChunkId, std::pair<uint16_t, size_t>> chunks;
-    for (const ChunkRecordPart& p : m.parts)
-    {
-        const std::string where = "ChunkRecordState: chunk (" + std::to_string(p.x) + ", " + std::to_string(p.z) +
-                                  ") of space " + std::to_string(m.space);
-        if (p.x < 0 || p.z < 0 || p.x >= g.settings.sizeChunks || p.z >= g.settings.sizeChunks)
-        {
-            rejectContent(from, where + ": outside the space");
-            return;
-        }
-        if (p.placementVersion < g.pinned || p.placementVersion > g.current)
-        {
-            rejectContent(from, where + ": placement version " + std::to_string(p.placementVersion) + " not in v" +
-                                    std::to_string(g.pinned) + "..v" + std::to_string(g.current));
-            return;
-        }
-        ChunkId c;
-        c.space              = m.space;
-        c.x                  = p.x;
-        c.z                  = p.z;
-        const ChunkRecord* r = records.find(c);
-        auto it              = chunks.find(c);
-        if (it == chunks.end())
-            it = chunks.emplace(c, std::make_pair(r ? r->placementVersion : p.placementVersion, size_t(0))).first;
-        if (p.placementVersion != it->second.first)
-        {
-            rejectContent(from, where + ": placement version " + std::to_string(p.placementVersion) +
-                                    ", the chunk's record has " + std::to_string(it->second.first));
-            return;
-        }
-        if (!sortedUniqueKeys(p.keys))
-        {
-            rejectContent(from, where + ": the keys are not sorted and unique");
-            return;
-        }
-        if (!checkRecordKeys(w, g, p.keys, error))
-        {
-            rejectContent(from, where + ": " + error);
-            return;
-        }
-        it->second.second += p.keys.size();
-    }
-    // Reserve, then commit (the union of the parts)
-    ChunkRecords& rec = w.contentRecordsForUpdate();
-    for (const auto& [c, vk] : chunks) rec.reserve(c, vk.first, vk.second);
-    for (const ChunkRecordPart& p : m.parts)
-    {
-        ChunkId c;
-        c.space = m.space;
-        c.x     = p.x;
-        c.z     = p.z;
-        for (const InstanceKey& k : p.keys) rec.insert(c, k);
-    }
-    for (const auto& kv : chunks) w.onRecordChanged(kv.first);
-    counts.recordMessagesApplied++;
 }
 
 // ---- the write detector -------------------------------------------------------------------------------------------

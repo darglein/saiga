@@ -206,6 +206,16 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
             ss.noopEdits++;
             return result;
         }
+        // S26 (D14): a chunk record holds at most kMaxChunkTombstones keys; the edit is refused like an exhausted
+        // sequence
+        const ChunkRecord* r = world.chunkRecord(c);
+        if (bumps > 1 && (r ? r->tombstones.size() : 0) + (bumps - 1) > kMaxChunkTombstones)
+        {
+            SAIGA_LOG("terrain", "editTerrain: chunk (%d, %d) of space %u would exceed %zu tombstones (refused)", c.x,
+                      c.z, unsigned(space), kMaxChunkTombstones);
+            ss.noopEdits++;
+            return result;
+        }
     }
     // The blocks of the new deltas (only a non-zero delta that differs from the current one)
     for (int64_t k = box.k0; k <= box.k1; ++k)

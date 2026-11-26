@@ -147,21 +147,5 @@ struct PongMessage
     }
 };
 
-// Host -> clients: a host load; the clients destroy every replicated entity without callbacks (not the bound
-// world-state and space-state entities) and receive the spawns again; snapshots of other epochs are dropped
-struct ResyncMessage
-{
-    static constexpr MessageId id     = MessageId(EngineMessage::Resync);
-    static constexpr const char* name = "Resync";
-    static constexpr uint32_t version = 1;
-    static constexpr Channel channel  = Channel::State;
-    uint32_t epoch                    = 0;
-    template <class V>
-    void visit(V& v)
-    {
-        v("epoch", epoch);
-    }
-};
-
 }  // namespace Engine
 }  // namespace Saiga

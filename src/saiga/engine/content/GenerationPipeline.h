@@ -133,7 +133,8 @@ class SAIGA_ENGINE_API GenerationPipeline
     std::shared_ptr<const SpaceGeneration> spacePtr(SpaceId space) const;
     // E6: the space's generator has terrain
     bool spaceHasTerrain(SpaceId space) const { return this->space(space).hasTerrain; }
-    // Some template's generator is not legacyTerrain (GENR, GenerationState and the hash part; records come later)
+    // Some template's generator is not legacyTerrain (GENR, the generation info of the handshake and the hash part;
+    // records come later)
     bool nonLegacy() const { return state.nonLegacy; }
 
     // The composed height (height units) at integer metres; 0 for a space without terrain. Const, lock-free,

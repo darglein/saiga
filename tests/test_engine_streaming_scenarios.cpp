@@ -114,6 +114,11 @@ void registerStreamingScenarios(ScenarioList& s)
               w.step(2);
               std::set<ChunkId> stamped;
               int violations = 0, unstamped = 0;
+              // S26: on a client a chunk is resident only with the host's snapshot (one round trip after its request,
+              // the subscription): every chunk within fullRadius is resident at most 2 * delaySteps + 3 steps after it
+              // was requested (asynchronous: the client's irregular steps add up to 4)
+              std::map<ChunkId, uint64_t> requestedAt;
+              const uint64_t bound = uint64_t(2 * w.networkConfig().delaySteps + 3 + (w.networkConfig().async ? 4 : 0));
               w.addStepListener(
                   [&]()
                   {
@@ -126,7 +131,20 @@ void registerStreamingScenarios(ScenarioList& s)
                           const Transform& t = ow.read<Transform>(pe);
                           for (const ChunkId& c :
                                chunksNear(ow, t.space(), t.position(), ow.spaceTemplate(t.space()).fullRadius))
-                              if (!ow.residency().ready(c)) violations++;
+                          {
+                              if (ow.residency().ready(c))
+                              {
+                                  requestedAt.erase(c);
+                                  continue;
+                              }
+                              if (owner == 0 || !ow.residency().requested(c))
+                              {
+                                  violations++;
+                                  continue;
+                              }
+                              const uint64_t first = requestedAt.emplace(c, w.steps()).first->second;
+                              if (w.steps() - first > bound) violations++;
+                          }
                       }
                       // Host: stamped only when ready; a ready site chunk within fullRadius is stamped
                       World& host = w.world();

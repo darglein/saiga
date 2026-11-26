@@ -1537,9 +1537,10 @@ TEST(ScenarioRunner, AFailingCheckIsReportedWithItsStepLogsAndDumps)
     EXPECT_TRUE(contains(r, "TickCount")) << r.report;  // the dump of the involved entity
 }
 
-// Regression (PR review): a GenerationState refused during the final network drain (a host load of a save with
-// other generator pins as the scenario's last action) was never reported, the host + client variant passed
-TEST(ScenarioRunner, GenerationRefusalInTheFinalSyncFails)
+// Regression (PR review of S23a): a generation state refused during the final network drain (a host load of a save
+// with other generator pins as the scenario's last action) was never reported; S26: the client adopts the loaded pins
+// (Resync v2) during the drain and the variant passes with equal replicas
+TEST(ScenarioRunner, GenerationAdoptionInTheFinalSync)
 {
     auto e                 = entry("refused_in_drain",
                                    [](ScenarioWorld& w)
@@ -1549,8 +1550,7 @@ TEST(ScenarioRunner, GenerationRefusalInTheFinalSyncFails)
                        w.check(w.world().tryLoad(v1.save()).ok(), "the host loads a v1 save");
                    });
     const ScenarioResult r = runScenario(ContentTest::contentTestSetup(2), e, ScenarioVariant::HostClient);
-    EXPECT_FALSE(r.passed);
-    EXPECT_TRUE(contains(r, "final network sync: client 1 refused the host's generation state")) << r.report;
+    EXPECT_TRUE(r.passed) << r.report;
 }
 
 TEST(ScenarioRunner, RepeatCatchesNondeterminism)

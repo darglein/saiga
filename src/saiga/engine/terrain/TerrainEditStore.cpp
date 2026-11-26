@@ -300,6 +300,35 @@ void TerrainEditStore::setSequence(const ChunkId& chunk, uint32_t sequence)
     it->second.sequence = sequence;
 }
 
+void TerrainEditStore::removeEntry(const ChunkId& chunk)
+{
+    spaces[chunk.space].chunks.erase(chunk);
+}
+
+void TerrainEditStore::dropChunk(const ChunkId& chunk, const std::function<bool(const ChunkId&)>& keep)
+{
+    Space& s = spaces[chunk.space];
+    s.chunks.erase(chunk);
+    if (s.blocks.empty()) return;
+    const int64_t i0 = int64_t(chunk.x) * s.S, k0 = int64_t(chunk.z) * s.S;
+    std::vector<ChunkId> owners;
+    for (int64_t k = k0; k <= k0 + s.S; ++k)
+        for (int64_t i = i0; i <= i0 + s.S; ++i)
+        {
+            if (delta(chunk.space, i, k) == 0) continue;
+            // A sample on the border stays when another kept chunk contains it
+            bool kept = false;
+            if (i == i0 || i == i0 + s.S || k == k0 || k == k0 + s.S)
+            {
+                chunksOfSample(chunk.space, i, k, owners);
+                for (const ChunkId& c : owners) kept = kept || (c != chunk && keep(c));
+            }
+            if (kept) continue;
+            reserveFor(chunk.space, i, k, 0);
+            writeDelta(chunk.space, i, k, 0);
+        }
+}
+
 void TerrainEditStore::clear()
 {
     for (SpaceId i = 0; i < spaces.size(); ++i) clearSpace(i);

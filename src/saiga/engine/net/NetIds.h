@@ -41,10 +41,6 @@ enum class EngineMessage : MessageId
     ChunkInterest,          // raw, client -> host, Control, reliable (S26)
     ChunkSnapshot,          // raw, host -> clients, ChunkData, reliable (S26)
     ChunkIndex,             // raw, host -> clients, ChunkData, reliable (S26: worlds without streaming)
-    // TEMPORARY until step 3 of S26 (removed with their messages)
-    TerrainChunkState,
-    GenerationState,
-    ChunkRecordState,
     Count,
     FirstGame = 64,
 };

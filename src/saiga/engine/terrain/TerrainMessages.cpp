@@ -142,48 +142,5 @@ bool decodeTerrainModification(const uint8_t* data, size_t size, TerrainModifica
     return true;
 }
 
-void encodeTerrainChunkState(uint32_t epoch, const ChunkId& chunk, uint32_t sequence, uint16_t N,
-                             const std::vector<int32_t>* deltas, std::vector<uint8_t>& out)
-{
-    const bool zstd = deltas && deltas->size() >= kZstdValues;
-    putU8(out, uint8_t((zstd ? 1 : 0) | (deltas ? 2 : 0)));
-    putU32(out, epoch);
-    putU16(out, chunk.space);
-    putU32(out, uint32_t(chunk.x));
-    putU32(out, uint32_t(chunk.z));
-    putU32(out, sequence);
-    putU16(out, N);
-    if (deltas) putDeltas(out, deltas->data(), deltas->size(), zstd);
-}
-
-bool decodeTerrainChunkState(const uint8_t* data, size_t size, TerrainChunkStateMessage& out, std::string& error)
-{
-    Reader r{data, size};
-    const uint8_t flags = r.u8();
-    out.epoch           = r.u32();
-    out.chunk.space     = r.u16();
-    out.chunk.x         = r.i32();
-    out.chunk.z         = r.i32();
-    out.sequence        = r.u32();
-    out.N               = r.u16();
-    if (!r.ok) return (error = "TerrainChunkState: truncated header", false);
-    if (flags & ~uint8_t(3)) return (error = "TerrainChunkState: unknown flags", false);
-    if (out.N != 129 && out.N != 257) return (error = "TerrainChunkState: N must be 129 or 257", false);
-    out.hasDeltas = (flags & 2) != 0;
-    out.deltas.clear();
-    if (out.hasDeltas)
-    {
-        const uint64_t len = r.varint();
-        const uint8_t* b   = r.bytes(len);
-        if (!r.ok) return (error = "TerrainChunkState: truncated deltas", false);
-        out.deltas.resize(size_t(out.N) * out.N);
-        std::string e;
-        if (!TerrainDeltaCodec::decode(b, size_t(len), flags & 1, out.deltas.size(), out.deltas.data(), &e))
-            return (error = "TerrainChunkState: " + e, false);
-    }
-    if (r.pos != size) return (error = "TerrainChunkState: bytes left over", false);
-    return true;
-}
-
 }  // namespace Engine
 }  // namespace Saiga

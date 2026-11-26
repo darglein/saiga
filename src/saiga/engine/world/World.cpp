@@ -193,6 +193,8 @@ World::World(const WorldSetup& setup)
     if (role == NetRole::Host && selfPeer != 0) SAIGA_EXIT_ERROR("WorldSetup: the host is peer 0");
     if (role == NetRole::Client && (selfPeer == 0 || !net))
         SAIGA_EXIT_ERROR("WorldSetup: a client needs a transport and a peer other than 0");
+    // S26: a client joins through the handshake (its JoinRequest goes out when the transport connects)
+    joinStateValue = role == NetRole::Client ? JoinState::Joining : JoinState::Local;
 
     // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
     dataReadOnly = setup.sharedDataReadOnly;
@@ -221,6 +223,33 @@ World::World(const WorldSetup& setup)
     // S26 (D4): the network schema of the finished registration
     schemaOfNet     = NetSchema::fromWorld(*this);
     schemaHashOfNet = schemaOfNet.hash();
+    // S26 (D18): on a streaming client a chunk is resident only with the host's snapshot applied (S24's mover hold,
+    // stall counters and loading screen wait for it)
+    if (config.streaming && role == NetRole::Client)
+        residencyPtr->setModificationGate([this](const ChunkId& c) { return chunkSynced(c); });
+}
+
+bool World::chunkSynced(const ChunkId& chunk) const
+{
+    return isHost() || repl->chunkSync().state(chunk) == ClientChunkSync::State::Synced;
+}
+
+void World::replaceGeneration(GenerationPlans&& plans)
+{
+    pipeline->replacePlans(std::move(plans));
+    std::vector<TerrainHeightSource> sources;
+    std::vector<ContentSource> content;
+    for (size_t i = 0; i < pipeline->spaceCount(); ++i)
+    {
+        sources.push_back(pipeline->heightSource(SpaceId(i)));
+        content.push_back(pipeline->space(SpaceId(i)).generator->legacyTerrain() ? ContentSource()
+                                                                                 : pipeline->contentSource(SpaceId(i)));
+    }
+    terrainSys->replaceSources(std::move(sources), std::move(content));
+    // S23b: the content sets of the old plans; S24 (interface 5): the residency's held placements and pinned tiles
+    // belong to the old plans, the next update requests every chunk again
+    contentRenderSys->dropAll();
+    residencyPtr->dropAll();
 }
 
 void World::setupProfiler()
@@ -258,6 +287,9 @@ void World::setupProfiler()
         counterMessagesIn    = prof.counter("net/messages_in");
         counterMessagesOut   = prof.counter("net/messages_out");
         counterRejected      = prof.counter("net/rejected");
+        // S26: the host's chunk snapshots per step
+        counterSnapshotBytes = prof.counter("net/chunk_snapshot_bytes");
+        counterSnapshots     = prof.counter("net/chunk_snapshots");
     }
 }
 
@@ -1201,7 +1233,26 @@ double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) c
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
     // S21: the terrain's (S20, D6); S23b: and the content sets; S27 far content
-    return std::min(terrainSys->readiness(space, camera, radius), contentRenderSys->readiness(space, camera, radius));
+    double r =
+        std::min(terrainSys->readiness(space, camera, radius), contentRenderSys->readiness(space, camera, radius));
+    // S26 (D18): on a client the synced fraction of the subscribed chunks inside the radius (unsubscribed chunks count
+    // as ready: a free camera far from the players does not block)
+    if (!isHost())
+    {
+        const ClientChunkSync& sync = repl->chunkSync();
+        size_t subscribed = 0, synced = 0;
+        for (const auto& [c, e] : sync.chunks())
+        {
+            if (c.space != space) continue;
+            const double dx = std::max({double(c.x) * 256 - camera.x(), 0.0, camera.x() - double(c.x + 1) * 256});
+            const double dz = std::max({double(c.z) * 256 - camera.z(), 0.0, camera.z() - double(c.z + 1) * 256});
+            if (dx * dx + dz * dz > radius * radius) continue;
+            subscribed++;
+            synced += e.state == ClientChunkSync::State::Synced ? 1 : 0;
+        }
+        if (subscribed > 0) r = std::min(r, double(synced) / double(subscribed));
+    }
+    return r;
 }
 
 World::~World()
@@ -2015,6 +2066,16 @@ void World::enqueueMessage(uint8_t peer, const MessageList::Entry& entry, std::v
         SAIGA_ASSERT(false, "World::send during configure / onLoad of a load (dropped)");
         return;
     }
+    // S26 (D13): only the handshake reaches a peer that is not admitted (host) or the host before this client joined
+    const bool handshake = entry.id == MessageId(EngineMessage::JoinRequest) ||
+                           entry.id == MessageId(EngineMessage::JoinReject) ||
+                           entry.id == MessageId(EngineMessage::JoinAccept);
+    if (!handshake &&
+        (isHost() ? std::find(peers.begin(), peers.end(), peer) == peers.end() : joinStateValue != JoinState::Joined))
+    {
+        netCounts.droppedNotJoined++;
+        return;
+    }
     outbox.push_back(
         OutboxEntry{peer, entry.channel, entry.reliability, phase, sendSequence[peer]++, entry.id, std::move(payload)});
     if (!inStep() && sendBatchDepth == 0) flushOutbox();
@@ -2188,13 +2249,24 @@ void World::receiveMessages(bool engineOnly)
     {
         if (ev.type == TransportEvent::Connected)
         {
-            if (std::find(peers.begin(), peers.end(), ev.peer) == peers.end()) peers.push_back(ev.peer);
-            joined.push_back(ev.peer);
+            // S26 (D13): a connection is not an admission; the host waits for the JoinRequest, a client sends it
+            if (isHost())
+            {
+                if (std::find(joining.begin(), joining.end(), ev.peer) == joining.end() &&
+                    std::find(peers.begin(), peers.end(), ev.peer) == peers.end())
+                    joining.push_back(ev.peer);
+            }
+            else if (ev.peer == 0 && joinStateValue == JoinState::Joining)
+                repl->sendJoinRequest();
         }
         else if (ev.type == TransportEvent::Disconnected)
         {
-            peers.erase(std::remove(peers.begin(), peers.end(), ev.peer), peers.end());
-            left.push_back(ev.peer);
+            joining.erase(std::remove(joining.begin(), joining.end(), ev.peer), joining.end());
+            if (std::find(peers.begin(), peers.end(), ev.peer) != peers.end())
+            {
+                peers.erase(std::remove(peers.begin(), peers.end(), ev.peer), peers.end());
+                left.push_back(ev.peer);
+            }
         }
         else
         {
@@ -2222,6 +2294,32 @@ void World::receiveMessages(bool engineOnly)
                 deferred.push_back(std::move(inbox[i]));
                 continue;
             }
+            // S26 (D13): the host accepts only a JoinRequest from a peer that is not admitted; a joining client defers
+            // everything but the host's answer (channels are ordered only per channel: a Control message of the
+            // admission step may overtake JoinAccept), a rejected client handles nothing
+            if (isHost())
+            {
+                if (m.id != MessageId(EngineMessage::JoinRequest) &&
+                    std::find(peers.begin(), peers.end(), m.peer) == peers.end())
+                {
+                    rejectInput(m.peer, "a message from a peer that was not admitted");
+                    continue;
+                }
+            }
+            else if (joinStateValue == JoinState::Rejected)
+            {
+                rejectInput(m.peer, "a message after the join was rejected");
+                continue;
+            }
+            else if (joinStateValue == JoinState::Joining && m.id != MessageId(EngineMessage::JoinAccept) &&
+                     m.id != MessageId(EngineMessage::JoinReject))
+            {
+                if (deferredWhileJoining.size() >= kMaxDeferredWhileJoining)
+                    rejectInput(m.peer, "more than 1024 messages before JoinAccept");
+                else
+                    deferredWhileJoining.push_back(std::move(inbox[i]));
+                continue;
+            }
             const MessageList::Entry* e = messages.find(m.id);
             if (!e)
             {
@@ -2230,6 +2328,7 @@ void World::receiveMessages(bool engineOnly)
             }
             std::string error;
             const size_t outboxMark = outbox.size();
+            const bool wasJoining   = joinStateValue == JoinState::Joining;
             if (!e->dispatch(*this, m.peer, m.payload.data(), m.payload.size(), error))
             {
                 rejectInput(m.peer, e->name + ": " + error);
@@ -2241,6 +2340,15 @@ void World::receiveMessages(bool engineOnly)
             // and with its sends (an abort later in phase 1 must not drop a consumed message's reply)
             flushCommands();
             for (size_t k = outboxMark; k < outbox.size(); ++k) outbox[k].phase = Phase::None;
+            // S26: the messages deferred while joining are handled right after JoinAccept, before the round's others
+            if (wasJoining && joinStateValue != JoinState::Joining && !deferredWhileJoining.empty())
+            {
+                if (joinStateValue == JoinState::Joined)
+                    inbox.insert(inbox.begin() + std::ptrdiff_t(i + 1),
+                                 std::make_move_iterator(deferredWhileJoining.begin()),
+                                 std::make_move_iterator(deferredWhileJoining.end()));
+                deferredWhileJoining.clear();
+            }
         }
     }
     catch (...)
