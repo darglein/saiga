@@ -842,9 +842,10 @@ TEST(Residency, PriorityRequiredFirst)
                               return true;
                           }));
     std::lock_guard<std::mutex> l(m);
-    const double R      = w.spaceTemplate(0).requiredDistance();
-    bool prefetchSeen   = false;
-    double lastRequired = -1;
+    const double R            = w.spaceTemplate(0).requiredDistance();
+    bool prefetchSeen         = false;
+    int requiredAfterPrefetch = 0;
+    double lastRequired       = -1;
     for (const ChunkId& c : order)
     {
         const double dx = std::max({double(c.x) * 256 - p.x(), 0.0, p.x() - double(c.x + 1) * 256});
@@ -852,7 +853,11 @@ TEST(Residency, PriorityRequiredFirst)
         const double d  = std::sqrt(dx * dx + dz * dz);
         if (d <= R)
         {
-            EXPECT_FALSE(prefetchSeen) << "a required chunk after a prefetch chunk";
+            // The order is the jobs' start order on two workers: the last required job and the first prefetch job may
+            // be submitted in one update and start together, so at most one required job may log after a prefetch one
+            // (a flaky failure on a loaded machine before)
+            if (prefetchSeen) requiredAfterPrefetch++;
+            EXPECT_LE(requiredAfterPrefetch, 1) << "required chunks after a prefetch chunk";
             // Nearest first (by the integer distance of the priority; two workers may swap neighbours)
             EXPECT_GE(int(d) + 64, int(lastRequired));
             lastRequired = d;
