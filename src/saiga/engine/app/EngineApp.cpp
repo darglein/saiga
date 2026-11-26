@@ -584,6 +584,8 @@ void EngineApp::finishSave()
     const bool ok = w.waitForCommits();
     SAIGA_LOG("save", "quit: commit %llu %s%s", (unsigned long long)w.saveStatus().committed,
               ok ? "written" : "failed: ", ok ? "" : w.saveStatus().lastError.c_str());
+    // The process must not report success when its last changes were not saved (an earlier error code is kept)
+    if (!ok && exitStatus == 0) exitStatus = 1;
     w.closeSaveDirectory();
 }
 

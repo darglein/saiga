@@ -71,6 +71,24 @@ const Vec3 kA(1000, 0, 1000), kB(3000, 0, 1000);
 
 // ==== EntityGroup ====================================================================================================
 
+// Regression (CodeRabbit on #91): the cached subtree links still named a child whose Parent was removed; the traversal
+// read the missing Parent instead of rebuilding
+TEST(EntityGroup, SubtreeAfterParentRemoval)
+{
+    auto wp           = makeWorld();
+    World& w          = *wp;
+    const Entity root = w.create();
+    const Entity c1   = w.create();
+    const Entity c2   = w.create();
+    w.add<Parent>(c1, Parent{root});
+    w.add<Parent>(c2, Parent{root});
+    EXPECT_EQ(w.subtree(root).size(), 3u);  // builds the link cache
+    w.remove<Parent>(c1);
+    const std::vector<Entity> s = w.subtree(root);
+    ASSERT_EQ(s.size(), 2u);
+    EXPECT_EQ(s[1], c2);
+}
+
 TEST(EntityGroup, RoundTripRemapsEntities)
 {
     resetHooks();

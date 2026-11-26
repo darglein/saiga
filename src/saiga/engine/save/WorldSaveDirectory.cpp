@@ -77,7 +77,8 @@ bool World::closeSaveDirectory()
     if (!saveDir) return true;
     SAIGA_ASSERT(!inStep(), "World::closeSaveDirectory inside a step");
     const bool ok = saveDir->close();
-    saveDir.reset();
+    // A close that could not read every stored group back keeps the directory (the caller may retry)
+    if (!saveDir->isOpen()) saveDir.reset();
     return ok;
 }
 

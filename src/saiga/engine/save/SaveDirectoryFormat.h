@@ -68,6 +68,8 @@ constexpr size_t kRecordHeaderSize = 32;
 constexpr int32_t kStoreRegionChunks = 16;
 // The largest uncompressed payload or framed part (untrusted input: checked from the zstd frame header)
 constexpr uint64_t kMaxUncompressedPart = uint64_t(256) << 20;
+// The largest valid world-state file: two parts (zstd's worst case stays below 1 % over the raw size) plus framing
+constexpr uint64_t kMaxWorldFileBytes = 2 * kMaxUncompressedPart + (uint64_t(8) << 20);
 // Two kept commits (the newest and its backup); compaction of a region file when its live bytes fall below half of
 // its size and it is at least 1 MiB
 constexpr uint64_t kKeptCommits     = 2;

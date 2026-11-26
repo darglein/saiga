@@ -1336,7 +1336,8 @@ std::vector<Entity> World::collectSubtree(Entity e) const
             for (; it != linkCache.end() && it->first == parent.index; ++it)
             {
                 const Entity child = it->second;
-                if (!reg.alive(child) || reg.read<Parent>(child).entity != parent) continue;
+                // A cached child may have lost its Parent since (a remove<Parent>): skipped, the count check rebuilds
+                if (!reg.alive(child) || !reg.has<Parent>(child) || reg.read<Parent>(child).entity != parent) continue;
                 found++;
                 if (!visited.insert(child.index).second) continue;
                 doomed.push_back(child);

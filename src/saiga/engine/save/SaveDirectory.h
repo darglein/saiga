@@ -60,7 +60,10 @@ class SAIGA_ENGINE_API SaveDirectory
     uint64_t commit();
     bool waitForCommits();
     // Reads every disk-only group into memory and unlocks (the store becomes a memory store)
+    // false with the directory still open (locked) when a stored group cannot be read back; false after closing when
+    // the last commit failed (lastError)
     bool close();
+    bool isOpen() const { return !closed; }
     SaveStatus status() const;
     // After a completed step (between steps, before the step listeners): a pending commit request, the automatic
     // commit interval, the lane's completions
@@ -103,6 +106,7 @@ class SAIGA_ENGINE_API SaveDirectory
     std::shared_ptr<SaveFileSystem> fs;
     SaveIoQueue lane;
     bool locked = false;
+    bool closed = false;  // close() succeeded in releasing the directory
     // The newest successful commit and the commit being written
     uint64_t committedCommit = 0, inFlightCommit = 0;
     bool commitRequested    = false;

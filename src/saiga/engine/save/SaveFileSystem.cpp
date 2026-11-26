@@ -14,6 +14,7 @@
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
+#include <set>
 #include <vector>
 
 #include <system_error>
@@ -75,8 +76,11 @@ class DiskSaveFileSystem final : public SaveFileSystem
 
     bool exists(const std::string& path) override
     {
+        // A failed lookup (a transient metadata error) answers "exists": callers treat a missing file as corruption,
+        // so only a confirmed absence may say false (the following read then reports the IO error)
         std::error_code ec;
-        return std::filesystem::exists(full(path), ec);
+        const bool e = std::filesystem::exists(full(path), ec);
+        return ec ? true : e;
     }
     bool isDirectory(const std::string& path) override
     {
@@ -313,14 +317,23 @@ class DiskSaveFileSystem final : public SaveFileSystem
         }
         std::filesystem::create_directories(dir, ec);
         if (doSync)
-            for (const std::filesystem::path& p : created)
+        {
+            // The parents of the created components, and always the save directory's own parent (an earlier attempt
+            // may have created the directory without making its entry durable): a failure fails the lock
+            std::set<std::filesystem::path> parents;
+            for (const std::filesystem::path& p : created) parents.insert(p.parent_path());
+            parents.insert(dir.parent_path());
+            for (std::filesystem::path parent : parents)
             {
-                const std::filesystem::path parent = p.parent_path().empty() ? "." : p.parent_path();
-                const int d                        = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-                if (d < 0) continue;
-                ::fsync(d);
+                if (parent.empty()) parent = ".";
+                const int d = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+                if (d < 0) return fail(error, "open the directory " + parent.string() + ": " + lastError());
+                const bool synced     = ::fsync(d) == 0;
+                const std::string why = synced ? std::string() : lastError();
                 ::close(d);
+                if (!synced) return fail(error, "sync the directory " + parent.string() + ": " + why);
             }
+        }
         const int fd = ::open(full("lock").c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
         if (fd < 0) return fail(error, "the lock file of " + root + ": " + lastError());
         // flock locks the open file description: a second open in this process conflicts as well

@@ -99,25 +99,41 @@ void World::reloadChunkNow(const ChunkId& chunk)
     ChunkStore::Stats& stats                         = store->statsForUpdate();
     std::vector<StoredGroup> failed;
     std::vector<std::pair<Entity, double>> objects;
-    for (size_t k = 0; k < groups.size(); ++k)
+    failed.reserve(groups.size());
+    size_t k = 0;
+    try
     {
-        const StoredGroup& g = groups[k];
-        GroupLoader loader(*this);
-        const bool ok =
-            g.schema < store->tables().size() && loader.stage(g, *store->tables()[g.schema], *current, chunk, false);
-        if (!ok)
+        for (; k < groups.size(); ++k)
         {
-            // Kept (G14: a game patch may add the missing migration); retried at the next reload
-            SAIGA_LOG(
-                "save", "chunk (%d, %d, %d): stored group %zu is not reloaded: %s", int(chunk.space), chunk.x, chunk.z,
-                k, g.schema < store->tables().size() ? loader.errorMessage().c_str() : "its schema table is unknown");
-            stats.failedGroups++;
-            failed.push_back(g);
-            continue;
+            const StoredGroup& g = groups[k];
+            GroupLoader loader(*this);
+            const bool ok = g.schema < store->tables().size() &&
+                            loader.stage(g, *store->tables()[g.schema], *current, chunk, false);
+            if (!ok)
+            {
+                // Kept (G14: a game patch may add the missing migration); retried at the next reload
+                SAIGA_LOG(
+                    "save", "chunk (%d, %d, %d): stored group %zu is not reloaded: %s", int(chunk.space), chunk.x,
+                    chunk.z, k,
+                    g.schema < store->tables().size() ? loader.errorMessage().c_str() : "its schema table is unknown");
+                stats.failedGroups++;
+                failed.push_back(g);
+                continue;
+            }
+            loader.commit(objects);
+            stats.groupsReloaded++;
+            stats.entitiesReloaded += loader.createdCount();
         }
-        loader.commit(objects);
-        stats.groupsReloaded++;
-        stats.entitiesReloaded += loader.createdCount();
+    }
+    catch (...)
+    {
+        // An exception (an allocation failure) in group k: the failed groups and every group from k on go back to the
+        // store (k itself was not committed: GroupLoader::commit is the last step of an iteration), the committed
+        // ones keep their entities and still get their hooks before the exception continues
+        for (size_t j = k; j < groups.size(); ++j) failed.push_back(std::move(groups[j]));
+        store->putBack(chunk, std::move(failed));
+        startReloadedObjects(objects);
+        throw;
     }
     store->putBack(chunk, std::move(failed));
     startReloadedObjects(objects);

@@ -488,7 +488,11 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
         const std::vector<uint8_t> header = encodeRegionHeader(out.key);
         if (!fs.writeNew(out.key.path(), header.data(), header.size(), &e)) return false;
         out.end = header.size();
+        // The whole chain of parents is synced for every new region file (a failed earlier attempt may have created
+        // `regions` or the space directory without syncing them; a retry must not publish without their names durable)
         newDirectories.insert("regions/" + std::to_string(std::get<0>(t)));
+        newDirectories.insert("regions");
+        regionsCreated = true;
         return true;
     };
     // 0 + 2: the compaction decisions and the truncation of every touched file to its committed end
@@ -712,6 +716,11 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
         end         = snap.files.count(k) ? snap.files.at(k) : 0;
         auto target = targets.find(triple(k));
         if (target != targets.end() && target->second.key == k) end = target->second.end;
+        // Every file the new index names must exist and reach its end (a region file that vanished while only some of
+        // its chunks were dirty would leave the clean ones pointing at nothing: the open would refuse this commit)
+        uint64_t size = 0;
+        if (!fs.fileSize(k.path(), size, &e)) return fail("the indexed region file " + k.path() + " cannot be read");
+        if (size < end) return fail("the indexed region file " + k.path() + " is shorter than its committed end");
         index.files.push_back({k, end});
     }
     result.files = used;
@@ -730,7 +739,14 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
     result.ok           = true;
     result.pointReached = true;
     // After the commit point: errors are reported, not rolled back
-    if (!fs.syncDirectory("", &e)) result.error = "sync the directory after the commit point: " + e;
+    if (!fs.syncDirectory("", &e))
+    {
+        // The new world file's name is not durable yet: nothing older is retired (step 6 is left to a later commit or
+        // the open's cleanup), so a power loss still finds a loadable commit with its regions
+        result.error = "sync the directory after the commit point: " + e;
+        result.ms    = (nowSeconds() - start) * 1000.0;
+        return;
+    }
     // 6: the commit before the backup and the region files no kept commit names
     if (snap.commit >= 3)
     {
@@ -800,9 +816,13 @@ void SaveDirectory::complete(const Snapshot& snap, const Result& result)
         return;
     }
     auto& entries = store.entriesForUpdate();
-    std::set<ChunkId> keys;
+    std::set<ChunkId> keys, frozenKeys;
     for (const auto& kv : result.index) keys.insert(kv.first);
-    for (const FrozenChunk& f : snap.frozen) keys.insert(f.key);
+    for (const FrozenChunk& f : snap.frozen)
+    {
+        keys.insert(f.key);
+        frozenKeys.insert(f.key);
+    }
     for (const auto& kv : snap.index) keys.insert(kv.first);
     for (const ChunkId& key : keys)
     {
@@ -827,9 +847,7 @@ void SaveDirectory::complete(const Snapshot& snap, const Result& result)
                 auto pos      = std::find(ids->second.begin(), ids->second.end(), g.id);
                 g.recordIndex = pos == ids->second.end() ? -1 : int32_t(pos - ids->second.begin());
             }
-        else if (!isSpaceRecordKey(key) &&
-                 std::find_if(snap.frozen.begin(), snap.frozen.end(),
-                              [&](const FrozenChunk& f) { return f.key == key; }) != snap.frozen.end())
+        else if (!isSpaceRecordKey(key) && frozenKeys.count(key))
             for (StoredGroup& g : e.groups) g.recordIndex = -1;
         // The groups the record could not carry (an unreadable old record, only on disk) are lost with this commit
         if (!result.omitted.empty())
@@ -902,23 +920,23 @@ bool SaveDirectory::close()
     ChunkStore& store = w.chunkStore();
     for (auto& [c, e] : store.entriesForUpdate())
         if (store.needsRead(c)) readStoredSync(c);
+    // A group that could not be read back (a transient read error) keeps the directory open: nothing else could read
+    // it later, so the close fails, changes nothing and may be retried
+    size_t unreadable = 0;
+    for (const auto& [c, e] : store.chunks())
+        for (const StoredGroup& g : e.groups) unreadable += g.bytes ? 0 : 1;
+    if (unreadable > 0)
+    {
+        lastError = std::to_string(unreadable) + " stored groups cannot be read back: the directory stays open";
+        SAIGA_LOG("save", "close: %s", lastError.c_str());
+        return false;
+    }
     for (auto& [c, e] : store.entriesForUpdate())
     {
         e.indexed = false;
         e.record.reset();
         e.summary = IndexSummary();
         e.dirty   = false;
-        // A group that could not be read back is dropped (logged): without the directory nothing could read it later,
-        // and a memory store group without bytes would make every save leave it out
-        const size_t before = e.groups.size();
-        e.groups.erase(std::remove_if(e.groups.begin(), e.groups.end(), [](const StoredGroup& g) { return !g.bytes; }),
-                       e.groups.end());
-        if (e.groups.size() != before)
-        {
-            store.statsForUpdate().failedGroups += before - e.groups.size();
-            SAIGA_LOG("save", "close: %zu stored groups of %s cannot be read and are dropped", before - e.groups.size(),
-                      chunkName(c).c_str());
-        }
         for (StoredGroup& g : e.groups) g.recordIndex = -1;
     }
     store.setTracking(false);
@@ -927,6 +945,7 @@ bool SaveDirectory::close()
     for (const ChunkId& c : keys) store.prune(c);
     if (locked) fs->unlock();
     locked = false;
+    closed = true;
     return lastError.empty();
 }
 
@@ -1045,6 +1064,16 @@ SaveOpenResult SaveDirectory::open()
         WorldFile wf;
         // An IO error fails the open and changes nothing; only a failed checksum is corruption (the backup is tried);
         // a valid checksum with an undecodable content is a newer format: an open error, never corruption
+        // Bounded before the read allocates: a valid world file holds two parts of at most kMaxUncompressedPart each
+        // (zstd adds little to incompressible data) and its framing, so a larger file cannot be valid: corruption
+        uint64_t worldSize = 0;
+        if (!fs->fileSize(name, worldSize, &e)) return fail(name + ": " + e);
+        if (worldSize > kMaxWorldFileBytes)
+        {
+            corruptCandidates.push_back(name);
+            lastCorruption = name + ": larger than any valid world-state file";
+            continue;
+        }
         if (!fs->readAll(name, bytes, &e)) return fail(name + ": " + e);
         if (!checkTrailer(bytes))
         {
@@ -1240,7 +1269,14 @@ SaveOpenResult SaveDirectory::open()
         bool keepEverything = false;
         if (fs->exists(worldFileName(c - 1)))
         {
-            if (!fs->readAll(worldFileName(c - 1), prevBytes, &pe))
+            uint64_t prevSize = 0;
+            if (!fs->fileSize(worldFileName(c - 1), prevSize, &pe))
+                keepEverything = true;
+            else if (prevSize > kMaxWorldFileBytes)
+            {
+                // Larger than any valid world file: garbage (its regions are not kept)
+            }
+            else if (!fs->readAll(worldFileName(c - 1), prevBytes, &pe))
                 keepEverything = true;
             else if (checkTrailer(prevBytes))
             {

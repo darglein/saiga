@@ -274,18 +274,33 @@ class ComponentPool final : public PoolBase
     void appendRemapped(uint32_t entityIndex, std::vector<uint8_t>& out, const EntityRemap& remap) const override
     {
         T& value = const_cast<T&>(at(entityIndex));
+        // The originals first (an allocation failure here changes nothing), then the remap; every exit restores the
+        // live handles (also when the write throws), so a retried unload starts from the original references
         std::vector<Entity> original;
-        forEachEntityField(value,
-                           [&](Entity& e)
-                           {
-                               original.push_back(e);
-                               e = remap(e);
-                           });
-        BinaryWriter w(out);
-        w.write(value);
+        forEachEntityField(value, [&](Entity& e) { original.push_back(e); });
         size_t k = 0;
-        forEachEntityField(value, [&](Entity& e) { e = original[k++]; });
-        if (!w.ok()) throw std::runtime_error(std::string("entity group: ") + name + ": " + w.error());
+        forEachEntityField(value, [&](Entity& e) { e = remap(original[k++]); });
+        auto restore = [&]()
+        {
+            size_t j = 0;
+            forEachEntityField(value, [&](Entity& e) { e = original[j++]; });
+        };
+        bool ok = true;
+        std::string error;
+        try
+        {
+            BinaryWriter w(out);
+            w.write(value);
+            ok = w.ok();
+            if (!ok) error = w.error();
+        }
+        catch (...)
+        {
+            restore();
+            throw;
+        }
+        restore();
+        if (!ok) throw std::runtime_error(std::string("entity group: ") + name + ": " + error);
     }
     void remapStaged(StagedValues& stage, const EntityRemap& remap) const override
     {
