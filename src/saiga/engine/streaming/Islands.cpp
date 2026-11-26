@@ -6,6 +6,7 @@
 
 #include "saiga/engine/streaming/Islands.h"
 
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/world/World.h"
 
@@ -26,7 +27,9 @@ struct Root
     Vec3 position = Vec3::Zero();
 };
 
-std::vector<Root> playerRoots(const World& w)
+// atTargets: a root with a pending arrival counts at its target (the hard limit must hold for accepted arrivals, which
+// complete in any order)
+std::vector<Root> playerRoots(const World& w, bool atTargets)
 {
     std::vector<Root> roots;
     Registry& reg = const_cast<Registry&>(w.registry());
@@ -36,6 +39,12 @@ std::vector<Root> playerRoots(const World& w)
             const Entity r = w.rootOf(e);
             for (const Root& x : roots)
                 if (x.entity == r) return;
+            if (atTargets && reg.has<PendingTransition>(r))
+            {
+                const PendingTransition& p = reg.read<PendingTransition>(r);
+                roots.push_back({r, p.target, p.position});
+                return;
+            }
             const Transform& t = reg.read<Transform>(r);
             roots.push_back({r, t.space(), t.position()});
         });
@@ -69,12 +78,17 @@ int components(const World& w, const std::vector<Root>& roots)
 
 int Islands::count(const World& world)
 {
-    return components(world, playerRoots(world));
+    return components(world, playerRoots(world, false));
+}
+
+int Islands::countAccepted(const World& world)
+{
+    return components(world, playerRoots(world, true));
 }
 
 int Islands::countWith(const World& world, Entity moved, SpaceId space, const Vec3& position)
 {
-    std::vector<Root> roots = playerRoots(world);
+    std::vector<Root> roots = playerRoots(world, true);
     bool found              = false;
     for (Root& r : roots)
         if (r.entity == moved)

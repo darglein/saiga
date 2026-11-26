@@ -824,12 +824,15 @@ TEST(Residency, ViewSwitchKeepsPinnedTiles)
 
 TEST(Residency, PriorityRequiredFirst)
 {
-    World w(streamingTestSetup(sharedStreamingCache()));
-    StreamingSettings s;
-    s.maxInFlight = 2;
-    w.setStreamingSettings(s);
+    // The hook's state before the World: the World joins its workers first
     std::mutex m;
     std::vector<ChunkId> order;
+    World w(streamingTestSetup(sharedStreamingCache()));
+    // One job in flight: the jobs start in the residency's submission order, so the hook order is the priority order
+    // (with two the workers could log them in either order: a flaky failure before)
+    StreamingSettings s;
+    s.maxInFlight = 1;
+    w.setStreamingSettings(s);
     w.residency().jobHookForTests = [&](const ChunkId& c)
     {
         std::lock_guard<std::mutex> l(m);
@@ -845,10 +848,9 @@ TEST(Residency, PriorityRequiredFirst)
                               return true;
                           }));
     std::lock_guard<std::mutex> l(m);
-    const double R            = w.spaceTemplate(0).requiredDistance();
-    bool prefetchSeen         = false;
-    int requiredAfterPrefetch = 0;
-    double lastRequired       = -1;
+    const double R      = w.spaceTemplate(0).requiredDistance();
+    bool prefetchSeen   = false;
+    double lastRequired = -1;
     for (const ChunkId& c : order)
     {
         const double dx = std::max({double(c.x) * 256 - p.x(), 0.0, p.x() - double(c.x + 1) * 256});
@@ -856,13 +858,9 @@ TEST(Residency, PriorityRequiredFirst)
         const double d  = std::sqrt(dx * dx + dz * dz);
         if (d <= R)
         {
-            // The order is the jobs' start order on two workers: the last required job and the first prefetch job may
-            // be submitted in one update and start together, so at most one required job may log after a prefetch one
-            // (a flaky failure on a loaded machine before)
-            if (prefetchSeen) requiredAfterPrefetch++;
-            EXPECT_LE(requiredAfterPrefetch, 1) << "required chunks after a prefetch chunk";
-            // Nearest first (by the integer distance of the priority; two workers may swap neighbours)
-            EXPECT_GE(int(d) + 64, int(lastRequired));
+            EXPECT_FALSE(prefetchSeen) << "a required chunk after a prefetch chunk";
+            // Nearest first (by the integer distance of the priority)
+            EXPECT_GE(int(d), int(lastRequired));
             lastRequired = d;
         }
         else
@@ -872,12 +870,13 @@ TEST(Residency, PriorityRequiredFirst)
 
 TEST(Residency, PromotedPrefetchResubmitted)
 {
+    // The hook's state before the World (the World joins its workers first)
+    std::mutex m;
+    std::vector<ChunkId> order;
     World w(streamingTestSetup(sharedStreamingCache()));
     StreamingSettings s;
     s.maxInFlight = 64;
     w.setStreamingSettings(s);
-    std::mutex m;
-    std::vector<ChunkId> order;
     // Every job waits: the two workers hold two, the rest stay queued
     w.residency().jobHookForTests = [&](const ChunkId& c)
     {
@@ -905,9 +904,10 @@ TEST(Residency, PromotedPrefetchResubmitted)
 // a running job) and its result dropped, which left the chunk Requested for ever.
 TEST(Residency, PromotedRunningPrefetchApplies)
 {
-    World w(streamingTestSetup(sharedStreamingCache()));
-    const ChunkId target = chunkOf(0, 1300, 1400);  // 130 m from the player: a prefetch chunk
+    // The hook's state before the World (the World joins its workers first)
     std::atomic<bool> running{false};
+    World w(streamingTestSetup(sharedStreamingCache()));
+    const ChunkId target          = chunkOf(0, 1300, 1400);  // 130 m from the player: a prefetch chunk
     w.residency().jobHookForTests = [&](const ChunkId& c)
     {
         if (c != target) return;
@@ -1338,10 +1338,28 @@ TEST(Arrival, IslandLimit)
     l.target  = 0;
     l.arrival = Vec3(12000, 0, 1400);
     h.add<SpaceLink>(link, l);
-    // p1 leaving its island alone does not raise the count; a third one would: refused
-    const Entity p4 = addPlayer(h, Vec3(5300, 0, 1400));
+    // p4 joins p2's island (p3 counts at its accepted target next to p1); its transition would make a third: refused
+    const Entity p4 = addPlayer(h, Vec3(5180, 0, 1400));
     EXPECT_FALSE(h.requestTransition(p4, link));
     (void)p1;
+}
+
+// Regression (CodeRabbit on #90): two arrivals that each pass the hard limit alone must not be accepted together; the
+// accepted arrivals count at their targets
+TEST(Arrival, HardLimitCountsAcceptedArrivals)
+{
+    WorldSetup s                  = streamingTestSetup(sharedStreamingCache());
+    s.config.maxSimulationIslands = 2;
+    s.config.hardIslandLimit      = true;
+    World h(s);
+    h.setStreamingSynchronous(true);
+    const Entity a = addPlayer(h, Vec3(1150, 0, 1400));
+    const Entity b = addPlayer(h, Vec3(1160, 0, 1400));
+    addPlayer(h, Vec3(1170, 0, 1400));
+    h.step();
+    EXPECT_EQ(h.islandCount(), 1);
+    EXPECT_TRUE(h.requestArrival(a, 0, Vec3(5150, 0, 1400)));   // 2 islands once it arrives
+    EXPECT_FALSE(h.requestArrival(b, 0, Vec3(9150, 0, 1400)));  // a third: refused although a is still at home
 }
 
 TEST(Arrival, Refusals)

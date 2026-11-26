@@ -712,6 +712,14 @@ void World::addArrival(Entity e, const PendingTransition& arrival, const char* o
                             what.c_str());
                 return;
             }
+            // Several requests recorded in one phase each passed against the applied state: the hard island limit is
+            // checked again with the arrivals applied before this one (countAccepted counts them at their targets)
+            std::string error;
+            if (!w.checkIslandLimit(e, p.target, p.position, &error))
+            {
+                SAIGA_LOG_E("world", e, "%s dropped at the flush: %s", what.c_str(), error.c_str());
+                return;
+            }
             w.transitionsRequestedInStep.push_back(e);
             w.addNow<PendingTransition>(e, std::move(p));
         }));

@@ -56,7 +56,9 @@ bool World::heldRoot(Entity root) const
 bool World::checkIslandLimit(Entity e, SpaceId space, const Vec3& position, std::string* error) const
 {
     if (!config.streaming || !config.hardIslandLimit || !isPlayerRoot(e)) return true;
-    const int now   = Islands::count(*this);
+    // Both counted with every accepted arrival at its target, so two arrivals that each pass alone cannot together
+    // exceed the limit (the flush of a deferred request re-checks, addArrival)
+    const int now   = Islands::countAccepted(*this);
     const int after = Islands::countWith(*this, e, space, position);
     if (after > config.maxSimulationIslands && after > now)
     {

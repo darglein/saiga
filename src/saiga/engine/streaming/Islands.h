@@ -26,7 +26,9 @@ struct SAIGA_ENGINE_API Islands
 {
     // The island count of the current player roots at their current positions
     static int count(const World& world);
-    // The same with the root `moved` at (space, position) (a player root not yet counted is added; requestArrival)
+    // The count once every accepted arrival completed: roots with a pending arrival at their target (hardIslandLimit)
+    static int countAccepted(const World& world);
+    // countAccepted with the root `moved` at (space, position) (a player root not yet counted is added; requestArrival)
     static int countWith(const World& world, Entity moved, SpaceId space, const Vec3& position);
 };
 

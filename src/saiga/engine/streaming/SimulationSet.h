@@ -79,7 +79,8 @@ class SAIGA_ENGINE_API SimulationSet
     {
         SpaceId space = 0;
         int32_t x = 0, z = 0;
-        bool valid = false;
+        bool finite = true;
+        bool valid  = false;
     };
     std::vector<EvaluatedCell> lastCell;  // by entity index
     uint64_t updates = 0;

@@ -289,8 +289,14 @@ void SimulationSet::run(bool full)
             // A chunk's ready state matters only to alwaysSimulate roots
             const bool behaviours = reg.registered(Behaviour::id);
             for (const ChunkId& c : dirtyChunks)
-                for (int32_t z = 0; z < kCellsPerChunk && behaviours; ++z)
-                    for (int32_t x = 0; x < kCellsPerChunk; ++x)
+            {
+                // chunkReady clamps to the space's chunk range: a root exactly on the far edge (x == sizeMeters) lies
+                // in the cell just beyond the last chunk, so the edge chunks scan one more cell row / column
+                const int32_t last = w.spaceTemplate(c.space).sizeChunks - 1;
+                const int32_t nx   = kCellsPerChunk + (c.x == last ? 1 : 0);
+                const int32_t nz   = kCellsPerChunk + (c.z == last ? 1 : 0);
+                for (int32_t z = 0; z < nz && behaviours; ++z)
+                    for (int32_t x = 0; x < nx; ++x)
                         grid.forEachInCell(c.space, c.x * kCellsPerChunk + x, c.z * kCellsPerChunk + z,
                                            [&](const SpatialGrid::Item& it)
                                            {
@@ -299,6 +305,7 @@ void SimulationSet::run(bool full)
                                                const Behaviour* b = reg.tryRead<Behaviour>(r);
                                                if (b && b->alwaysSimulate) roots.insert(r.index);
                                            });
+            }
             // The centres themselves (a new or moved player root)
             for (uint32_t i : playerRoots) addRoot(i);
             for (uint32_t i : anchorRoots) addRoot(i);
@@ -324,7 +331,10 @@ void SimulationSet::run(bool full)
         if (i < lastCell.size())
         {
             const EvaluatedCell& c = lastCell[i];
-            if (c.valid && c.space == t.space() && c.x == cx && c.z == cz) continue;
+            // The same cell and the same finiteness (a root repaired from a non-finite position in its old x/z cell
+            // is evaluated again: the rule freezes non-finite positions)
+            if (c.valid && c.space == t.space() && c.x == cx && c.z == cz && c.finite == t.position().allFinite())
+                continue;
         }
         roots.insert(i);
     }
@@ -373,6 +383,7 @@ bool SimulationSet::evaluate(Entity root)
     c.space          = t.space();
     c.x              = SpatialGrid::cellOf(t.position().x());
     c.z              = SpatialGrid::cellOf(t.position().z());
+    c.finite         = t.position().allFinite();
     c.valid          = true;
     w.residency().statsForUpdate().evaluations++;
     return changed;
