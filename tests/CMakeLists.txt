@@ -219,6 +219,9 @@ if (MODULE_ENGINE)
         target_compile_options(test_engine_content PRIVATE ${SAIGA_CONTENT_UBSAN_FLAGS})
     endif ()
     saiga_test(test_engine_content_benchmark.cpp "saiga_engine")
+    # Streaming (S24): the residency, Simulated, arrivals; the streaming scenarios (S25 and S26 add theirs); the
+    # non-gating streaming benchmark (SAIGA_STREAMING_BENCHMARK=full: the local form)
+    saiga_test(test_engine_streaming.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

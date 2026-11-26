@@ -180,8 +180,10 @@ class SAIGA_ENGINE_API TerrainSystem
         // Every finished generation (tiles, masks, pyramids); the pyramids alone; evicted tiles
         uint64_t generated = 0, pyramidsGenerated = 0, evicted = 0;
         // The stores (tiles, pyramids, masks) and the results in flight
-        size_t cpuBytes   = 0;
-        SpaceId viewSpace = 0;
+        size_t cpuBytes = 0;
+        // S24: the bytes of the residency's pinned level-0 tiles (of every space; part of cpuBytes)
+        size_t pinnedBytes = 0;
+        SpaceId viewSpace  = 0;
         // The time of the last completeView
         double lastCompleteMs = 0;
         // Terrain edits (S22): patched samples and patch calls (cumulative and of the last update), the queued dirty
@@ -216,6 +218,13 @@ class SAIGA_ENGINE_API TerrainSystem
     // completed and completeView's deadline (steady_clock seconds; no build starts after it); returns false if a
     // completed view's content is still missing
     void setContentView(std::function<bool(SpaceId, const Vec3&, bool, double)> fn) { contentView = std::move(fn); }
+    // Engine-internal (S24, the residency): pins a chunk's level-0 base heights in its space's store (any space; the
+    // tile shares the base's heights, min / max computed once) / unpins them (the tile stays while the visual path
+    // holds it). Main thread, not inside parallelEach
+    void pinSimulationTile(const ChunkId& chunk, const std::shared_ptr<const ChunkBase>& base);
+    void unpinSimulationTile(const ChunkId& chunk);
+    // Engine-internal (S24): the pool's completions now (phase 7, complete points; an exception is fatal as in S20)
+    void drainStreamingPool() { drainPool(); }
     // Engine-internal (S23b): the streaming pool (created on demand) for the content sets' jobs
     StreamingPool& streamingPool()
     {

@@ -173,7 +173,9 @@ std::vector<uint8_t> World::save() const
         SAIGA_ASSERT(r.state != SlotState::Reserved, "save with a reserved entity");
         w.write(r.generation);
         w.write(uint8_t(r.state));
-        w.write(r.flags);
+        // S24 (G9): Simulated is derived (the load evaluates it): written set for every alive entity, so a saved byte
+        // never depends on the centres or the ready set
+        w.write(r.state == SlotState::Alive ? uint8_t(r.flags | Registry::kSimulated) : r.flags);
     }
     w.write(reg.freeList());
     s.end();

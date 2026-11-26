@@ -20,6 +20,8 @@
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -27,6 +29,7 @@
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <chrono>
 #include <map>
 #include <optional>
 #include <set>
@@ -86,6 +89,9 @@ class WorldLoader
     void commit();
     void restoreStateEntities();
     void startObjects(LoadResult& result);
+    // S24 (Scope 9): a streaming world drops its residency, completes the required chunks of the loaded centres and
+    // evaluates every Simulated flag before tryLoad returns; a world without streaming sets the flag on every entity
+    void rebuildStreaming();
 
     World& w;
     Registry& reg;
@@ -1019,6 +1025,36 @@ bool WorldLoader::stageGeneration()
     return true;
 }
 
+void WorldLoader::rebuildStreaming()
+{
+    if (!w.config.streaming)
+    {
+        for (uint32_t i = 1; i < reg.slotCount(); ++i)
+        {
+            const Entity e = reg.aliveAt(i);
+            if (e.valid()) reg.setFlags(e, uint8_t(reg.flags(e) | Registry::kSimulated));
+        }
+        return;
+    }
+    const auto start = std::chrono::steady_clock::now();
+    w.residencyPtr->dropAll();
+    w.simulation->invalidate();
+    // Derived data: a timeout still commits the load (the rest arrives asynchronously, movers hold)
+    if (!w.residencyPtr->complete(120))
+    {
+        std::string missing;
+        int n = 0;
+        for (const ChunkStatus& s : w.residencyPtr->chunkStatuses())
+            if (s.distance <= w.spaceTemplate(s.chunk.space).requiredDistance() && s.ready != s.wanted && n++ < 8)
+                missing += " (" + std::to_string(s.chunk.space) + ", " + std::to_string(s.chunk.x) + ", " +
+                           std::to_string(s.chunk.z) + ")";
+        SAIGA_LOG("streaming", "load: the residency of the required chunks did not complete:%s", missing.c_str());
+    }
+    w.simulation->stepStart();
+    w.residencyPtr->statsForUpdate().lastLoadRebuildMs =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+}
+
 void WorldLoader::commitGeneration()
 {
     if (stagedPlans)
@@ -1247,6 +1283,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
                   unknownMeshEntities, names.c_str());
     }
     startObjects(result);
+    rebuildStreaming();
     // Messages encoded from the replaced state are not sent (S15); the listeners' sends go out (a Resync, S16)
     w.discardOutboxAfterLoad();
     // A new replication epoch: the clients resync and receive every entity again (S16)

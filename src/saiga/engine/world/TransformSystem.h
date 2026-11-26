@@ -27,6 +27,9 @@ SAIGA_ENGINE_API void transformSystem(World& world, double dt);
 // teleported and that did not follow yet. Returns whether a child changed.
 SAIGA_ENGINE_API bool updateChildren(World& world, bool teleportsOnly);
 
+// Rebuilds World::hierarchyOrder if it is dirty (S24: the Simulated propagation outside phase 6)
+SAIGA_ENGINE_API void ensureHierarchyOrder(World& world);
+
 // Before phase 8: teleports made in phase 7 reach the children, so extract sees them flagged (§7.4)
 SAIGA_ENGINE_API void propagateTeleportsBeforeExtract(World& world);
 

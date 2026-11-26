@@ -13,6 +13,7 @@
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/world/World.h"
 
@@ -145,8 +146,10 @@ bool checkTombstone(const World& world, const ChunkId& chunk, const InstanceKey&
     if (!g.openWorld)
         return fail("tombstone: space " + std::to_string(chunk.space) + " ('" + g.settings.name +
                     "') is enclosed (tombstones need an open-world space)");
-    const uint16_t version                        = world.effectivePlacementVersion(chunk);
-    const std::shared_ptr<const ChunkPlacement> p = world.generation().chunkPlacement(chunk, version);
+    const uint16_t version = world.effectivePlacementVersion(chunk);
+    // S24 (G17): a resident chunk's held placement first
+    std::shared_ptr<const ChunkPlacement> p = world.residency().heldPlacement(chunk, version);
+    if (!p) p = world.generation().chunkPlacement(chunk, version);
     if (!findInstance(*p, key))
         return fail("tombstone: candidate " + std::to_string(key.counter) + " of slot " +
                     std::to_string(key.generatorSlot) + " in " + where + " is rejected or excluded at placement v" +

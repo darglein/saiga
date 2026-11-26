@@ -72,6 +72,17 @@ class SAIGA_ENGINE_API SpatialGrid
     // nested read-only queries are fine. The Item reference is valid only during the call.
     template <class F>
     void forEachWithin(SpaceId space, const Vec3& center, double radius, F&& fn) const;
+    // Calls fn(const Item&) for every item of one cell (S24, the Simulated evaluation); the rules of forEachWithin
+    template <class F>
+    void forEachInCell(SpaceId space, int32_t cx, int32_t cz, F&& fn) const
+    {
+        if (space >= spaces.size() || !spaces[space]) return;
+        auto it = spaces[space]->find(key(cx, cz));
+        if (it == spaces[space]->end()) return;
+        for (const Item& item : it->second) fn(item);
+    }
+    // The cell coordinate of a position coordinate (floor(v / kCellSize), clamped; 0 for a non-finite v)
+    static int32_t cellOf(double v) { return cellCoordinate(v); }
 
    private:
     struct Entry

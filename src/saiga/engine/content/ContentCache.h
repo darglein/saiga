@@ -80,6 +80,8 @@ class SAIGA_ENGINE_API ContentCache
     // registered as in flight while it runs
     std::shared_ptr<const ChunkPlacement> placementInJob(const ChunkKey& key,
                                                          const std::function<ChunkPlacement()>& make);
+    // The same for bases (S24, G17: the residency's job generates the base, another job of the same chunk waits for it)
+    std::shared_ptr<const ChunkBase> baseInJob(const ChunkKey& key, const std::function<ChunkBase()>& make);
     // A cached entry or null (tests)
     std::shared_ptr<const ChunkPlacement> findPlacement(const ChunkKey& key) const;
     std::shared_ptr<const ChunkBase> findBase(const ChunkKey& key) const;
@@ -118,6 +120,7 @@ class SAIGA_ENGINE_API ContentCache
     // Most recent first: (placement kind, key)
     std::list<std::pair<bool, ChunkKey>> lru;
     std::map<ChunkKey, std::shared_future<std::shared_ptr<const ChunkPlacement>>> running;
+    std::map<ChunkKey, std::shared_future<std::shared_ptr<const ChunkBase>>> runningBases;
     Stats statistics;
 };
 

@@ -13,6 +13,7 @@
 #include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
 
@@ -50,6 +51,10 @@ void spaceTransitionSystem(World& w, double)
             w.remove<PendingTransition>(e);
             continue;
         }
+        // S24 (G12): in a streaming world a player root arrives when its island (the chunks intersecting the
+        // simulationRadius disc of the arrival position) is requested and resident; it is held until then (re-checked
+        // every step). Other roots and worlds without streaming arrive now (S21's rule)
+        if (w.streaming() && w.isPlayerRoot(e) && w.residency().islandProgress(p.target, p.position) < 1) continue;
         const SpaceId from = reg.read<Transform>(e).space();
         w.moveToSpace(e, p.target, p.position, p.rotation);
         w.events.emit(SpaceTransitionEvent{e, p.link, from, p.target});

@@ -468,10 +468,12 @@ TerrainHeightSource GenerationPipeline::heightSource(SpaceId id) const
     return source;
 }
 
-std::shared_ptr<const ChunkBase> generateBase(ContentCache& cache, const SpaceGeneration& space, ChunkId chunk)
+std::shared_ptr<const ChunkBase> generateBase(ContentCache& cache, const SpaceGeneration& space, ChunkId chunk,
+                                              bool inJob)
 {
-    return cache.base(ContentCache::ChunkKey{space.generatorName, space.pinned, space.planHash, chunk},
-                      [&]() { return generateChunkBase(inputsOf(space), chunk); });
+    const ContentCache::ChunkKey key{space.generatorName, space.pinned, space.planHash, chunk};
+    auto make = [&]() { return generateChunkBase(inputsOf(space), chunk); };
+    return inJob ? cache.baseInJob(key, make) : cache.base(key, make);
 }
 
 std::shared_ptr<const ChunkPlacement> generatePlacement(ContentCache& cache, const SpaceGeneration& space,
@@ -480,7 +482,8 @@ std::shared_ptr<const ChunkPlacement> generatePlacement(ContentCache& cache, con
     const ContentCache::ChunkKey key{space.generatorName, placementVersion, space.planHash, chunk};
     auto make = [&]()
     {
-        std::shared_ptr<const ChunkBase> base = generateBase(cache, space, chunk);
+        // In a job the base of a running generation of the same chunk is waited for (S24: the residency's job)
+        std::shared_ptr<const ChunkBase> base = generateBase(cache, space, chunk, inJob);
         return generateChunkPlacement(inputsOf(space), *base, placementVersion,
                                       hashStamps(computeStampList(space, chunk)),
                                       hashStatics(computeStaticList(space, chunk)));
@@ -591,6 +594,11 @@ const std::vector<StaticPart>& GenerationPipeline::staticList(ChunkId chunk) con
 ContentSource::ContentSource(std::shared_ptr<const SpaceGeneration> space, std::shared_ptr<ContentCache> cache)
     : sp(std::move(space)), cache(std::move(cache))
 {
+}
+
+std::shared_ptr<const ChunkBase> ContentSource::baseInJob(ChunkId chunk) const
+{
+    return generateBase(*cache, *sp, chunk, true);
 }
 
 std::shared_ptr<const ChunkPlacement> ContentSource::placementInJob(ChunkId chunk, uint16_t placementVersion) const

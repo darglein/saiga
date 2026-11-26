@@ -213,6 +213,48 @@ std::shared_ptr<const ChunkPlacement> ContentCache::placementInJob(const ChunkKe
     return result;
 }
 
+std::shared_ptr<const ChunkBase> ContentCache::baseInJob(const ChunkKey& key, const std::function<ChunkBase()>& make)
+{
+    std::promise<std::shared_ptr<const ChunkBase>> promise;
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        auto it = bases.find(key);
+        if (it != bases.end())
+        {
+            statistics.hits++;
+            touch(it->second);
+            return it->second.base;
+        }
+        auto r = runningBases.find(key);
+        if (r != runningBases.end())
+        {
+            std::shared_future<std::shared_ptr<const ChunkBase>> f = r->second;
+            statistics.waits++;
+            lock.unlock();
+            return f.get();
+        }
+        runningBases.emplace(key, promise.get_future().share());
+    }
+    std::shared_ptr<const ChunkBase> result;
+    try
+    {
+        result = base(key, make);
+    }
+    catch (...)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        runningBases.erase(key);
+        promise.set_exception(std::current_exception());
+        throw;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        runningBases.erase(key);
+    }
+    promise.set_value(result);
+    return result;
+}
+
 std::shared_ptr<const ChunkPlacement> ContentCache::findPlacement(const ChunkKey& key) const
 {
     std::lock_guard<std::mutex> lock(mutex);

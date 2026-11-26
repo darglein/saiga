@@ -46,6 +46,15 @@ struct SpaceTemplate
     // Prefab sites within this distance of a Player (metres) are stamped (§7.9, §12.3; S23a); scenario worlds lower
     // it to at most 128 m
     double fullRadius = 1000;
+    // Streaming (§12.3; S24, worlds with WorldConfig::streaming): chunks within residencyRadius (0: fullRadius; else in
+    // [simulationRadius, fullRadius]) of a streaming centre are required, within residencyRadius + prefetchMargin
+    // requested, and they are unloaded beyond residencyRadius + prefetchMargin + unloadMargin of every centre; the
+    // entities within simulationRadius of a player (by 32 m grid cells) are simulated. Scenario worlds lower
+    // simulationRadius to at most 128 m and prefetchMargin to 0
+    double residencyRadius  = 0;
+    double simulationRadius = 384;
+    double prefetchMargin   = 256;
+    double unloadMargin     = 128;
     // The clear color of an enclosed space (linear RGB; open-world spaces draw the sky). S36's ambient / fog replace it
     Vec3 background = Vec3(0.02, 0.02, 0.025);
     // The lighting of an enclosed space (S36, the environment extract; open-world spaces have the sky): its ambient
@@ -68,14 +77,21 @@ struct SpaceTemplate
 
     // The size of the space in metres (sizeChunks * 256)
     double sizeMeters() const { return double(sizeChunks) * chunkSize; }
+    // The streaming distances (S24, G3): required (residencyRadius, 0: fullRadius), requested (+ prefetchMargin) and
+    // kept (+ unloadMargin), measured from a centre to the nearest point of a chunk's square in x/z
+    double requiredDistance() const { return residencyRadius > 0 ? residencyRadius : fullRadius; }
+    double requestedDistance() const { return requiredDistance() + prefetchMargin; }
+    double keptDistance() const { return requestedDistance() + unloadMargin; }
 };
 
 // The checks of WorldConfig::spaceTemplates (D1; S21): SAIGA_EXIT_ERROR (every build) with a message naming the
 // template and the field. At most 65535 templates with unique non-empty names (at most 256 bytes); an enclosed
 // template has 1..512 chunks (its seaLevel and baseSpacing are ignored; a generator with terrain is refused by the
 // generation pipeline); an open-world template has spacing 1 or 2, a multiple of 16 chunks in 16..512 and a seaLevel
-// within kTerrainHeightLimit
-inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates)
+// within kTerrainHeightLimit. S24: every streaming radius and margin finite, fullRadius and simulationRadius positive,
+// the margins not negative; with streaming also simulationRadius <= fullRadius and residencyRadius 0 or in
+// [simulationRadius, fullRadius]
+inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates, bool streaming = false)
 {
     if (templates.size() > 65535)
         SAIGA_EXIT_ERROR("WorldConfig::spaceTemplates: more than 65535 space templates (" +
@@ -90,6 +106,27 @@ inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates)
         if (!std::isfinite(t.ev100) || !std::isfinite(t.ambient(0)) || !std::isfinite(t.ambient(1)) ||
             !std::isfinite(t.ambient(2)) || t.ambient.minCoeff() < 0)
             SAIGA_EXIT_ERROR(what + "ambient must be finite and not negative, ev100 finite");
+        // S24: the streaming distances
+        const std::pair<const char*, double> radii[] = {{"fullRadius", t.fullRadius},
+                                                        {"residencyRadius", t.residencyRadius},
+                                                        {"simulationRadius", t.simulationRadius},
+                                                        {"prefetchMargin", t.prefetchMargin},
+                                                        {"unloadMargin", t.unloadMargin}};
+        for (const auto& r : radii)
+            if (!std::isfinite(r.second)) SAIGA_EXIT_ERROR(what + r.first + " must be finite");
+        if (!(t.fullRadius > 0)) SAIGA_EXIT_ERROR(what + "fullRadius must be positive");
+        if (!(t.simulationRadius > 0)) SAIGA_EXIT_ERROR(what + "simulationRadius must be positive");
+        // The order of the radii only matters where they are used (a world without streaming keeps S23b's templates
+        // valid, e.g. a fullRadius below the default simulationRadius)
+        if (streaming && t.simulationRadius > t.fullRadius)
+            SAIGA_EXIT_ERROR(what + "simulationRadius must be in (0, fullRadius] (is " +
+                             std::to_string(t.simulationRadius) + ")");
+        if (streaming && t.residencyRadius != 0 &&
+            (t.residencyRadius < t.simulationRadius || t.residencyRadius > t.fullRadius))
+            SAIGA_EXIT_ERROR(what + "residencyRadius must be 0 or in [simulationRadius, fullRadius] (is " +
+                             std::to_string(t.residencyRadius) + ")");
+        if (t.prefetchMargin < 0) SAIGA_EXIT_ERROR(what + "prefetchMargin must not be negative");
+        if (t.unloadMargin < 0) SAIGA_EXIT_ERROR(what + "unloadMargin must not be negative");
         if (t.kind == SpaceKind::Enclosed)
         {
             if (t.sizeChunks < 1 || t.sizeChunks > 512)
