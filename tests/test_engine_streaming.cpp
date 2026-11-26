@@ -559,6 +559,9 @@ TEST(Residency, PlacementVersionChangeReRequests)
     w.residency().jobHookForTests = nullptr;
     latch().open();
     ASSERT_TRUE(stepUntil(w, [&] { return w.residency().ready(c); }));
+    // The released old job may report after the new request's result applied (two workers): wait for its drop (a CI
+    // race before)
+    ASSERT_TRUE(stepUntil(w, [&] { return w.residency().stats().resultsDropped >= 1; }));
     EXPECT_EQ(w.residency().stats().resultsDropped, 1u);
     EXPECT_NE(w.residency().heldPlacement(c, 1), nullptr);
 }
