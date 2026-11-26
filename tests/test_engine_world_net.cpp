@@ -1541,12 +1541,18 @@ TEST(ChunkSync, SubscribeAtRequest)
 {
     WorldSetup setup = worldNetTestSetup(true);
     for (SpaceTemplate& t : setup.config.spaceTemplates) t.prefetchMargin = 256;
+    // Declared before the worlds (they join their workers first); the guard releases waiting jobs on every exit
+    std::atomic<bool> release{false};
     NetPeers n(setup);
+    struct Release
+    {
+        std::atomic<bool>& r;
+        ~Release() { r = true; }
+    } releaseOnExit{release};
     World& h = *n.host;
     World& c = n.client();
     // An asynchronous client residency whose jobs wait for a latch
     c.setStreamingSynchronous(false);
-    std::atomic<bool> release{false};
     c.residency().jobHookForTests = [&](const ChunkId&)
     {
         while (!release) std::this_thread::yield();
@@ -1560,7 +1566,11 @@ TEST(ChunkSync, SubscribeAtRequest)
     ASSERT_TRUE(n.stepUntil([&] { return c.chunkSynced(kC); }));
     EXPECT_EQ(c.residency().state(kC), ChunkState::Requested);
     release = true;
-    ASSERT_TRUE(n.stepUntil([&] { return c.residency().state(kC) == ChunkState::Resident; }, 200));
+    // The released jobs run on the pool: bounded by wall time, not by steps (a slow CI runner needed more than 200
+    // cheap steps for them)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (c.residency().state(kC) != ChunkState::Resident && std::chrono::steady_clock::now() < deadline) n.step();
+    EXPECT_EQ(c.residency().state(kC), ChunkState::Resident);
     c.residency().jobHookForTests = nullptr;
 }
 
