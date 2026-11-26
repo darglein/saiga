@@ -11,6 +11,7 @@
 // chunks; local: SAIGA_SAVE_BENCHMARK=full: 10^5 entities, 1000 stored groups, 1000 edited chunks (release build:
 // AGENTS.md's benchmark recipe).
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/save/MemorySaveFileSystem.h"
@@ -42,8 +43,7 @@ double ms(Clock::time_point a, Clock::time_point b)
 
 bool fullRun()
 {
-    const char* v = std::getenv("SAIGA_SAVE_BENCHMARK");
-    return v && std::strcmp(v, "full") == 0;
+    return GetEnv("SAIGA_SAVE_BENCHMARK") == "full";
 }
 
 // The unload setup with 1 m base spacing (the largest deltas per chunk)

@@ -11,6 +11,7 @@
 // lock, and the committed directory (R-SAVE-1). Memory file system unless named; flat worlds of
 // tests/unload_test_setup.h with terrain edits and stored groups.
 
+#include "saiga/core/util/env.h"
 #include "saiga/core/util/string_to_path.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/content/ChunkRecords.h"
@@ -947,7 +948,7 @@ TEST(SaveDirectory, CommittedDirectoryOpens)
     };
     WorldSetup s          = unloadTestSetup();
     s.environment.enabled = true;
-    if (getenv("SAIGA_UPDATE_GOLDEN"))
+    if (GetEnvIfSet("SAIGA_UPDATE_GOLDEN"))
     {
         std::filesystem::remove_all(string_to_path(dir));
         auto wp = makeWorld(s);
