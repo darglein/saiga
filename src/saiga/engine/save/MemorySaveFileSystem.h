@@ -38,7 +38,8 @@ class SAIGA_ENGINE_API MemorySaveFileSystem final : public SaveFileSystem
         Rename,
         Remove
     };
-    struct Op
+    // Exported on its own: MSVC does not export the members of a nested class with its enclosing class
+    struct SAIGA_ENGINE_API Op
     {
         OpKind kind = OpKind::WriteNew;
         std::string path, to;
