@@ -147,7 +147,9 @@ streaming stalls (local); step time with 10^5 resident and 10^4 simulated entiti
   then the promotion of chunks whose parts are ready to `Resident` with its listeners; no pool drain and no delivery
   queue, so asynchronous results still apply in phase 7 only) and the island count (no event and no `IslandState`
   write: those stay in phase 7, G14). Independently, the **step-start evaluation** (G8) re-evaluates every entity
-  changed between steps (transform change flags and structural-log records pending since the last evaluation, a moved
+  changed between steps (found by one scan of the alive `Transform`s' change flags at step start, next to the existing
+  per-step `shiftTransformFlags` scan, plus the `SimulationSet`'s structural-log consumer; its cost is reported by the
+  benchmark) (transform change flags and structural-log records pending since the last evaluation, a moved
   or re-parented NPC, a component edit such as `alwaysSimulate`) by the same position rule a load uses, and the
   **step-start hooks** (`World::addStepStartHook`, added by S25) run at every step start, after the refresh if there
   was one, in phase `None`, before `deliverActions` and `events.beginStep`; `stepNetworkOnly` runs none of them. So a between-step change is seen by the next step's phase 1 exactly as
@@ -180,8 +182,10 @@ streaming stalls (local); step time with 10^5 resident and 10^4 simulated entiti
   only, not simulation centres (entities at a target do not tick before the player arrives). The rule for a root, in
   order: world-state or space-state entity: simulated; a held player root (G23 with `PendingTransition`): frozen; a
   player root or a `StreamingAnchor` subtree: simulated; its cell covered: simulated; `Behaviour::alwaysSimulate` and its chunk requested and
-  resident: simulated; else frozen. Descendants take their root's flag: a root whose flag flips (or that gains a child)
-  sets its subtree through the hierarchy's child lists (no pass over all of `hierarchyOrder`). Deviation from §12.3
+  resident: simulated; else frozen. Descendants take their root's flag: the World keeps no child lists (only counts,
+  `world/World.h:994-998`), so after the root evaluation one pass over `hierarchyOrder` (valid in phase 7, after
+  phase 6's rebuild; rebuilt first when dirty at step start) propagates every flipped root and every changed `Parent`
+  at once: O(parents) per evaluation that flipped anything, never per root. Deviation from §12.3
   ("re-evaluated round-robin together with the tick interval"): S10 made ticking exact by cells; doing the same here
   avoids a 1/16 latency and is cheap (a player crossing a cell flips about 50 cells at 384 m). The full evaluation runs
   only when the set is not initialised (the first update, a load); an empty coverage map is a valid state.
@@ -189,8 +193,8 @@ streaming stalls (local); step time with 10^5 resident and 10^4 simulated entiti
   aircraft; S25's groups use the same definition). Its position is the root's world position. Everywhere this plan says
   "player" for centres, holds, islands, arrivals and simulation it means a player root.
 - **G9 The flag is not saved** (§12.3). The ENTS slot byte keeps its layout but `save()` writes `kSimulated` set for
-  every alive entity (so saves of streaming-off worlds stay byte-identical to S23b's and a saved bit never depends on
-  derived state); a load runs `completeResidency` and a full evaluation before `tryLoad` returns, and a world with
+  every alive entity (a saved bit never depends on derived state; the flag bytes of streaming-off worlds are unchanged,
+  while every save's `SCHM` changes once by the new components and event, G15); a load runs `completeResidency` and a full evaluation before `tryLoad` returns, and a world with
   streaming off sets the flag on every entity. (A saved derived bit would be stale whenever centres changed between
   steps or the ready set differs in an asynchronous world, and would break the save/load byte check.)
 - **G10 Clients.** A client's own residency (centres of G4) generates base and placement locally (R-CONTENT-1); its
@@ -283,11 +287,12 @@ streaming stalls (local); step time with 10^5 resident and 10^4 simulated entiti
   autopilot scenario's checks are about the flight path, the hash scenario is unaffected). Its `--demo` / `--coop` plane is an `Autopilot` without `Player`
   (`samples/games/flight/main.cpp:93`), so the game adds `StreamingAnchor` to every plane it spawns (demo, autopilot
   scenario `autopilot_flies_the_circuit`, the co-op client's plane is a `Player`). Flight keeps its `fullRadius = 3000`
-  (`FlightWorld.cpp:262`, its stamping and content distance) and sets `simulationRadius 1000`, `prefetchMargin 1000`
-  (a plane at 200 m/s crosses 1 km in 5 s), `unloadMargin 256`: the kept radius is 4.26 km, about 870 chunks of 256 m,
-  each a pinned 257^2 int32 base (264 KB): about 230 MB pinned CPU memory, within §12.2's 768 MB terrain budget with
-  the visual tiles; the placements add about 20 MB. Measured and reported in the Results; if the load at 200 m/s
-  stalls, flight lowers `prefetchMargin` before anything else changes. `game_world` (no `Player`: a camera and lamps),
+  (`FlightWorld.cpp:262`, its content render distance) and sets `residencyRadius 1000`, `simulationRadius 500`,
+  `prefetchMargin 600`, `unloadMargin 256` (Scope 13): requested 1.6 km, kept 1.86 km, about 170 chunks of 256 m
+  pinned (257^2 int32 each, 264 KB: about 45 MB); the requested disc is about 3.2 km wide, so at 200 m/s about 10 new
+  chunks per second (~0.5 CPU-s/s of 1 m bases at ~50 ms each). Stamped prefab entities appear within the requested
+  distance (Scope 4: stamping follows `ready`); the ruins' static parts and tier-1 content beyond it stay visible
+  through the content render sets (visual, 3 km). Measured first and reported in the Results (Scope 13). `game_world` (no `Player`: a camera and lamps),
   `game_racing` (AI cars along a track) and `game_platformer` (one small level) stay off; each keeps its behaviour.
 
 ## Scope
@@ -299,15 +304,18 @@ streaming stalls (local); step time with 10^5 resident and 10^4 simulated entiti
 - `SpaceTemplate`: `double residencyRadius = 0;` (0: `fullRadius`; else `simulationRadius <= residencyRadius <=
   fullRadius`), `double simulationRadius = 384;`, `double prefetchMargin = 256;`, `double unloadMargin = 128;`
   (§7.9; `fullRadius` exists). `validateSpaceTemplates` adds (fatal in every build, naming template and field): every
-  radius and margin finite; `fullRadius > 0`; `0 < simulationRadius <= fullRadius`; margins `>= 0`.
+  radius and margin finite; `fullRadius > 0`; `0 < simulationRadius <= fullRadius`; `residencyRadius` 0 or in
+  `[simulationRadius, fullRadius]`; margins `>= 0`.
 - **Scenario distances** (the one statement the S25 and S26 plans cite): with `streamingScenarioSetup()` (`fullRadius`
   128, `unloadMargin` 64) and the runner's overrides, a scenario world's required and requested distance is 128 m and
   its kept distance 192 m.
-- `ScenarioWorld`'s `scenarioSetup` lowers `simulationRadius` to at most 128 and sets `prefetchMargin = 0` (after the
-  existing `fullRadius <= 128`; §17.2), and calls `setStreamingSynchronous(true)` on every world it creates (host,
-  clients, the save/load replacement, repeat runs).
+- `ScenarioWorld`'s `scenarioSetup` lowers `simulationRadius` to at most 128, clamps a non-zero `residencyRadius` to
+  the lowered `fullRadius` and sets `prefetchMargin = 0` (after the existing `fullRadius <= 128`; §17.2), and calls
+  `setStreamingSynchronous(true)` on every world it creates (host, clients, the save/load replacement and S25's
+  directory round-trip world, repeat runs).
 - `StreamingAnchor` (`components/StreamingAnchor.h`, an empty engine component, `Saved::Yes`, `Replicate::Never`,
-  appended `EngineComponent` ID; G4).
+  appended `EngineComponent` ID; G4): on the host a residency and simulation centre; it is not replicated, so on a
+  client only a client-local entity's anchor counts.
 - Runtime settings (not saved, not policy): `struct StreamingSettings { int maxInFlight = 8; bool synchronous = false;
   };` with `World::setStreamingSettings` / `streamingSettings()` and the shorthand `setStreamingSynchronous(bool)`.
 
@@ -344,7 +352,8 @@ class SAIGA_ENGINE_API ChunkResidency   // owned by the World (World::residency(
     double islandProgress(SpaceId space, const Vec3& position) const;   // arrival readiness (G12), in [0, 1]
     int addListener(ResidencyListener listener);
     void removeListener(int id);
-    void dropAll();      // a load, replaceSources: every chunk to None, no listener called (consumers reset themselves)
+    void dropAll();      // a load, replaceSources: unpins every tile it pinned, cancels its queued jobs, bumps the
+                         // generation, every chunk to None; no listener called (consumers reset themselves)
     const StreamingStats& stats() const;
     std::function<void(const ChunkId&)> jobHookForTests;   // runs in the residency's job before it generates
 };
@@ -386,7 +395,8 @@ added by those stages: S25 the listener members `onResident` and `onKeptChanged`
   6. the statistics and the profiler scope `streaming`.
 - **The step-start refresh** (G5, centres differ from the last update's): steps 1-3 and the promotion half of step 4
   (no drain, no delivery queue), the island count only, then the simulation evaluation, before phase 1.
-- **`complete(timeout)`** (between steps): `update()` without the stall/island part, then runs the pool on the caller
+- **`complete(timeout)`** (between steps): `update()` without the stall part and with the island count only (no event,
+  no `IslandState` write, as the refresh: so `islandCount()` agrees after a load), then runs the pool on the caller
   (`runOneOnCaller`) and waits until every required chunk of every centre has its **parts** ready; false at the
   deadline (what is resident is applied). A chunk held only by a modification gate (S26's clients wait for a snapshot
   that arrives in phase 1) counts as complete for this call and stays `Requested`, so a complete point never blocks on
@@ -428,13 +438,15 @@ added by those stages: S25 the listener members `onResident` and `onKeptChanged`
 
 ### 4. Placement and stamping (`engine/content/ChunkStampSystem.cpp`, `engine/content/ContentRenderSystem.cpp`)
 
-- The Placement part requests `ChunkPlacement` at the chunk's effective placement version through
-  `ContentSource::requestPlacement` (asynchronous) or `GenerationPipeline::chunkPlacement` (synchronous); the residency
+- The Placement part is the second half of the chunk's residency job (G17); a placement-only re-request (a version
+  change of a resident chunk, G6) runs the same residency job lambda with the base already held (it skips
+  `baseInJob`; `jobHookForTests` runs for it too); synchronous mode uses `GenerationPipeline::chunkPlacement`; the residency
   holds the pointer; `World::tierOnePosition` and `tombstone`'s check consult it before the cache (G17), so resident
   chunks never regenerate (S28's colliders use it too). The content render sets keep using the cache (visual).
-- `chunkStampSystem` in a streaming world: the candidate chunks are the **resident** chunks within `fullRadius` of a
-  centre (player roots, `StreamingAnchor` entities and arrival targets, G4) that have stamps and are not stamped, in `ChunkId` order (stateless, as S23a's
-  rule). In synchronous mode this is the same step and the same set as S23a's rule for players, so S23a's and S23b's
+- `chunkStampSystem` in a streaming world: the candidate chunks are the **ready** chunks (requested and resident, G7:
+  stamping creates entities, so it must not depend on the unload hysteresis) within `fullRadius` of a centre (player
+  roots, `StreamingAnchor` entities and arrival targets, G4) that have stamps and are not stamped, in `ChunkId` order
+  (stateless, as S23a's rule); the effective stamp distance is `min(fullRadius, requested distance)`. In synchronous mode this is the same step and the same set as S23a's rule for players, so S23a's and S23b's
   scenarios would not change if run with streaming on. Without streaming the system is unchanged.
 - The content render sets keep their S23b centres and hysteresis (G2: visual). No change.
 
@@ -456,9 +468,11 @@ added by those stages: S25 the listener members `onResident` and `onKeptChanged`
     between 0 and > 0 mark their entities dirty (`SpatialGrid::forEachInCell(space, cx, cz, fn)`, new); the changed
     transforms (`World::changedTransforms()`), the log's records and the entities of the 8 x 8 cells of every
     accumulated dirty chunk are marked dirty; dirty roots are evaluated with G8's rule (`Registry::setFlags`); a root
-    whose flag flipped or whose child list changed sets its subtree through the child lists; a full evaluation instead
+    whose flag flipped or whose `Parent` changed is propagated by the one `hierarchyOrder` pass of G8; a full evaluation instead
     while not `initialised` (first update, a load);
-  - client: only held toggles of player roots (`PendingTransition` added: frozen; removed: simulated), the host's rule.
+  - client: only held toggles of player roots: `PendingTransition` added: frozen; removed **and** the matching
+    `OwnerCommand` (its teleport counter) applied: simulated (the client centre rule of G4; G10 uses the same
+    condition).
 - New entities: the World calls `SimulationSet::evaluateCreated` after each command flush and at once for a
   between-step `spawn` (G8), so the "simulated until the next evaluation" window does not exist.
 - `World::simulated(Entity) const`; `World::refreshSimulated(Entity)` (re-evaluates one root at once; the world API's
@@ -573,12 +587,11 @@ struct IslandLimitEvent { uint32_t count; };                               // En
 
 - `game_flight` sets `config.streaming = true` (G22) with its radii and `StreamingAnchor` on every plane it spawns; the
   pinned memory, the chunks per second at 200 m/s and the complete-point time are measured **first** (before the demo
-  is switched over). The plan's own numbers (1 m bases at ~50 ms each, a 4 km kept radius: ~24 new chunks per second at
-  200 m/s, ~1.2 CPU-s/s on 2 workers) say flight's `fullRadius` 3000 is too large to be the residency radius: it is
-  also `ContentRenderSystem`'s and the stamping distance. `SpaceTemplate` therefore gets `residencyRadius` (default:
-  `fullRadius`; the required distance of G3 uses it) and flight sets it to 1000 (simulation 500, prefetch 600, unload
-  256: ~4 new chunks per second, ~110 required chunks at a complete point), keeping `fullRadius` 3000 for its content
-  and stamps. If the measurement still shows stalls, `TerrainViewSettings::workers` becomes 3 for flight. Its scenarios (`--scenarios`, incl. `flight_content_hashes` and the ruin) pass in
+  is switched over). With `fullRadius` 3000 as the residency radius flight would need ~24 new 1 m chunks per second at
+  200 m/s (~1.2 CPU-s/s on 2 workers), so it sets `residencyRadius` 1000 (G22's radii: ~10 new chunks per second,
+  ~50 required chunks at a complete point) and keeps `fullRadius` 3000 for its content render sets. If the
+  measurement still shows stalls, `TerrainViewSettings::workers` becomes 3 for flight (the only change of that
+  setting). Its scenarios (`--scenarios`, incl. `flight_content_hashes` and the ruin) pass in
   every variant; `--demo` and `--coop --demo` screenshots are unchanged (the ruin stamped, the plane flying); the Engine
   tab's Streaming section shows the resident set following the plane. Other games unchanged (G22).
 
@@ -618,14 +631,17 @@ The extensions below are agreed here and implemented by the consuming stage, wit
 without a consumer). S25 (world save directory, entity unload/reload, space unloading) builds on:
 
 1. `ChunkResidency::addListener(ResidencyListener)`: S25 adds the members `onResident` (its reload and record
-   triggers) and `onKeptChanged(ChunkId, bool)` (the `kept` predicate flipped: its entity unload trigger) and uses
+   triggers) and `onKeptChanged(ChunkId, bool)` (its entity unload trigger) and uses
    `onUnload` / `onReadyChanged`; it accumulates and acts in its own systems (listeners never write World state).
 2. `ChunkResidency::addPart(ResidencyPartInfo {bit, wanted, build, request, drop})`, added by S25 for `PartStored`
    (the chunk store's record); S28 adds `PartColliders` through it.
 3. `ChunkResidency::state` / `requested` / `ready` / `kept`, `centres()` per space (S25's space unloading: a space
    without centres). S25 unloads entities beyond the kept distance of every current centre (`kept`, a pure predicate
    of the current centres, so the hysteresis needs no history and stays exact across a load) and reloads them when
-   their chunk is ready.
+   their chunk is ready. `onKeptChanged` is defined over the kept discs themselves, not over residency entries: S25
+   adds a per-space kept coverage of chunk squares (counts per chunk, updated from the centres' moves like G8's cell
+   coverage) and fires the listener for every chunk whose coverage flips between 0 and > 0, also chunks that were
+   never requested (a root spawned in the band, an NPC that walked out of the requested area).
 4. `SimulationSet::evaluateCreated` (reloaded groups are created entities, so their flags are evaluated at the flush,
    G8) and `World::refreshSimulated(Entity)`; `Simulated` toggles call no hook, S25's reload calls `onCatchUp`.
 5. `World::completeResidency` and the step-start refresh of G5 with a hook list run after it (`World::addStepStartHook`,
@@ -699,10 +715,10 @@ generations use their own.
   an arrival in the next step, and its moved entities are never held (the unchanged existing tests and scenarios are
   the rest of G1's proof); `ScenarioWorld` lowers the radii and sets `synchronous`.
 - `Residency.*`:
-  - `RequestSetFollowsPlayer` (sync): after one step the requested set equals the chunks within `fullRadius +
-    prefetchMargin` (brute force over the space) and all are resident; after a 1 km move the chunks beyond the kept
-    distance are `None` (tile unpinned, placement released, `onUnload` called), those between requested and kept distance
-    are still resident (hysteresis) but not `ready`;
+  - `RequestSetFollowsPlayer` (sync): after one step the requested set equals the chunks within the requested distance
+    (brute force over the space) and all are resident; after a 100 m move the chunks that left the requested distance
+    but are within the kept distance are still resident (hysteresis) but not `ready`; after a further 1 km move the
+    chunks beyond the kept distance are `None` (tile unpinned, placement released, `onUnload` called);
   - `TrivialChunksNeedNoJobs`: a world of only `test_flat` and `test_dungeon` (no terrain, no slots): resident in the
     requesting update, `poolCreated()` false;
   - `BetweenStepChangeSeenNextStep` (sync, G5): a player teleported 1 km between steps: the next step's phase 1 sees
@@ -748,7 +764,8 @@ generations use their own.
     every prefetch chunk, nearest first;
   - `StallsCounted`: two held players: `streamingStalls` +1 per step, `playerStallSteps` +2.
 - `Simulated.*` (plain worlds with the test setup, sync):
-  - `FarEntitiesFreeze`: `Ticker`s at 30 m and 300 m: the near one's update and system counts grow, the far one's stay
+  - `FarEntitiesFreeze`: `Ticker`s at 30 m and 150 m (the far one beyond the simulation radius but inside the
+    requested distance, so S25's unloading does not touch it): the near one's update and system counts grow, the far one's stay
     0; `viewAll` in phase 4 sees both; `ownedBy` skips the far one; `behaviourEventSystem` does not deliver a
     `DamageEvent` to the far one;
   - `MatchesBruteForce` (G8 exactness): 400 steps with a seeded walk of two players (one changes space twice), 2000
@@ -829,7 +846,7 @@ scenario runner's overrides apply), every variant (plain, repeat with `varyThrea
   stall counting itself is tested asynchronously in `Residency.*`); the stamped entities of every
   site chunk it reaches exist from the step in which the chunk became resident, never before (host); the chunks behind
   it beyond the kept distance are `None`.
-- `far_entities_freeze`: `Ticker`s at 40 m and 200 m; the far one's count stays 0 until the player walks to it, then
+- `far_entities_freeze`: `Ticker`s at 40 m and 100 m (beyond the simulation radius 64, inside the requested 128 m); the far one's count stays 0 until the player walks to it, then
   grows while the near one, now far, stops.
 - `arrival_far_teleport`: `call("request_arrival", ...)` 3 km away: the player is at the target exactly one step later
   (synchronous), the target's chunks are resident, the old ones unloaded, `SpaceTransitionEvent` read in the step
@@ -899,9 +916,9 @@ updated.
 - `./build/tests/test_engine_streaming --gtest_print_time=1` and `./build/tests/test_engine_streaming_scenarios
   --gtest_print_time=1` against the budgets above.
 - Local: `SAIGA_STREAMING_BENCHMARK=full ./build-bench/tests/test_engine_streaming_benchmark` (configure the bench
-  build with `-DSAIGA_BUILD_TESTS=ON` for this binary), `game_world --benchmark flyover|forest` (bench build),
-  `./build/samples/games/game_flight --scenarios`, `SAIGA_SCREENSHOT=/tmp/flight.png ./build/samples/games/game_flight
-  --demo` and with `--coop` (headless screenshot path; no window is opened by the tests themselves).
+  build with `-DSAIGA_BUILD_TESTS=ON` for this binary), `./build/samples/games/game_flight --scenarios`,
+  `SAIGA_SCREENSHOT=/tmp/flight.png ./build/samples/games/game_flight --headless --demo` and with `--coop`.
+  `game_world --benchmark flyover|forest` (bench build) opens a window: run only with the user's approval.
 
 ## Files
 
@@ -942,8 +959,8 @@ Changed:
   the snapshot sizes change slightly. Fallback if this causes trouble: a separate replicated marker component
   (`ArrivalPending {SpaceId target; Vec3 position}`) instead of changing the mode.
 - **Pool contention.** Residency and the visual path share two workers; the required-chunk priority goes first. If the
-  local stall run shows stalls caused by visual jobs, `TerrainViewSettings::workers` becomes 3 for streaming worlds (a
-  documented default change) before anything else.
+  local stall run shows stalls caused by visual jobs, flight sets `TerrainViewSettings::workers` to 3 (Scope 13; no
+  engine default change).
 - **Phase-7 drain of visual completions inside a step.** They mutate the store and the sink on the main thread; the
   extract (phase 8) already calls the sink inside the step. If a visual completion turns out to assume "between
   steps" (an assert), the phase-7 drain is limited to the residency's jobs (a per-job tag in the completion queue).

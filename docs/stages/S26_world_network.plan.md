@@ -204,7 +204,8 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   for `game_flight`, G22); a client of such a world has no residency to subscribe from. It sends one `ChunkInterest`
   per space with the flag `all` (identified by its epoch) when it is `Joined` and after every `Resync`, and never unsubscribes.
   The host answers with one `ChunkIndex` per space (on `ChunkData`, not budgeted, 8 bytes per chunk with state:
-  the chunks with a sequence > 0 or a record), then queues a `ChunkSnapshot` per listed chunk
+  the chunks whose snapshot carries something: a sequence > 0, or a record with tombstones or another placement version
+  than the current one, S23b's rule), then queues a `ChunkSnapshot` per listed chunk
   (budgeted) and sends the space's live parts to that peer from then on. Until the index arrives every live part of
   the space is queued per chunk; on the index the listed chunks become `Pending` with ticket 0, every other
   chunk is `Synced` at sequence 0 (its queued parts apply from sequence 1). This keeps today's behaviour (every client
@@ -224,8 +225,8 @@ S24".
    replicated `PendingTransition` targets" (a target kept until the owner command is applied, S24 G4); the view camera is never a centre. Chunks of spaces that want no part
    (flat, enclosed, slot-less without terrain) become resident in the requesting update without a job.
 3. **The chunks S26 subscribes**: every chunk the client's residency has in state `Requested` or `Resident`
-   (`ChunkResidency::state(ChunkId)`: G3's requested distance `fullRadius + prefetchMargin` to the kept distance
-   `fullRadius + prefetchMargin + unloadMargin`). So the subscription starts at the request (prefetch), not when the
+   (`ChunkResidency::state(ChunkId)`: from G3's requested distance `R + prefetchMargin` to the kept distance `R +
+   prefetchMargin + unloadMargin`, `R = residencyRadius`, 0: `fullRadius`). So the subscription starts at the request (prefetch), not when the
    chunk becomes resident, and ends with S24's unload. S26 enumerates them in phase 8 with
    `ChunkResidency::forEachChunk(space, fn)` (S24 Scope 2; `Requested` or `Resident`, `ChunkId` order).
 4. **Phase-7 apply** (G5): pool results and the residency update run in phase 7; S26's phase-8 diff sees the state of
@@ -253,8 +254,7 @@ S24".
     with `moveToSpace`; the client's mover holds until the gate passes; G19's loading screen waits for it. Joins in
     S26 need no arrival of their own (the game's join policy may call `requestArrival` for the joining player).
 11. **Synchronous `ScenarioWorld`** (G5, Scope 1 of S24): every world of a scenario builds requested chunks inline in
-    phase 7; `scenarioSetup` lowers `fullRadius` to 128, `simulationRadius` to 128 and `prefetchMargin` to 0 (kept
-    distance 256 m with the default `unloadMargin` 128). In the host + client variants the only latency of a client's
+    phase 7; the scenario distances are S24 Scope 1's (requested 128 m, kept 192 m). In the host + client variants the only latency of a client's
     chunk is the subscribe / snapshot round trip.
 12. **`streamingScenarioSetup()` and its scenarios** (S24 Tests): `streaming_follows_player`, `far_entities_freeze`,
     `arrival_far_teleport`, `edit_far_chunk_then_visit`, `space_link_with_streaming` run in every variant; in S26 their
@@ -507,8 +507,10 @@ bool World::chunkSynced(const ChunkId& chunk) const;
   one `onTerrainChanged` as before.
 - **Re-request** (D9): `modificationGaps++` (S22's counter: the host + client variant still fails on any, a gap is a
   bug on a lossless transport), `rerequests++`, the chunk becomes `Pending` with a new ticket and an empty queue (the
-  parts after the gap are queued anew), its state is kept, and an add with the new ticket is staged for the next phase
-  8 (also when the gap is found between steps: one rule). The residency keeps the chunk `Resident` meanwhile
+  parts after the gap are queued anew), its state is kept, and the chunk joins the **unsent adds** (per chunk the
+  ticket; per space a pending `all`): every phase 8 stages an add for every unsent entry and only `commit()` clears it,
+  so an aborted phase 8 re-sends it next step (the wanted-set diff alone would be empty for a re-requested chunk).
+  The same holds for the `all` subscription staged on `Joined` and after a `Resync`. The residency keeps the chunk `Resident` meanwhile
   (deliberately: its present state is valid up to the gap, and holding the mover for a re-request would stall on every
   gap).
 - **Generation replaced** (the join's pin adoption, `Resync`): `World::replaceGeneration` calls
@@ -522,15 +524,13 @@ bool World::chunkSynced(const ChunkId& chunk) const;
   until its `ChunkIndex` of the current epoch arrives (another epoch: stale, dropped); then the listed chunks are
   `Pending` with ticket 0 (their snapshots follow) and every other chunk of the space is `Synced` at sequence 0, its
   queued parts applied from sequence 1 (a gap re-requests that chunk with a per-chunk add, which the host accepts in
-  an `all` space too). A `ChunkIndex` is validated as a whole (ascending, unique, in range; a sequence of 0 is a chunk
-  with only a record) before anything changes. `chunkSynced` is true for a chunk of an indexed space that is not
+  an `all` space too). A `ChunkIndex` is validated as a whole (ascending, unique, in range) before anything changes. `chunkSynced` is true for a chunk of an indexed space that is not
   `Pending`.
 - **The gate** (D18): a streaming client sets `residency().setModificationGate(...)` in the World constructor (after
   the residency exists) to `chunkSync.state(c) == Synced`.
 - `World::spaceReadiness` on a client (D18): the minimum also includes the synced fraction of the subscribed chunks
   inside the radius (unsubscribed chunks count as ready, so a free camera far from the players does not block).
-- `World::clearReplicatedChunkState` (S23b's `Replication::clearReplicatedChunkState`) stays the one clear of both
-  stores.
+- `Replication::clearReplicatedChunkState` (S23b's, `net/Replication.h:260`) stays the one clear of both stores.
 
 ### 5. Host subscriptions and snapshots (`engine/net/HostChunkSubscriptions.{h,cpp}`, owned by `Replication`)
 
@@ -604,7 +604,9 @@ ChunkRecord& set(const ChunkId& chunk, uint16_t placementVersion, std::vector<In
 
 - **Join before the scenario starts**: `ScenarioWorld`'s constructor pumps `stepNetworkOnly` on host and clients
   (no host step: the host's step count and hash are unchanged) until every client is `Joined` and, in a world without
-  streaming, every space indexed; a client that is not `Joined` within `4 * delaySteps + 8` pumps, or that becomes
+  streaming, every space indexed and no chunk `Pending` (the initial snapshots applied, so a client-owned character's
+  first steps stand on the edited surface); in a streaming world the initial hold of up to `2 * delaySteps + 3` steps
+  of a client-owned character is expected; a client that is not `Joined` within `4 * delaySteps + 8` pumps, or that becomes
   `Rejected`, fails the variant with its `joinRejection()`. So the handshake's extra round trips do not eat into
   short scenarios or the final sync's bound. Streaming checks on a client that count steps (stalls, "resident at most
   `2 * delaySteps + 3` steps after it was requested") count from the later of the request step and the client's first
@@ -639,7 +641,7 @@ One new scenario, added to `registerStreamingScenarios` and run in every variant
 
 - `streaming_reload_during_edit`: a player standing on chunk C (the setup's terrain); the host edits C every 3 steps
   for 30 steps while the player is moved (`requestArrival`, host) 600 m away (beyond the scenario worlds' kept distance
-  of 256 m, so C is unloaded and, on the client, unsubscribed and dropped) and back, dwelling 16 steps at each end
+  of 192 m, S24 Scope 1, so C is unloaded and, on the client, unsubscribed and dropped) and back, dwelling 16 steps at each end
   (more than twice the `2 * delaySteps + 3` sync bound at delay 2), so edits are in flight during unsubscribe,
   resubscribe and pending snapshots at delay 2 and in the asynchronous variant; checks after the final sync: on host
   and client `terrainHeight` at the player's x/z equals the edited surface, and the end comparison checks the heights
@@ -742,23 +744,22 @@ with a bound, no sleeps):
 - `Handshake.ControlBeforeAcceptIsDeferred`: `LoopbackOptions::bytesPerRound` small enough that the spawn set and
   `JoinAccept` take several rounds, and a join policy that teleports the new player in the admission step: the
   `OwnerCommand` arrives before `JoinAccept`, is deferred and applied after `Joined` (the player ends at the target).
-- `ChunkSync.PinAdoptionDropsResidency` (streaming): a client whose pins differ joins after its residency built
-  chunks: after the adoption every chunk is requested again with the new plans, none is `Resident` before its
-  snapshot; the same after a host load's `Resync`.
+- `ChunkSync.PinAdoptionDropsResidency` (streaming): a joined client whose residency built chunks around its player;
+  the host loads a save with other pins (`Resync` v2): after the adoption every chunk is requested again with the new
+  plans and none is `Resident` before its new snapshot. (Before `Joined` a client owns no centre, so the join-time
+  adoption has no residency to drop; `ClientAdoptsOlderPins` covers its plans.)
 - `ChunkSync.RerequestKeepsResident`: a gap on a `Resident` chunk re-requests it; the chunk stays `Resident` (the mover
   does not hold) and ends equal to the host after the new snapshot.
 - `Handshake.SchemaHashMismatchIsRejected` (the acceptance test): the client registers one extra test component; host:
   `joinsRejected == 1`, no admitted peer, nothing sent but `JoinReject`; client: `Rejected`, `joinRejection()` names
   the schema and its differing section ("types"), no entity arrived, `connectedPeers()` empty.
-- `Handshake.LaterProtocolVersionReadable`: a `JoinRequest` with protocol version 2 and a different layout after the
-  version (trailing bytes of another shape): `JoinReject{ProtocolVersion}`, not `Malformed`.
 - `Handshake.RejectionReasons`: one case each for environment flag, render tables (a mesh registered only on the
   client), seed, a generator missing, a client generator older than the host's current version (`TestTerrainGenerator`
   1 vs 2), a slot table that is not a prefix; each `joinRejection()` names its reason and the environment case is
   reported as environment, not as schema (D5).
-- `Handshake.ProtocolVersionMismatchIsRejected`: a `JoinRequest` with version 2 sent from a raw loopback end (the
-  test frames the packet with S15's framing): the reply is `JoinReject{ProtocolVersion}` decodable with the frozen
-  prefix.
+- `Handshake.ProtocolVersionMismatchIsRejected`: a `JoinRequest` with version 2 and a different layout after the
+  version (trailing bytes of another shape), sent from a raw loopback end (the test frames the packet with S15's
+  framing): the reply is `JoinReject{ProtocolVersion}` (not `Malformed`), decodable with the frozen prefix.
 - `Handshake.MalformedRequestAndEarlyMessages`: garbage `JoinRequest` -> `JoinReject{Malformed}`, `rejected` counted;
   a `ChunkInterest` or `PlayerAction` before admission -> rejected input, no state change.
 - `Handshake.ClientAdoptsOlderPins` (E11): a host world loaded from a save of a `TestTerrainGenerator(1)` world but
@@ -820,7 +821,8 @@ with a bound, no sleeps):
   `all`-subscribed, are rejected input (an add in an `all` space is the re-request form); an `all` from a streaming world's client too.
 - `ChunkSync.AbortsKeepTheProtocol` (D16): a throwing phase-8 test system on the host after the snapshot queue was
   served: the queue keeps the snapshots and they are sent next step; on a client after the interest diff: the staged
-  `ChunkInterest` is dropped and the next phase 8 computes the same diff with new tickets; both end synced.
+  `ChunkInterest` is dropped and the next phase 8 computes the same diff with new tickets; a gap's re-request and the
+  `all` subscription whose phase 8 aborts are re-sent next step (the unsent adds); all end synced.
 - `ChunkSync.CompletePointDoesNotBlock`: `completeResidency` on a streaming client whose snapshot is held back by the
   host's budget returns within the parts' time (the chunk stays `Requested`).
 - `ChunkSync.ReadinessWaitsForSnapshots`: `spaceReadiness` on the client is below 1 while a subscribed chunk inside the
@@ -885,7 +887,7 @@ cmake --build build --parallel -- -k 0
 # Tech demos (samples ON, local, headless screenshots only):
 ./build/samples/games/game_flight --scenarios && ./build/samples/games/game_racing --scenarios && \
   ./build/samples/games/game_platformer --scenarios
-SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo
+SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --headless --coop --demo
 ```
 
 ## Files
