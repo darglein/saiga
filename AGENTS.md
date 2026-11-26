@@ -399,9 +399,9 @@ ctest -R test_core_ini --output-on-failure             # one test
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
     `test_vulkan_world` 9.5 s (prototype scenes with terrain and trees; S36: their frames shade with the lighting's
-    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 7.5 s
-    (73 tests; the MCP deadline tests wait ~3 s of real time; S24: the streaming app tests 0.8 s, an app whose complete
-    point and arrival generate the residency of a terrain space), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
+    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 8.5 s
+    (75 tests; the MCP deadline tests wait ~3 s of real time; S24: the streaming app tests 0.6 s, an app whose complete
+    point and arrival generate the residency of a terrain space; measured 8.1-8.3 s alone after S26, 6.9 s before S24), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
     the S36 golden mode: cascades at 1024, the horizon map, ACES), `test_engine_content` 6 s (the test generator's
     pyramids and the committed hashes), `test_vulkan_scene` 5.5 s, `test_vulkan_terrain` 5 s, the S36 lighting
     binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`

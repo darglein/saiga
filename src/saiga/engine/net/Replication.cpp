@@ -27,6 +27,7 @@
 #include "saiga/engine/net/JoinCheck.h"
 #include "saiga/engine/net/JoinMessages.h"
 #include "saiga/engine/net/NetOwner.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainMessages.h"
 #include "saiga/engine/world/World.h"
@@ -2414,6 +2415,10 @@ void Replication::onResync(uint8_t from, const uint8_t* data, size_t size)
     // in the new epoch
     clearReplicatedChunkState();
     clientChunks->reset();
+    // D18: a streaming client's residency is dropped also when the pins stayed (replaceGeneration drops it only for
+    // other pins): its resident chunks lost their state with the table and must wait for their new snapshots (the gate
+    // acts only on promotion)
+    if (w.streaming()) w.residency().dropAll();
 }
 
 void Replication::clearReplicatedChunkState()

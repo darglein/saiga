@@ -1479,6 +1479,33 @@ TEST(ChunkSync, PinAdoptionDropsResidency)
     expectChunkEqual(h, c, kC);
 }
 
+// Regression (review round 2): a host load that keeps the pins (no replaceGeneration on the client) left the client's
+// chunks Resident while their state was cleared; they must wait for their new snapshots like after a pin change
+TEST(ChunkSync, SamePinsResyncDropsResidency)
+{
+    NetPeers n(worldNetTestSetup(true));
+    World& h = *n.host;
+    World& c = n.client();
+    ASSERT_TRUE(n.stepUntil([&] { return c.joinState() == JoinState::Joined; }));
+    clientPlayer(h, centreOf(kC));
+    h.editTerrain(0, raiseBrush(centreOf(kC).x(), centreOf(kC).z()));
+    ASSERT_TRUE(n.stepUntil([&] { return c.residency().state(kC) == ChunkState::Resident && c.chunkSynced(kC); }));
+    const std::vector<uint8_t> blob = h.save();
+    ASSERT_TRUE(h.tryLoad(blob).ok());
+    bool residentBeforeSnapshot = false, dropped = false;
+    for (int k = 0; k < 64; ++k)
+    {
+        n.step();
+        if (c.replication().epoch() == 1 && c.residency().state(kC) != ChunkState::Resident) dropped = true;
+        if (c.residency().state(kC) == ChunkState::Resident && !c.chunkSynced(kC)) residentBeforeSnapshot = true;
+        if (dropped && c.residency().state(kC) == ChunkState::Resident) break;
+    }
+    EXPECT_TRUE(dropped);
+    EXPECT_FALSE(residentBeforeSnapshot);
+    EXPECT_EQ(c.residency().state(kC), ChunkState::Resident);
+    expectChunkEqual(h, c, kC);
+}
+
 // A gap on a Resident chunk re-requests it: the chunk stays Resident (the mover does not hold) and ends equal to the
 // host after the new snapshot
 TEST(ChunkSync, RerequestKeepsResident)
@@ -1715,7 +1742,6 @@ TEST(ChunkSync, AbortsKeepTheProtocol)
     }
 }
 
-// Complete points never block on the network (S24 Scope 2): completeResidency returns although C's snapshot is held
 namespace
 {
 bool g_throwClientPhase1 = false;
@@ -1747,6 +1773,7 @@ TEST(Handshake, JoinRequestSurvivesAnAbortedPhase1)
     ASSERT_TRUE(n.stepUntil([&] { return c.joinState() == JoinState::Joined; }));
 }
 
+// Complete points never block on the network (S24 Scope 2): completeResidency returns although C's snapshot is held
 TEST(ChunkSync, CompletePointDoesNotBlock)
 {
     WorldSetup setup                               = worldNetTestSetup(true);

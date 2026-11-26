@@ -1050,6 +1050,15 @@ Recorded per R-DOC-2; the plan's intent is kept in each case.
     a terrain sequence in an enclosed space or deltas with sequence 0 is rejected input.
   - `HostChunkSubscriptions::serve` finds duplicates with a set (it was quadratic in the queue).
   - `streaming_status` / `chunk_info` list the `stored` part (S25).
+- **Review round 2 fixes**:
+  - A `Resync` drops a streaming client's residency also when the pins stay (it was dropped only by
+    `replaceGeneration`, so resident chunks kept no state and no hold; `ChunkSync.SamePinsResyncDropsResidency`).
+  - The client never subscribes more than `WorldConfig::network.maxChunksPerPeer` (the host rejects a whole message
+    above it and the client was never told); the limit is in the network schema's flags section, so both sides agree;
+    capped new chunks wait `Requested` (`ClientChunkSync::Stats::interestCapped`).
+  - A `TombstoneModification` for an enclosed space is rejected input (a tombstone bumps the terrain sequence).
+  - Overflowing the deferral while joining (1024 reliable messages before `JoinAccept`) rejects the join instead of
+    continuing with a lost message.
 
 ## Results
 

@@ -67,7 +67,7 @@ class SAIGA_ENGINE_API ClientChunkSync
     {
         uint64_t subscribed = 0, unsubscribed = 0, snapshotsApplied = 0, snapshotsStale = 0, indexesApplied = 0,
                  partsQueued = 0, partsDroppedNotSubscribed = 0, partsDroppedOld = 0, partsApplied = 0, rerequests = 0,
-                 queueOverflows = 0, interestMessages = 0;
+                 queueOverflows = 0, interestMessages = 0, interestCapped = 0;
     };
 
     explicit ClientChunkSync(World& world);

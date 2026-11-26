@@ -80,6 +80,8 @@ struct SAIGA_ENGINE_API NetSchema
     std::vector<std::pair<int, std::string>> held;          // ActionList held buttons (bit, name)
     std::vector<Template> templates;                        // WorldConfig::spaceTemplates (the layout fields)
     uint32_t worldFlags = 0;                                // bit 0: WorldConfig::streaming (D19)
+    // The host rejects a ChunkInterest above it, the client never asks for more: both must agree (review round 2)
+    uint32_t maxChunksPerPeer = 0;
 
     static NetSchema fromWorld(const World& world);
     // The canonical encoding of one section (appended to out)

@@ -2332,7 +2332,13 @@ void World::receiveMessages(bool engineOnly)
                 const MessageList::Entry* de = messages.find(m.id);
                 if (de && de->reliability == Reliability::Unreliable) continue;
                 if (deferredWhileJoining.size() >= kMaxDeferredWhileJoining)
+                {
+                    // A lost reliable message would leave the client diverged for good: the join fails instead
                     rejectInput(m.peer, "more than 1024 messages before JoinAccept");
+                    joinStateValue    = JoinState::Rejected;
+                    joinRejectionText = "more than 1024 reliable messages arrived before JoinAccept";
+                    deferredWhileJoining.clear();
+                }
                 else
                     deferredWhileJoining.push_back(std::move(inbox[i]));
                 continue;

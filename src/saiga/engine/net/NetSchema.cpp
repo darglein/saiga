@@ -92,7 +92,8 @@ NetSchema NetSchema::fromWorld(const World& world)
     std::sort(s.held.begin(), s.held.end());
     for (const SpaceTemplate& t : world.worldConfig().spaceTemplates)
         s.templates.push_back(Template{t.name, uint8_t(t.kind), t.baseSpacing, t.sizeChunks, uint16_t(t.generator)});
-    s.worldFlags = world.streaming() ? 1u : 0u;
+    s.worldFlags       = world.streaming() ? 1u : 0u;
+    s.maxChunksPerPeer = uint32_t(world.worldConfig().network.maxChunksPerPeer);
     return s;
 }
 
@@ -178,6 +179,7 @@ void NetSchema::encodeSection(NetSchemaSection section, std::vector<uint8_t>& ou
             break;
         case NetSchemaSection::Flags:
             putU32(out, worldFlags);
+            putU32(out, maxChunksPerPeer);
             break;
     }
 }

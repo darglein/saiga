@@ -591,9 +591,11 @@ void ClientChunkSync::onTombstoneModification(uint8_t from, const uint8_t* data,
         w.replication().counts.recordsDroppedEpoch++;
         return;
     }
-    if (m.space >= w.spaceCount())
+    // An open-world space only (as TerrainModification): a tombstone bumps the chunk's terrain sequence, which an
+    // enclosed space cannot hold
+    if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
     {
-        reject(from, "TombstoneModification: unknown space " + std::to_string(m.space), true);
+        reject(from, "TombstoneModification: not an open-world space " + std::to_string(m.space), true);
         return;
     }
     // Validation of every entry before anything applies (the placement version of Synced chunks; a queued entry is
@@ -679,6 +681,8 @@ void ClientChunkSync::extract()
         w.sendRaw(0, MessageId(EngineMessage::ChunkInterest), bytes.data(), bytes.size());
         statistics.interestMessages++;
     };
+    // The subscriptions after this diff (all spaces; the host's maxChunksPerPeer counts them per peer)
+    size_t total = table.size();
     for (size_t si = 0; si < w.spaceCount(); ++si)
     {
         const SpaceId space = SpaceId(si);
@@ -728,6 +732,22 @@ void ClientChunkSync::extract()
         };
         std::stable_sort(adds.begin(), adds.end(),
                          [&](const StagedAdd& a, const StagedAdd& b) { return distance(a.chunk) < distance(b.chunk); });
+        // The host rejects a whole ChunkInterest above maxChunksPerPeer (in the network schema, so both sides agree):
+        // the client never asks for more; the farthest new chunks wait (they stay Requested) until others are removed
+        const size_t limit = w.worldConfig().network.maxChunksPerPeer;
+        total -= std::min(total, removes.size());
+        std::vector<StagedAdd> kept;
+        for (const StagedAdd& add : adds)
+            if (!add.fresh)
+                kept.push_back(add);  // a re-request: already subscribed
+            else if (total < limit)
+            {
+                kept.push_back(add);
+                total++;
+            }
+        if (kept.size() < adds.size()) statistics.interestCapped++;
+        adds.swap(kept);
+        if (removes.empty() && adds.empty()) continue;
         // Messages of at most kMaxInterestEntries entries: removes first
         size_t r = 0, a = 0;
         while (r < removes.size() || a < adds.size())
