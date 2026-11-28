@@ -38,20 +38,20 @@ class Sample : public SampleWindowDeferred
         //        object.asset = asset;
 
 
-        //                Load("user/sponza/sponza.obj");
+//                Load("user/sponza/sponza.obj");
 
         //        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/bedroom.glb");
         // Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro_interior.glb");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro.glb");
-        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
-        //        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroInterior.fbx");
+         Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
+//        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroInterior.fbx");
 
-        //        Load("box.obj");
+//        Load("box.obj");
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
         //        Load("user/fireplace_room/fireplace_room.obj");
-        //                Load("box.obj");
+//                Load("box.obj");
 
 
 
@@ -69,8 +69,8 @@ class Sample : public SampleWindowDeferred
         std::cout << model << std::endl;
 
 
-        auto ta = std::make_shared<TexturedAsset>(model);
-        //        auto ta      = std::make_shared<ColoredAsset>(model);
+         auto ta      = std::make_shared<TexturedAsset>(model);
+//        auto ta      = std::make_shared<ColoredAsset>(model);
         object.asset = ta;
 
 
@@ -121,6 +121,7 @@ class Sample : public SampleWindowDeferred
                 const PipelineState pass                  = currentPipelineState();
                 PipelineState wireframe                   = pass;
                 wireframe.rasterization.depthBias         = true;
+                wireframe.rasterization.depthBiasSlope    = 0;
                 wireframe.rasterization.depthBiasConstant = -500;
                 applyPipelineState(wireframe);
                 object.renderWireframe(render_info.camera);

@@ -5,10 +5,10 @@
  */
 
 #include "saiga/config.h"
-#include "saiga/opengl/pipeline.h"
 #ifdef SAIGA_USE_FREETYPE
 #    include "saiga/core/geometry/triangle_mesh.h"
 #    include "saiga/opengl/framebuffer.h"
+#    include "saiga/opengl/pipeline.h"
 #    include "saiga/opengl/rendering/overlay/textDebugOverlay.h"
 #    include "saiga/opengl/shader/basic_shaders.h"
 #    include "saiga/opengl/shader/shaderLoader.h"

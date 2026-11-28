@@ -14,7 +14,6 @@
 #include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/animation/boneVertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
-#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 
 #include <memory>
@@ -157,19 +156,18 @@ void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
         // and draw the wireframe without polygon offset.
         //    glPolygonOffset(0.0f,-500.0f);
 
-        // The lines with the rest of the pass's state.
-        const PipelineState pass        = currentPipelineState();
-        const uint32_t stencilReference = currentStencilReference();
-        PipelineState lines             = pass;
-        lines.rasterization.polygonMode = PolygonMode::Line;
-        applyPipelineState(lines, stencilReference);
+        // Drawn inside the pass of someone else: only the polygon mode changes, and it is restored afterwards, so the
+        // pass's state (and the PipelineStateCache) stays as it was.
+        GLint polygonMode[2] = {};
+        glGetIntegerv(GL_POLYGON_MODE, polygonMode);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         if (unified_buffer)
         {
             unified_buffer->Bind();
             unified_buffer->Draw();
             unified_buffer->Unbind();
         }
-        applyPipelineState(pass, stencilReference);
+        glPolygonMode(GL_FRONT_AND_BACK, static_cast<GLenum>(polygonMode[0]));
         //    glDisable(GL_POLYGON_OFFSET_LINE);
 
         wireframeshader->unbind();

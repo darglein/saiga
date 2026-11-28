@@ -7,6 +7,7 @@
 #include "saiga/opengl/pipeline.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/opengl/opengl_helper.h"
 #include "saiga/opengl/shader/shader.h"
 
 #include <sstream>
@@ -24,12 +25,27 @@ struct Cache
     bool valid                = false;
     PipelineState state       = {};
     uint32_t stencilReference = 0;
+    // Whether the context has GL_PRIMITIVE_RESTART_FIXED_INDEX, -1 before the first check.
+    int fixedIndexRestart = -1;
 };
 
 Cache& cache()
 {
     thread_local Cache c;
     return c;
+}
+
+// GL_PRIMITIVE_RESTART_FIXED_INDEX is core since OpenGL 4.3, but saiga also runs on 3.3. Checked once per thread: all
+// contexts of a thread are assumed to have the same version.
+bool fixedIndexRestartSupported()
+{
+    int& supported = cache().fixedIndexRestart;
+    if (supported < 0)
+    {
+        const int version = getVersionMajor() * 10 + getVersionMinor();
+        supported         = version >= 43 || hasExtension("GL_ARB_ES3_compatibility") ? 1 : 0;
+    }
+    return supported == 1;
 }
 
 GLenum toGL(CompareOp op)
@@ -192,7 +208,10 @@ void apply(const PipelineState& state, uint32_t reference, const PipelineState* 
 
     if (all || state.primitiveRestart != previous->primitiveRestart)
     {
-        setCapability(GL_PRIMITIVE_RESTART_FIXED_INDEX, state.primitiveRestart);
+        if (fixedIndexRestartSupported())
+            setCapability(GL_PRIMITIVE_RESTART_FIXED_INDEX, state.primitiveRestart);
+        else
+            SAIGA_ASSERT(!state.primitiveRestart, "primitive restart needs OpenGL 4.3 or GL_ARB_ES3_compatibility");
         // The restart with an index of its own; Vulkan has only the fixed index.
         if (all) glDisable(GL_PRIMITIVE_RESTART);
     }
@@ -234,9 +253,15 @@ void apply(const PipelineState& state, uint32_t reference, const PipelineState* 
     }
 }
 
-// Without the stencil reference: queries clamp it to the stencil bits of the bound framebuffer.
-void validate(const PipelineState& expected, const char* what)
+// Without the stencil reference: queries clamp it to the stencil bits of the bound framebuffer. Only the stencil bits
+// of the masks count, as in queryStencilFace.
+void validate(PipelineState expected, const char* what)
 {
+    for (StencilFaceState* face : {&expected.depthStencil.front, &expected.depthStencil.back})
+    {
+        face->compareMask &= 0xFF;
+        face->writeMask &= 0xFF;
+    }
     const std::string difference = pipelineStateDifference(expected, queryPipelineState());
     SAIGA_ASSERT(difference.empty(), std::string(what) + ":" + difference);
 }
@@ -322,20 +347,22 @@ void clearFramebuffer(ClearBufferMask buffers, bool scissor)
     glClear(buffers);
 }
 
-const PipelineState& currentPipelineState()
+PipelineState currentPipelineState()
 {
-    return cache().state;
+    const Cache& c = cache();
+    return c.enabled && c.valid ? c.state : queryPipelineState();
 }
 
 uint32_t currentStencilReference()
 {
-    return cache().stencilReference;
+    const Cache& c = cache();
+    return c.enabled && c.valid ? c.stencilReference : static_cast<uint32_t>(getInt(GL_STENCIL_REF));
 }
 
 PipelineState queryPipelineState(uint32_t* stencilReference)
 {
     PipelineState s;
-    s.primitiveRestart = glIsEnabled(GL_PRIMITIVE_RESTART_FIXED_INDEX) == GL_TRUE;
+    s.primitiveRestart = fixedIndexRestartSupported() && glIsEnabled(GL_PRIMITIVE_RESTART_FIXED_INDEX) == GL_TRUE;
 
     RasterizationState& r = s.rasterization;
     // Some drivers return a front and a back mode.
@@ -433,7 +460,8 @@ bool PipelineStateCache::validation()
 
 void PipelineStateCache::invalidate()
 {
-    cache().valid = false;
+    cache().valid             = false;
+    cache().fixedIndexRestart = -1;
 }
 
 bool GraphicsPipeline::bind(uint32_t stencilReference)

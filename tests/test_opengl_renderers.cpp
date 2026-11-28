@@ -349,6 +349,7 @@ TEST_P(OpenGLRenderers, SameImageWithTheCache)
     PipelineStateCache::setValidation(false);
 
     EXPECT_EQ(DifferentPixels(reference, cached), 0);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
 
 // ImGui's OpenGL backend sets its state with gl calls and restores the state it found at the end of its frame, so the
@@ -372,6 +373,7 @@ TEST(OpenGLRendererImGui, CacheStaysValid)
     PipelineStateCache::setValidation(false);
 
     EXPECT_EQ(DifferentPixels(reference, cached), 0);
+    EXPECT_EQ(glGetError(), GL_NO_ERROR);
 }
 
 INSTANTIATE_TEST_SUITE_P(Renderers, OpenGLRenderers, ::testing::ValuesIn(Variants()),

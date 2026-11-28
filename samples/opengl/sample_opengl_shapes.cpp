@@ -69,7 +69,7 @@ class Sample : public SampleWindowDeferred
         if (lines)
         {
             model.SetVertexColor(vec4(1, 1, 0, 1));
-            auto co   = std::make_shared<LineVertexColoredAsset>(model);
+            auto co = std::make_shared<LineVertexColoredAsset>(model);
             sao.asset = co;
 
             sao.translateGlobal(vec3(i * d, 1, j * d));
@@ -79,7 +79,7 @@ class Sample : public SampleWindowDeferred
         else
         {
             model.SetVertexColor(vec4(1, 1, 0, 1));
-            auto co   = std::make_shared<ColoredAsset>(model);
+            auto co = std::make_shared<ColoredAsset>(model);
             sao.asset = co;
 
             sao.translateGlobal(vec3(i * d, 1, j * d));
@@ -105,6 +105,7 @@ class Sample : public SampleWindowDeferred
             const PipelineState pass                  = currentPipelineState();
             PipelineState wireframe                   = pass;
             wireframe.rasterization.depthBias         = true;
+            wireframe.rasterization.depthBiasSlope    = 0;
             wireframe.rasterization.depthBiasConstant = -500;
             applyPipelineState(wireframe);
             for (auto& o : objects)

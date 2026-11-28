@@ -111,7 +111,7 @@ class OpenGLPipeline : public OpenGLTest
     {
         PipelineStateCache::setEnabled(false);
         PipelineStateCache::setValidation(false);
-        applyPipelineState(PipelineState());
+        if (context_available) applyPipelineState(PipelineState());
         OpenGLTest::TearDown();
     }
 };
@@ -225,6 +225,34 @@ TEST_F(OpenGLPipeline, InvalidateAfterDirectChanges)
     PipelineStateCache::invalidate();
     applyPipelineState(PipelineState());
     EXPECT_EQ(pipelineStateDifference(PipelineState(), queryPipelineState()), "");
+}
+
+// Without the cache, the current state is read back, also what gl calls changed directly.
+TEST_F(OpenGLPipeline, CurrentStateHasDirectChanges)
+{
+    applyPipelineState(PipelineState::opaque(), 3);
+    glEnable(GL_BLEND);
+    PipelineState expected = PipelineState::opaque();
+    expected.blend.enable  = true;
+    EXPECT_EQ(pipelineStateDifference(expected, currentPipelineState()), "");
+
+    PipelineStateCache::setEnabled(true);
+    applyPipelineState(PipelineState::opaque(), 3);
+    EXPECT_EQ(pipelineStateDifference(PipelineState::opaque(), currentPipelineState()), "");
+    EXPECT_EQ(currentStencilReference(), 3u);
+}
+
+// A mask with more bits than the stencil buffer has is valid; the validation only compares the stencil bits.
+TEST_F(OpenGLPipeline, ValidationIgnoresMaskBitsBeyondTheStencil)
+{
+    PipelineStateCache::setValidation(true);
+    PipelineState s            = PipelineState();
+    s.depthStencil.stencilTest = true;
+    StencilFaceState face;
+    face.compareMask = 0xFFFFFFFF;
+    face.writeMask   = 0xFFFFFFFF;
+    s.depthStencil.setStencil(face);
+    applyPipelineState(s);
 }
 
 TEST_F(OpenGLPipeline, ClearIgnoresTheWriteMasks)
