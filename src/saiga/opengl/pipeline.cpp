@@ -27,6 +27,7 @@ struct Cache
     uint32_t stencilReference = 0;
     // Whether the context has GL_PRIMITIVE_RESTART_FIXED_INDEX, -1 before the first check.
     int fixedIndexRestart = -1;
+    ClipSpace clipSpace   = ClipSpace::OpenGL;
 };
 
 Cache& cache()
@@ -222,7 +223,10 @@ void apply(const PipelineState& state, uint32_t reference, const PipelineState* 
         glPolygonMode(GL_FRONT_AND_BACK, toGL(r.polygonMode));
         setCapability(GL_CULL_FACE, r.cullMode != CullMode::None);
         glCullFace(toGL(r.cullMode));
-        glFrontFace(r.frontFace == FrontFace::CounterClockwise ? GL_CCW : GL_CW);
+        // With Vulkan's clip space, row 0 of the image is its top, but OpenGL takes it as the bottom: a triangle
+        // that is counterclockwise in the image is clockwise for OpenGL.
+        const bool ccw = (r.frontFace == FrontFace::CounterClockwise) != (cache().clipSpace == ClipSpace::Vulkan);
+        glFrontFace(ccw ? GL_CCW : GL_CW);
         // Vulkan's depth bias applies to every polygon mode.
         setCapability(GL_POLYGON_OFFSET_FILL, r.depthBias);
         setCapability(GL_POLYGON_OFFSET_LINE, r.depthBias);
@@ -374,7 +378,8 @@ PipelineState queryPipelineState(uint32_t* stencilReference)
         const GLenum face = getEnum(GL_CULL_FACE_MODE);
         r.cullMode = face == GL_FRONT ? CullMode::Front : face == GL_BACK ? CullMode::Back : CullMode::FrontAndBack;
     }
-    r.frontFace = getEnum(GL_FRONT_FACE) == GL_CW ? FrontFace::Clockwise : FrontFace::CounterClockwise;
+    const bool ccw = (getEnum(GL_FRONT_FACE) == GL_CCW) != (cache().clipSpace == ClipSpace::Vulkan);
+    r.frontFace    = ccw ? FrontFace::CounterClockwise : FrontFace::Clockwise;
     r.depthBias = glIsEnabled(GL_POLYGON_OFFSET_FILL) == GL_TRUE;
     glGetFloatv(GL_POLYGON_OFFSET_FACTOR, &r.depthBiasSlope);
     glGetFloatv(GL_POLYGON_OFFSET_UNITS, &r.depthBiasConstant);
@@ -456,6 +461,31 @@ void PipelineStateCache::setValidation(bool validation)
 bool PipelineStateCache::validation()
 {
     return cache().validation;
+}
+
+void setClipSpace(ClipSpace clipSpace)
+{
+    Cache& c                  = cache();
+    const bool hasClipControl = getVersionMajor() * 10 + getVersionMinor() >= 45 || hasExtension("GL_ARB_clip_control");
+    if (clipSpace == ClipSpace::Vulkan && !hasClipControl)
+    {
+        SAIGA_EXIT_ERROR("Vulkan's clip space needs OpenGL 4.5 or GL_ARB_clip_control");
+    }
+    // Always set: the remembered clip space may belong to another context. Without clip control, the context can only
+    // have OpenGL's.
+    if (hasClipControl)
+    {
+        // The origin stays: Vulkan's y axis points down, so the images have the same rows in memory as with Vulkan.
+        glClipControl(GL_LOWER_LEFT, clipSpace == ClipSpace::Vulkan ? GL_ZERO_TO_ONE : GL_NEGATIVE_ONE_TO_ONE);
+    }
+    c.clipSpace = clipSpace;
+    // The front face of the cached state means the other winding now.
+    c.valid = false;
+}
+
+ClipSpace clipSpace()
+{
+    return cache().clipSpace;
 }
 
 void PipelineStateCache::invalidate()

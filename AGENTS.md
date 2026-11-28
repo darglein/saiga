@@ -48,6 +48,8 @@ src/
                         drawing or calling the application, and clears with clearFramebuffer; code that draws inside
                         someone else's pass changes a copy of currentPipelineState(). PipelineStateCache (off by
                         default) skips unchanged values; its validation mode finds code that bypasses it.
+                        setClipSpace(ClipSpace::Vulkan) (glClipControl) renders in Vulkan's clip space with the
+                        projections of a Camera with vulkanTransform: images have Vulkan's rows in memory
                         tests/test_opengl_renderers.cpp renders every renderer configuration; with
                         SAIGA_RENDERER_TEST_OUTPUT=<dir> it writes the images to compare them before and after a change
     vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer (VulkanForwardRenderer with

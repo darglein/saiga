@@ -93,10 +93,14 @@ float Camera::toPositiveViewDepth(float d) const
 
 void Camera::recalculatePlanesFromMatrices()
 {
+    // The near plane is at z = -1 in OpenGL's clip space and at z = 0 in Vulkan's. Vulkan's y axis points down, so the
+    // top and the bottom corners swap there.
+    const float n          = vulkanTransform ? 0 : -1;
+    const float t          = vulkanTransform ? -1 : 1;
     vec3 pointsClipSpace[] = {
-        vec3(-1, 1, -1), vec3(1, 1, -1), vec3(-1, -1, -1), vec3(1, -1, -1),
+        vec3(-1, t, n), vec3(1, t, n), vec3(-1, -t, n), vec3(1, -t, n),
 
-        vec3(-1, 1, 1),  vec3(1, 1, 1),  vec3(-1, -1, 1),  vec3(1, -1, 1),
+        vec3(-1, t, 1), vec3(1, t, 1), vec3(-1, -t, 1), vec3(1, -t, 1),
     };
 
     mat4 m = inverse(mat4(proj * view));
@@ -297,21 +301,23 @@ std::ostream& operator<<(std::ostream& os, const PerspectiveCamera& ca)
 
 //=========================================================================================================================
 
-void OrthographicCamera::setProj(float _left, float _right, float _bottom, float _top, float _near, float _far)
+void OrthographicCamera::setProj(float _left, float _right, float _bottom, float _top, float _near, float _far,
+                                 bool vulkanTransform)
 {
-    this->left   = _left;
-    this->right  = _right;
-    this->bottom = _bottom;
-    this->top    = _top;
-    this->zNear  = _near;
-    this->zFar   = _far;
+    this->left            = _left;
+    this->right           = _right;
+    this->bottom          = _bottom;
+    this->top             = _top;
+    this->zNear           = _near;
+    this->zFar            = _far;
+    this->vulkanTransform = vulkanTransform;
 
     recomputeProj(0, 0);
 }
 
-void OrthographicCamera::setProj(AABB bb)
+void OrthographicCamera::setProj(AABB bb, bool vulkanTransform)
 {
-    setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2]);
+    setProj(bb.min[0], bb.max[0], bb.min[1], bb.max[1], bb.min[2], bb.max[2], vulkanTransform);
 }
 
 void OrthographicCamera::imgui()
@@ -322,6 +328,10 @@ void OrthographicCamera::imgui()
 void OrthographicCamera::recomputeProj(int output_w, int output_h)
 {
     proj = ortho(left, right, bottom, top, zNear, zFar);
+    if (vulkanTransform)
+    {
+        proj = GL2VulkanNormalizedImage() * proj;
+    }
 }
 
 void OrthographicCamera::recalculatePlanes()

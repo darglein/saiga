@@ -133,12 +133,15 @@ static void ExpectFrustumMatchesMatrices(Camera& cam)
 // fovy to the longer (horizontal) side, but recalculatePlanes() applied it vertically.
 TEST(Camera, PerspectiveFrustumMatchesProjection)
 {
-    for (float aspect : {0.5f, 1.0f, 2.0f})
+    for (bool vulkan : {false, true})
     {
-        PerspectiveCamera cam;
-        cam.setProj(60, aspect, 0.5, 20);
-        cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
-        ExpectFrustumMatchesMatrices(cam);
+        for (float aspect : {0.5f, 1.0f, 2.0f})
+        {
+            PerspectiveCamera cam;
+            cam.setProj(60, aspect, 0.5, 20, vulkan);
+            cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
+            ExpectFrustumMatchesMatrices(cam);
+        }
     }
 }
 
@@ -149,6 +152,12 @@ TEST(Camera, OrthographicFrustumMatchesProjection)
     cam.setProj(-2, 3, -1, 4, 0.5, 20);
     cam.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
     ExpectFrustumMatchesMatrices(cam);
+
+    OrthographicCamera vulkan;
+    vulkan.setProj(-2, 3, -1, 4, 0.5, 20, true);
+    vulkan.setView(vec3(1, 2, 3), vec3(0, 0, -5), vec3(0, 1, 0));
+    EXPECT_TRUE(vulkan.proj.isApprox(GL2VulkanNormalizedImage() * cam.proj));
+    ExpectFrustumMatchesMatrices(vulkan);
 
     cam.setView(vec3(0, 0, 0), vec3(0, 0, -1), vec3(0, 1, 0));
     cam.recalculatePlanes();
@@ -192,6 +201,35 @@ TEST(Camera, ProjectUnproject)
     // Depth linearization round trip.
     float d = 0.7f;
     EXPECT_NEAR(cam.nonlinearDepth(cam.linearDepth(d)), d, 1e-5);
+}
+
+// Vulkan's clip space: y points down, so a point above the center lands in the first rows of the image (the top with
+// Vulkan); the depth buffer value is the same as with OpenGL's clip space.
+TEST(Camera, VulkanClipSpace)
+{
+    PerspectiveCamera gl, vulkan;
+    gl.setProj(70, 1.5, 0.1, 100);
+    vulkan.setProj(70, 1.5, 0.1, 100, true);
+    for (Camera* cam : {static_cast<Camera*>(&gl), static_cast<Camera*>(&vulkan)})
+        cam->setView(vec3(0, 0, 0), vec3(0, 0, -1), vec3(0, 1, 0));
+
+    const vec3 view(0.3, 0.5, -4);
+    const vec3 ndc_gl     = gl.ViewToNormalized(view);
+    const vec3 ndc_vulkan = vulkan.ViewToNormalized(view);
+    EXPECT_NEAR(ndc_vulkan.x(), ndc_gl.x(), 1e-5);
+    EXPECT_NEAR(ndc_vulkan.y(), -ndc_gl.y(), 1e-5);
+    // OpenGL's depth range maps z from [-1, 1] to [0, 1].
+    EXPECT_NEAR(ndc_vulkan.z(), ndc_gl.z() * 0.5f + 0.5f, 1e-5);
+    EXPECT_NEAR(vulkan.toPositiveViewDepth(ndc_vulkan.z()), 4, 1e-3);
+
+    EXPECT_GT(gl.NormalizedToImage(ndc_gl, 640, 480).y(), 240);
+    const vec2 ip = vulkan.NormalizedToImage(ndc_vulkan, 640, 480);
+    EXPECT_LT(ip.y(), 240);
+
+    const vec3 back = vulkan.NormalizedToView(vulkan.ImageToNormalized(ip, ndc_vulkan.z(), 640, 480));
+    EXPECT_NEAR((back - view).norm(), 0, 1e-3);
+    Ray r = vulkan.PixelRay(ip, 640, 480, false);
+    EXPECT_NEAR((view - r.origin).normalized().dot(r.direction), 1, 1e-5);
 }
 
 TEST(Camera, CVIntrinsicsRoundTrip)
