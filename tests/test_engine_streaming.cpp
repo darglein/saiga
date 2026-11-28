@@ -23,6 +23,7 @@
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/streaming/Islands.h"
 #include "saiga/engine/sync/ExtractSystem.h"
@@ -576,11 +577,15 @@ TEST(Residency, ResidentVersionChange)
     w.step();
     const ChunkId c = chunkOf(0, 5150, 1400);
     ASSERT_TRUE(w.residency().ready(c));
-    ASSERT_EQ(w.chunkRecord(c), nullptr);
+    // S25 (Scope 12): the resident chunk got a record at the current placement version
+    ASSERT_NE(w.chunkRecord(c), nullptr);
+    EXPECT_EQ(w.chunkRecord(c)->placementVersion, 2);
     w.setStreamingSynchronous(false);
     w.residency().jobHookForTests = holdChunks({c});
     ScopedLatch hold;
-    w.contentRecordsForUpdate().injectForTests(c, 1, {});
+    ChunkRecords::Map records   = w.contentRecords().records();
+    records[c].placementVersion = 1;
+    w.contentRecordsForUpdate().replace(records, w.contentRecords().stamped());
     w.onRecordChanged(c);
     w.step();
     // Not ready, the placement requested at the new version, the base pinned
@@ -1046,18 +1051,23 @@ TEST(Simulated, MatchesBruteForce)
         if (step == 120) w.moveToSpace(a, 0, Vec3(1300, 0, 1400), Quat::Identity());
         if (step % 25 == 5)
         {
-            // Spawns, destroys, teleports and parent changes between steps
+            // Spawns, destroys, teleports and parent changes between steps (S25: of the drifters that are not
+            // unloaded: the players walk away from the ones behind them)
             w.spawn<Drifter>(Vec3(1100 + rng.uniform() * 600, 0, 1300 + rng.uniform() * 300));
-            w.destroy(drifters[size_t(20 + step / 25)]);
-            w.get<Transform>(drifters[size_t(40 + step / 25)])
-                .teleport(Vec3(1150 + rng.uniform() * 50, 0, 1400), Quat::Identity());
-            const Entity child = drifters[size_t(60 + step / 25)];
-            if (!w.has<Parent>(child)) w.add<Parent>(child, Parent{drifters[size_t(80 + step / 25)]});
+            const Entity doomed = drifters[size_t(20 + step / 25)];
+            if (w.alive(doomed)) w.destroy(doomed);
+            const Entity moved = drifters[size_t(40 + step / 25)];
+            const Vec3 to(1150 + rng.uniform() * 50, 0, 1400);
+            if (w.alive(moved)) w.get<Transform>(moved).teleport(to, Quat::Identity());
+            const Entity child = drifters[size_t(60 + step / 25)], parent = drifters[size_t(80 + step / 25)];
+            if (w.alive(child) && w.alive(parent) && !w.has<Parent>(child)) w.add<Parent>(child, Parent{parent});
         }
         w.step();
         expectFlagsMatchBruteForce(w, ("step " + std::to_string(step)).c_str());
         if (::testing::Test::HasFatalFailure()) return;
     }
+    // S25: the drifters left behind are unloaded (the brute force sees only the resident ones)
+    EXPECT_GT(w.chunkStoreView().stats().groupsUnloaded, 0u);
 }
 
 TEST(Simulated, AlwaysSimulateWhileRequestedAndResident)
@@ -1072,7 +1082,8 @@ TEST(Simulated, AlwaysSimulateWhileRequestedAndResident)
     EXPECT_TRUE(w.simulated(t));
     EXPECT_GT(updates(w, t), 0u);
     // The player leaves: the chunk is kept by the hysteresis but not requested: frozen
-    w.get<Transform>(player).setPosition(Vec3(1150 - 250, 0, 1400));
+    // (S25: 230 m from the chunk: between the requested and the kept distance, so the ticker is not unloaded)
+    w.get<Transform>(player).setPosition(Vec3(1150 - 100, 0, 1400));
     w.step();
     const ChunkId c = chunkOf(0, 1300, 1400);
     ASSERT_FALSE(w.residency().requested(c));
@@ -1106,8 +1117,15 @@ TEST(Simulated, PlayersAndStateEntities)
     e.setStreamingSynchronous(true);
     addPlayer(e, Vec3(1150, 0, 1400));
     e.step();
+    // S25: the spaces without a streaming centre are unloaded (their state entities in their space records)
     for (size_t i = 0; i < e.spaceCount(); ++i)
     {
+        if (i != 0)
+        {
+            EXPECT_FALSE(e.spaceLoaded(SpaceId(i)));
+            EXPECT_FALSE(e.spaceStateEntity(SpaceId(i)).valid());
+            continue;
+        }
         ASSERT_TRUE(e.spaceStateEntity(SpaceId(i)).valid());
         EXPECT_TRUE(e.simulated(e.spaceStateEntity(SpaceId(i))));
     }
@@ -1296,10 +1314,9 @@ TEST(Arrival, NonPlayerArrivalUsesS21Rule)
     ASSERT_TRUE(w.requestArrival(npc, 0, Vec3(5150, 0, 1400)));
     EXPECT_TRUE(w.simulated(npc));
     w.step();
-    EXPECT_FALSE(w.has<PendingTransition>(npc));
-    EXPECT_NEAR(w.read<Transform>(npc).position().x(), 5150, 1e-9);
-    w.step();
-    EXPECT_FALSE(w.simulated(npc));
+    // S25: moved in phase 1 (S21's rule), then unloaded by the same step's phase 7 (3 km from every player)
+    EXPECT_FALSE(w.alive(npc));
+    EXPECT_EQ(w.chunkStoreView().groupCount(chunkOf(0, 5150, 1400)), 1u);
     // No centre for it
     for (const StreamingCentre& c : w.residency().centres()) EXPECT_NE(c.entity, npc);
 }
@@ -1666,9 +1683,13 @@ TEST(StreamingNet, ClientStreamsAroundItsOwnPlayer)
     const Entity remote              = addPlayer(*p.host, Vec3(5150, 0, 1400));
     p.host->get<Player>(remote).peer = 1;
     p.host->setOwner(remote, 1);
-    const Entity far  = spawnTicker(*p.host, Vec3(20000, 0, 20000));
+    // S25: "far" stays kept (frozen on the host: beyond the simulation radius, inside the requested distance); an
+    // entity beyond the kept distance of every centre is unloaded on the host (in its first step: never sent)
+    const Entity far  = spawnTicker(*p.host, Vec3(1300, 0, 1400));
+    const Entity gone = spawnTicker(*p.host, Vec3(20000, 0, 20000));
     const uint64_t g0 = p.client->generation().cache().stats().baseGenerations;
     p.step(6);
+    EXPECT_FALSE(p.host->alive(gone));
     const Entity mine = p.client->replication().entityOfNetId(p.host->replication().netIdOf(remote));
     ASSERT_TRUE(mine.valid());
     // The host requests around both players, the client around its own only

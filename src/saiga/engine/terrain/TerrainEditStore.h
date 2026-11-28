@@ -104,12 +104,31 @@ class SAIGA_ENGINE_API TerrainEditStore
     // Reserve: allocates the block that holds sample (i, k) if missing (zeroed: invisible until written)
     void reserveBlock(SpaceId space, int64_t i, int64_t k);
     bool blockAllocated(SpaceId space, int64_t i, int64_t k) const { return block(space, i, k) != nullptr; }
-    // Reserve for a later writeDelta(space, i, k, value): allocates the block only if value is non-zero and differs
-    // from the current delta (the allocation rule of every path, §12.1)
+    // Reserve for a later writeDelta(space, i, k, value): nothing when value equals the current delta; otherwise
+    // allocates the block if value is non-zero (the allocation rule of every path, §12.1) or, also for a write of 0,
+    // clones a block shared with a frozen commit (S25)
     void reserveFor(SpaceId space, int64_t i, int64_t k, int32_t value)
     {
-        if (value != 0 && value != delta(space, i, k)) reserveBlock(space, i, k);
+        if (value == delta(space, i, k)) return;
+        // S25: a block shared with a frozen commit is cloned before any write (also a write of 0)
+        if (value != 0 || blockShared(space, i, k)) reserveBlock(space, i, k);
     }
+    // S25: the block of sample (i, k) is referenced by a frozen commit
+    bool blockShared(SpaceId space, int64_t i, int64_t k) const
+    {
+        const Space& s = spaces[space];
+        auto it        = s.blocks.find(blockKey(i, k));
+        return it != s.blocks.end() && it->second.use_count() > 1;
+    }
+    // S25: the blocks of a chunk's closed range as shared references (a commit's freeze: no copy in the step) and the
+    // dense delta built from them later on any thread
+    struct FrozenTerrain
+    {
+        int64_t i0 = 0, k0 = 0, N = 0;
+        std::vector<std::pair<uint64_t, std::shared_ptr<const TerrainEditBlock>>> blocks;  // sorted by key
+        void dense(std::vector<int32_t>& out) const;
+    };
+    void freeze(const ChunkId& chunk, FrozenTerrain& out) const;
     // Reserve: an entry node for a chunk without one (allocates; inserted later with insertEntry)
     EntryNode makeEntry(const ChunkId& chunk) const;
     // Commit: inserts a node of makeEntry (no allocation; its nonZeroSamples recomputed by a dense scan, sequence 0
@@ -150,7 +169,8 @@ class SAIGA_ENGINE_API TerrainEditStore
         int spacing        = 1;
         int64_t S          = 256;
         int32_t sizeChunks = 0;
-        std::unordered_map<uint64_t, std::unique_ptr<TerrainEditBlock>> blocks;
+        // S25: shared (copy-on-write): a commit's freeze holds references; the reserve step clones a shared block
+        std::unordered_map<uint64_t, std::shared_ptr<TerrainEditBlock>> blocks;
         ChunkMap chunks;
         uint64_t nonZero = 0;
     };

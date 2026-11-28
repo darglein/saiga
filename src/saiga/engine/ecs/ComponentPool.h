@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
+#include "saiga/engine/ecs/EntityRemap.h"
 #include "saiga/engine/ecs/FieldList.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/ecs/TypeCheck.h"
@@ -105,6 +106,13 @@ class PoolBase
     // emplaceStaged (no second construction after the world was cleared)
     virtual std::unique_ptr<StagedValues> stageDefault() const = 0;
     virtual void emplaceStaged(Entity e, StagedValues& stage)  = 0;
+
+    // Entity groups (S25): the binary form with every Entity field mapped through remap (the live value is mapped in
+    // place and restored afterwards: no copy, R-PAR-1: main thread, no view running); the Entity fields of staged
+    // values mapped; staged value i added to e
+    virtual void appendRemapped(uint32_t entityIndex, std::vector<uint8_t>& out, const EntityRemap& remap) const = 0;
+    virtual void remapStaged(StagedValues& stage, const EntityRemap& remap) const                                = 0;
+    virtual void emplaceStagedAt(Entity e, StagedValues& stage, size_t i)                                        = 0;
 
     // Replication (S16): the network form (NetVisitors.h) of the entity's component; decoding into the entity's
     // existing component (false and unchanged on malformed input); the leaves for comparing replicas
@@ -262,6 +270,48 @@ class ComponentPool final : public PoolBase
         SAIGA_ASSERT(!s.values.empty(), std::string("emplaceStaged: no staged value of ") + name);
         emplace(e, std::move(s.values.back()));
         s.values.pop_back();
+    }
+    void appendRemapped(uint32_t entityIndex, std::vector<uint8_t>& out, const EntityRemap& remap) const override
+    {
+        T& value = const_cast<T&>(at(entityIndex));
+        // The originals first (an allocation failure here changes nothing), then the remap; every exit restores the
+        // live handles (also when the write throws), so a retried unload starts from the original references
+        std::vector<Entity> original;
+        forEachEntityField(value, [&](Entity& e) { original.push_back(e); });
+        size_t k = 0;
+        forEachEntityField(value, [&](Entity& e) { e = remap(original[k++]); });
+        auto restore = [&]()
+        {
+            size_t j = 0;
+            forEachEntityField(value, [&](Entity& e) { e = original[j++]; });
+        };
+        bool ok = true;
+        std::string error;
+        try
+        {
+            BinaryWriter w(out);
+            w.write(value);
+            ok = w.ok();
+            if (!ok) error = w.error();
+        }
+        catch (...)
+        {
+            restore();
+            throw;
+        }
+        restore();
+        if (!ok) throw std::runtime_error(std::string("entity group: ") + name + ": " + error);
+    }
+    void remapStaged(StagedValues& stage, const EntityRemap& remap) const override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        for (T& v : s.values) forEachEntityField(v, [&](Entity& e) { e = remap(e); });
+    }
+    void emplaceStagedAt(Entity e, StagedValues& stage, size_t i) override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        SAIGA_ASSERT(i < s.values.size(), std::string("emplaceStagedAt: no staged value of ") + name);
+        emplace(e, std::move(s.values[i]));
     }
     void netAppend(uint32_t entityIndex, NetWriter& w) const override { w.write(at(entityIndex)); }
     bool netReadInto(uint32_t entityIndex, NetReader& r) override

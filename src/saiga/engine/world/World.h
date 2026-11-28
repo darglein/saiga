@@ -31,6 +31,7 @@
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
+#include "saiga/engine/save/SaveTypes.h"
 #include "saiga/engine/streaming/StreamingSettings.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Commands.h"
@@ -179,6 +180,11 @@ class TerrainSystem;
 class TerrainEditStore;
 class ChunkResidency;
 class SimulationSet;
+class ChunkStore;
+class EntityUnloading;
+class SaveDirectory;
+class GroupLoader;
+struct DirectoryLoad;
 struct PendingTransition;
 struct StagedValues;
 
@@ -357,7 +363,8 @@ class SAIGA_ENGINE_API World
     // in phase 6. On the host, for a spawned client-owned root, the pose is applied here and sent to the owner as an
     // OwnerCommand with the space and the incremented command counter. The same space is a plain teleport. Asserts a
     // dead or reserved entity, a child, a state entity, an unknown space, a call inside parallelEach and, on a client,
-    // a replicated entity (R-NET-2).
+    // a replicated entity (R-NET-2). S25: into an unloaded space during a step, the move is deferred to the phase's
+    // flush together with the space's load (a root destroyed meanwhile is not moved).
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
     // Host: starts a transition of a root (a player, a vehicle, ...) to the link's SpaceLink target at its arrival pose
     // (copied now; §12.4, S21): an arrival (requestArrival's rules, S24) with the link. Between steps applied at once,
@@ -585,6 +592,60 @@ class SAIGA_ENGINE_API World
     // Engine-internal: the entity and its descendants, parents before children; whether it has children
     std::vector<Entity> subtree(Entity root) const { return collectSubtree(root); }
     bool hasChildren(Entity e) const { return childCount(e) > 0; }
+    // Engine-internal (S24 interface 5, added by S25): fn runs at every step start of a streaming world, after the
+    // residency refresh and before phase 1 (between steps: structural changes apply at once)
+    int addStepStartHook(std::function<void()> fn)
+    {
+        stepStartHooks.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    // Also from inside a hook: a hook removed during the dispatch does not run any more in it (the running one
+    // finishes, it is a copy)
+    void removeStepStartHook(int id)
+    {
+        for (size_t i = 0; i < stepStartHooks.size(); ++i)
+            if (stepStartHooks[i].first == id)
+            {
+                stepStartHooks.erase(stepStartHooks.begin() + std::ptrdiff_t(i));
+                return;
+            }
+    }
+
+    // ---- the save directory, entity and space unloading (§9.6, §12.3, §12.4, §15.1; S25) -----------------------
+
+    // Opens (or creates) a save directory (host, between steps, not in a game hook; asserts otherwise like save()). An
+    // existing directory replaces the world through the load path (the newest valid commit; its backup only when the
+    // newest is corrupt: a newer format or an IO error fails the open and changes nothing); a new or
+    // empty one adopts the current world and commits it as commit 1. A second open while one is open is refused
+    SaveOpenResult openSaveDirectory(const std::string& path, const SaveDirectoryOptions& options = {});
+    bool hasSaveDirectory() const;
+    // Freezes commit c now and hands it to the IO queue; returns c, or 0 if refused (a client, inside a step or a hook,
+    // no directory) or deferred (a commit in flight: committed at the first step boundary after it completed)
+    uint64_t commit();
+    // Not inside a step, a game hook or a load: commit and closeSaveDirectory may run (a request made in a hook is
+    // refused, not retained)
+    bool saveCallsAllowed() const;
+    // Runs the IO queue on the caller until no commit is in flight (quit, tests); false if the last one failed
+    bool waitForCommits();
+    // waitForCommits, reads every disk-only group back into memory, unlocks; the world keeps a memory store
+    bool closeSaveDirectory();
+    SaveStatus saveStatus() const;
+    // A space is loaded unless it was unloaded (a streaming world's space without streaming centres)
+    bool spaceLoaded(SpaceId space) const;
+    // The stored entity groups and space records (tools, tests)
+    const ChunkStore& chunkStoreView() const { return *store; }
+    // Engine-internal
+    ChunkStore& chunkStore() { return *store; }
+    EntityUnloading& entityUnloading() { return *unloading; }
+    SaveDirectory* saveDirectory() { return saveDir.get(); }
+    // Engine-internal: the unload command of a root into the chunk's groups (at once between steps and at a flush,
+    // else a command); no onDestroy, the structural log's records are unloaded
+    void unloadNow(Entity root, const ChunkId& chunk);
+    // Engine-internal: the reload of every group of a chunk (at once; the step-start hook, a flush)
+    void reloadChunkNow(const ChunkId& chunk);
+    // Engine-internal: a space's state entity into its space record / back
+    void unloadSpaceNow(SpaceId space);
+    void loadSpaceNow(SpaceId space);
 
     // ---- time and steps (§8.3, §8.6) -----------------------------------------------------------------------------
 
@@ -906,6 +967,11 @@ class SAIGA_ENGINE_API World
 
    private:
     friend class WorldLoader;
+    // S25: the staging core of loads and groups, the group loader, the unloading and the save directory
+    friend class StagingCore;
+    friend class GroupLoader;
+    friend class EntityUnloading;
+    friend class SaveDirectory;
     // ---- render assets (S19b)
     struct MeshEntry
     {
@@ -1040,6 +1106,9 @@ class SAIGA_ENGINE_API World
         SAIGA_ASSERT(reg.isSpaceState(T::id),
                      std::string(T::name) + " is not registered as space state (registerSpaceState)");
         SAIGA_ASSERT(space < spaceStates.size(), "spaceState: the space " + std::to_string(space) + " is not loaded");
+        // S25: an unloaded space has no state entity (its values are in the space record until it loads again)
+        SAIGA_ASSERT(spaceStates[space].valid(), "spaceState: the space " + std::to_string(space) +
+                                                     " is not loaded (unloaded: no streaming centre)");
         return spaceStates[space];
     }
     void createStateEntities();
@@ -1064,9 +1133,12 @@ class SAIGA_ENGINE_API World
     void destroyNow(Entity e);
     void destroyOne(Entity e);
     std::vector<Entity> collectDoomed(Entity e) const;
-    // The entity and its descendants, parents before children (one pass over the Parent pool, cycle-safe; not
-    // hierarchyOrder, which can be dirty in the middle of a step)
+    // The entity and its descendants, parents before children (the cached (parent, child) links, verified by the child
+    // counts and rebuilt when stale; cycle-safe; not hierarchyOrder, which can be dirty in the middle of a step)
     std::vector<Entity> collectSubtree(Entity e) const;
+    // The sorted (parent index, child) links of collectSubtree, verified by the child counts at every use
+    mutable std::vector<std::pair<uint32_t, Entity>> linkCache;
+    mutable bool linkCacheValid = false;
     // ---- the space primitive (S21): the only code that writes Transform::space (with makeStateEntity and the spawn)
     // The space of a root and every descendant (no pose, no teleport flag); a child is always in its parent's space
     void setSubtreeSpace(Entity root, SpaceId space);
@@ -1174,6 +1246,27 @@ class SAIGA_ENGINE_API World
     StreamingSettings streamSettings;
     std::unique_ptr<ChunkResidency> residencyPtr;
     std::unique_ptr<SimulationSet> simulation;
+    // S25: the chunk store, the unloading (its listeners and log consumer), the save directory (its IO lane runs on the
+    // terrain's streaming pool, which is destroyed first: its completions hold only shared state) and the step-start
+    // hooks
+    std::unique_ptr<ChunkStore> store;
+    std::unique_ptr<EntityUnloading> unloading;
+    std::unique_ptr<SaveDirectory> saveDir;
+    std::vector<std::pair<int, std::function<void()>>> stepStartHooks;
+    // destroyOne appends its records as unloaded (unloadNow, unloadSpaceNow)
+    bool unloadRecords = false;
+    // A committed load: the unloading's full passes, the directory's commit clock (WorldLoader)
+    void afterStoreLoad(bool fromDirectory);
+    // save() and the world-state form of a save directory's world-state file (without TERR, CREC and EGRP)
+    std::vector<uint8_t> saveBlob(bool worldStateForm) const;
+    std::vector<uint8_t> saveWorldState() const;
+    // A directory open's load of a world-state blob with the state assembled from the records (WorldLoad.cpp)
+    LoadResult loadDirectoryState(const std::vector<uint8_t>& blob, DirectoryLoad& dir);
+    // A reloaded entity's Transform (the staged value, flagged as a teleport)
+    void setLoadedTransform(Entity e, const Transform& t);
+    // The hooks of reloaded objects in passes: configure, onLoad (load rules), onCatchUp(elapsed) (no load rules);
+    // a throwing hook removes its entity with its descendants without hooks
+    void startReloadedObjects(const std::vector<std::pair<Entity, double>>& objects);
     // The profiler counter streaming/stalls and the scope of the step start (step/streaming_start)
     int stallsCounter = -1, stepStartScope = -1;
     // The step start of a streaming world (G5): the refresh when the centres changed, the evaluation of the changes

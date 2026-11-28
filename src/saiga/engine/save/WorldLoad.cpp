@@ -18,8 +18,14 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/ChunkStore.h"
+#include "saiga/engine/save/EntityGroup.h"
+#include "saiga/engine/save/EntityUnloading.h"
 #include "saiga/engine/save/GenericDecode.h"
+#include "saiga/engine/save/SaveDirectory.h"
+#include "saiga/engine/save/SaveDirectoryFormat.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/save/StagingCore.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/sync/ExtractSystem.h"
@@ -40,36 +46,25 @@ namespace Saiga
 {
 namespace Engine
 {
-class WorldLoader
+class WorldLoader : public StagingCore
 {
    public:
-    explicit WorldLoader(World& w) : w(w), reg(w.reg) {}
-    LoadResult run(const std::vector<uint8_t>& data);
+    explicit WorldLoader(World& w) : StagingCore(w) {}
+    // dir: a directory open (the store part, the terrain and the records come from the records, Scope 5 of S25)
+    LoadResult run(const std::vector<uint8_t>& data, DirectoryLoad* dir = nullptr);
 
    private:
-    bool fail(const std::string& message)
-    {
-        if (error.empty()) error = message;
-        return false;
-    }
     bool checkSlots();
-    bool stageComponents(const std::vector<uint8_t>& data);
     bool stageEvents(const std::vector<uint8_t>& data);
-    bool mapClasses();
-    bool dropEntities();
-    bool checkHierarchy();
-    bool checkPersistent();
     bool checkFreedStateEntities();
     // S21: the SPCE rows against the setup (the prefix rule), before anything is staged
     bool checkSpaceTable();
-    // S21: on the staged Transforms: every alive entity's space below the save's space count, at most one
-    // space-state entity per space, a child in its parent's space
-    bool checkSpaces();
     // The defaults of the state components the commit will add, per (state entity, component), before the commit
     bool buildStateDefaults(std::string& error);
-    // S19b: resolves the staged RenderInstance names (aliases) and sets the cached IDs; an unregistered name is kept
-    // (cached 0: tracked, drawn once the mesh is registered) and counted for one log line after the commit
-    bool checkRenderMeshes();
+    // S25: EGRP (the stored groups and unloaded spaces of a blob) into the staged store: chunks inside their spaces,
+    // group forms structurally valid, PersistentIds unique across COMP and every group, unloaded spaces without a
+    // state entity in ENTS
+    bool stageStore(const std::vector<uint8_t>& data);
     // S22: TERR decoded and checked against the world (spaces, spacing, N, the chunk range, the border rule) into a
     // staged TerrainEditStore (only blocks with a non-zero delta); no hook is called
     bool stageTerrain(const std::vector<uint8_t>& data);
@@ -82,10 +77,6 @@ class WorldLoader
     // S22: the staged terrain replaces the store; every chunk with deltas before or after goes through
     // onTerrainChanged (no event); the host state list and the change list are cleared
     void commitTerrain();
-    // The staged value index -> keep; removes the others from a typed stage
-    template <class T>
-    static void filterStage(StagedOf<T>& s, const std::vector<bool>& keep);
-    bool claim(ComponentId id, uint32_t index, const std::string& what);
     void commit();
     void restoreStateEntities();
     void startObjects(LoadResult& result);
@@ -93,27 +84,13 @@ class WorldLoader
     // evaluates every Simulated flag before tryLoad returns; a world without streaming sets the flag on every entity
     void rebuildStreaming();
 
-    World& w;
-    Registry& reg;
-    std::string error;
-    ParsedSave p;
-    SchemaTable current;
-    std::vector<std::unique_ptr<StagedValues>> staged = std::vector<std::unique_ptr<StagedValues>>(kMaxComponents);
-    StagedOf<Transform> transforms;
-    std::vector<std::vector<bool>> seen = std::vector<std::vector<bool>>(kMaxComponents);
     std::vector<std::unique_ptr<StagedValues>> stagedEvents;
     // The defaults of the state components the commit will add, built before it (restoreStateEntities moves them in):
     // index 0 the world-state entity, 1 + s the space-state entity of space s; each by component ID
     std::vector<World::StateDefaults> stateDefaults;
-    // The save's space count (1 without SPCE) and the staged space of each alive entity index (-1: none)
-    size_t saveSpaces = 1;
-    std::vector<int64_t> stagedSpace;
     std::vector<std::string> droppedEvents;
-    // RenderInstance names that are not registered (kept; logged once after the commit) and their entity count
-    std::set<std::string> unknownMeshes;
-    size_t unknownMeshEntities = 0;
-    std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
-    std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
+    DirectoryLoad* directory = nullptr;
+    StoreStage stagedStore;
     std::unique_ptr<TerrainEditStore> stagedTerrain;
     std::optional<GenerationPlans> stagedPlans;  // only when the pins change the plans
     std::map<ChunkId, ChunkRecord> stagedRecords;
@@ -163,7 +140,7 @@ bool WorldLoader::checkSlots()
     return true;
 }
 
-bool WorldLoader::claim(ComponentId id, uint32_t index, const std::string& what)
+bool StagingCore::claim(ComponentId id, uint32_t index, const std::string& what)
 {
     if (index == 0 || index >= p.slots.size() || !alive(p.slots[index]))
         return fail(what + ": the entity index " + std::to_string(index) + " is not an alive slot");
@@ -174,7 +151,7 @@ bool WorldLoader::claim(ComponentId id, uint32_t index, const std::string& what)
     return true;
 }
 
-bool WorldLoader::stageComponents(const std::vector<uint8_t>& data)
+bool StagingCore::stageComponents(const std::vector<uint8_t>& data)
 {
     SaveDecoder decoder(p.schema, &current, &w.migrationList);
     bool transformSeen = false;
@@ -374,25 +351,7 @@ bool WorldLoader::stageEvents(const std::vector<uint8_t>& data)
     return true;
 }
 
-template <class T>
-void WorldLoader::filterStage(StagedOf<T>& s, const std::vector<bool>& keep)
-{
-    size_t n = 0;
-    for (size_t i = 0; i < s.values.size(); ++i)
-    {
-        if (!keep[i]) continue;
-        if (n != i)
-        {
-            s.values[n]  = std::move(s.values[i]);
-            s.indices[n] = s.indices[i];
-        }
-        n++;
-    }
-    s.values.resize(n);
-    s.indices.resize(n);
-}
-
-bool WorldLoader::mapClasses()
+bool StagingCore::mapClasses()
 {
     if (!staged[Behaviour::id]) return true;
     auto& s = static_cast<StagedOf<Behaviour>&>(*staged[Behaviour::id]);
@@ -431,7 +390,7 @@ bool WorldLoader::mapClasses()
     return true;
 }
 
-bool WorldLoader::dropEntities()
+bool StagingCore::dropEntities()
 {
     // The descendants of dropped entities are dropped too (breadth first over the staged Parents)
     std::vector<std::vector<uint32_t>> childrenOf;
@@ -477,7 +436,7 @@ bool WorldLoader::dropEntities()
     return true;
 }
 
-bool WorldLoader::checkHierarchy()
+bool StagingCore::checkHierarchy()
 {
     if (!staged[Parent::id]) return true;
     const auto& s = static_cast<StagedOf<Parent>&>(*staged[Parent::id]);
@@ -516,7 +475,7 @@ bool WorldLoader::checkHierarchy()
     return true;
 }
 
-bool WorldLoader::checkPersistent()
+bool StagingCore::checkPersistent(uint64_t counter)
 {
     if (!staged[Persistent::id]) return true;
     const auto& s = static_cast<StagedOf<Persistent>&>(*staged[Persistent::id]);
@@ -527,8 +486,7 @@ bool WorldLoader::checkPersistent()
         const uint64_t v = s.values[i].persistentId.value;
         if (v == 0) return fail("entity index " + std::to_string(s.indices[i]) + ": an invalid PersistentId");
         if (!ids.insert(v).second) return fail("the PersistentId " + std::to_string(v) + " is used twice");
-        if (v > p.persistentCounter)
-            return fail("the PersistentId " + std::to_string(v) + " is above the saved counter");
+        if (v > counter) return fail("the PersistentId " + std::to_string(v) + " is above the saved counter");
     }
     return true;
 }
@@ -592,7 +550,7 @@ bool WorldLoader::checkSpaceTable()
     return true;
 }
 
-bool WorldLoader::checkSpaces()
+bool StagingCore::checkSpaces()
 {
     stagedSpace.assign(p.slots.size(), -1);
     for (size_t k = 0; k < transforms.indices.size(); ++k)
@@ -668,7 +626,8 @@ bool WorldLoader::buildStateDefaults(std::string& message)
     stateDefaults.resize(target.size());
     for (size_t t = 0; t < target.size(); ++t)
     {
-        if ((t == 0 && !anyGlobal) || (t > 0 && !anySpace)) continue;  // restore returns before using them
+        if ((t == 0 && !anyGlobal) || (t > 0 && !anySpace)) continue;             // restore returns before using them
+        if (t > 0 && stagedStore.unloadedSpaces.count(SpaceId(t - 1))) continue;  // S25: no state entity
         stateDefaults[t].resize(kMaxComponents);
         for (size_t id = 1; id < kMaxComponents; ++id)
         {
@@ -777,12 +736,24 @@ void WorldLoader::commit()
     if (reg.registered(Persistent::id))
         reg.view<const Persistent>().each([&](Entity e, const Persistent& x)
                                           { w.persistentIndex.emplace(x.persistentId.value, e); });
+    // S25: the stored groups and unloaded spaces (before the state entities: an unloaded space gets none)
+    w.store->replace(std::move(stagedStore));
     restoreStateEntities();
     reg.markAllTransformsChanged();
     rebuildSpatialGrid(w);
     // S23a: the generation state before the terrain (the loaded deltas lie on the loaded pins' base)
     commitGeneration();
     commitTerrain();
+    // S25: a blob load into a world with a save directory: every chunk with state is written by the next commit
+    if (!directory && w.store->trackingDirty())
+    {
+        const TerrainEditStore& st = w.terrainEdits();
+        for (size_t i = 0; i < st.spaceCount(); ++i)
+            for (const auto& kv : st.chunks(SpaceId(i))) w.store->markDirty(kv.first);
+        for (const auto& kv : w.chunkRecords->records()) w.store->markDirty(kv.first);
+        for (const ChunkId& c : w.chunkRecords->stamped()) w.store->markDirty(c);
+    }
+    w.afterStoreLoad(directory != nullptr);
 }
 
 bool WorldLoader::stageTerrain(const std::vector<uint8_t>& data)
@@ -790,12 +761,17 @@ bool WorldLoader::stageTerrain(const std::vector<uint8_t>& data)
     std::vector<SpaceTemplate> templates;
     for (size_t i = 0; i < w.spaceCount(); ++i) templates.push_back(w.spaceTemplate(SpaceId(i)));
     stagedTerrain = std::make_unique<TerrainEditStore>(templates, w.terrainEdits().changeCounter());
-    if (!p.terrain) return true;
     TerrainSection t;
-    std::string e;
-    if (!parseTerrainSection(data.data() + p.terrain->begin, p.terrain->end - p.terrain->begin, p.terrain->version, t,
-                             e))
-        return fail("TERR: " + e);
+    if (directory && directory->terrain)
+        t = std::move(*directory->terrain);  // S25: assembled from the records (checked by the record decoder)
+    else
+    {
+        if (!p.terrain) return true;
+        std::string e;
+        if (!parseTerrainSection(data.data() + p.terrain->begin, p.terrain->end - p.terrain->begin, p.terrain->version,
+                                 t, e))
+            return fail("TERR: " + e);
+    }
     TerrainEditStore& st = *stagedTerrain;
     for (const TerrainSection::Space& sp : t.spaces)
     {
@@ -867,6 +843,94 @@ bool WorldLoader::stageTerrain(const std::vector<uint8_t>& data)
             st.setSequence(id, c.sequence);
         }
     }
+    return true;
+}
+
+bool WorldLoader::stageStore(const std::vector<uint8_t>& data)
+{
+    stagedStore = StoreStage();
+    if (directory)
+        stagedStore = std::move(directory->store);
+    else if (p.storedGroups)
+    {
+        StoredGroupsSection s;
+        std::string e;
+        if (!parseStoredGroups(data.data() + p.storedGroups->begin, p.storedGroups->end - p.storedGroups->begin,
+                               p.storedGroups->version, p.schema, s, e))
+            return fail(e);
+        stagedStore.tables.push_back(std::make_shared<const SchemaTable>(p.schema));
+        for (SchemaTable& t : s.extraTables)
+        {
+            t.buildIndex();
+            stagedStore.tables.push_back(std::make_shared<const SchemaTable>(std::move(t)));
+        }
+        // PersistentIds unique across COMP and every group (a group's IDs without decoding it)
+        std::unordered_set<uint64_t> ids;
+        if (staged[Persistent::id])
+        {
+            const auto& sp = static_cast<StagedOf<Persistent>&>(*staged[Persistent::id]);
+            for (size_t i = 0; i < sp.values.size(); ++i)
+                if (generation[sp.indices[i]] >= 0) ids.insert(sp.values[i].persistentId.value);
+        }
+        auto stage = [&](const StoredGroupsSection::Group& g, std::vector<StoredGroup>& out, const std::string& where)
+        {
+            GroupForm f;
+            std::string ge;
+            if (!parseGroupForm(g.bytes.data(), g.bytes.size(), stagedStore.tables[g.table]->types.size(), f, ge))
+                return fail("EGRP: " + where + ": " + ge);
+            for (uint64_t id : f.persistentIds)
+            {
+                if (!ids.insert(id).second)
+                    return fail("EGRP: " + where + ": the PersistentId " + std::to_string(id) + " is used twice");
+                if (id > p.persistentCounter)
+                    return fail("EGRP: " + where + ": the PersistentId " + std::to_string(id) +
+                                " is above the saved counter");
+            }
+            StoredGroup sg;
+            sg.schema = g.table;
+            sg.bytes  = std::make_shared<const std::vector<uint8_t>>(g.bytes);
+            sg.hash   = fnv1a64Bytes(g.bytes.data(), g.bytes.size());
+            out.push_back(std::move(sg));
+            return true;
+        };
+        for (const StoredGroupsSection::Chunk& c : s.chunks)
+        {
+            const std::string where = "chunk (" + std::to_string(c.chunk.space) + ", " + std::to_string(c.chunk.x) +
+                                      ", " + std::to_string(c.chunk.z) + ")";
+            if (c.chunk.space >= w.spaceCount()) return fail("EGRP: " + where + ": not a space of this world");
+            const int32_t n = w.spaceTemplate(c.chunk.space).sizeChunks;
+            if (c.chunk.x < 0 || c.chunk.z < 0 || c.chunk.x >= n || c.chunk.z >= n)
+                return fail("EGRP: " + where + ": outside the space");
+            std::vector<StoredGroup>& list = stagedStore.groups[c.chunk];
+            for (const auto& g : c.groups)
+                if (!stage(g, list, where)) return false;
+        }
+        for (const StoredGroupsSection::Space& sp : s.spaces)
+        {
+            const std::string where = "unloaded space " + std::to_string(sp.space);
+            if (sp.space >= w.spaceCount()) return fail("EGRP: " + where + ": not a space of this world");
+            stagedStore.unloadedSpaces.insert(sp.space);
+            if (sp.hasGroup && !stage(sp.group, stagedStore.groups[spaceRecordKey(sp.space)], where)) return false;
+        }
+    }
+    // Stored groups and unloaded spaces come back only through the entity unloading of a streaming host world: in
+    // any other world they would stay stored for good, so such a save is refused
+    if (!w.unloading->attached())
+    {
+        bool stored = !stagedStore.unloadedSpaces.empty();
+        for (const auto& kv : stagedStore.groups) stored = stored || !kv.second.empty();
+        // A directory's disk-only groups are listed in its index entries (their bytes are read lazily)
+        for (const auto& kv : stagedStore.indexEntries) stored = stored || !kv.second.groups.empty();
+        if (stored)
+            return fail(
+                "the save has unloaded entities or spaces: it loads only into a streaming host world "
+                "(WorldConfig::streaming)");
+    }
+    // An unloaded space has no space-state entity in ENTS
+    for (uint32_t i = 1; i < uint32_t(p.slots.size()); ++i)
+        if (generation[i] >= 0 && (p.slots[i].flags & Registry::kSpaceState) &&
+            stagedStore.unloadedSpaces.count(SpaceId(stagedSpace[i])))
+            return fail("the unloaded space " + std::to_string(stagedSpace[i]) + " has a space-state entity");
     return true;
 }
 
@@ -1127,11 +1191,17 @@ void WorldLoader::restoreStateEntities()
         }
     };
     restore(w.worldState, Registry::kWorldState, 0, &Registry::isGlobal, stateDefaults[0]);
+    bool anySpace = false;
+    for (size_t id = 0; id < kMaxComponents; ++id) anySpace = anySpace || reg.isSpaceState(ComponentId(id));
     for (size_t space = 0; space < bySpace.size(); ++space)
+    {
+        // S25: an unloaded space gets no state entity (its group is in the space record)
+        if (w.store->spaceUnloaded(SpaceId(space))) continue;
         restore(bySpace[space], Registry::kSpaceState, SpaceId(space), &Registry::isSpaceState,
                 stateDefaults[1 + space]);
+    }
     w.spaceStates.clear();
-    if (bySpace[0].valid()) w.spaceStates = bySpace;
+    if (anySpace) w.spaceStates = bySpace;
 }
 
 void WorldLoader::startObjects(LoadResult& result)
@@ -1223,9 +1293,10 @@ void WorldLoader::startObjects(LoadResult& result)
     w.releaseRetired();
 }
 
-LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
+LoadResult WorldLoader::run(const std::vector<uint8_t>& data, DirectoryLoad* dir)
 {
     LoadResult result;
+    directory = dir;
     // A client's state comes from the host (S16); refused in every build
     if (!w.isHost())
     {
@@ -1251,10 +1322,20 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
         result.error = error;
         return result;
     }
+    if (directory)
+    {
+        // S25: the world-state form carries no store state (it comes from the records and the index)
+        if (p.terrain || p.chunkRecords || p.storedGroups)
+        {
+            result.error = "the world-state blob of a save directory contains TERR, CREC or EGRP";
+            return result;
+        }
+        if (directory->records) p.chunkRecords = std::move(directory->records);
+    }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkSpaces() || !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes() ||
-        !stageTerrain(data) || !stageGeneration())
+        !checkSpaces() || !checkPersistent(p.persistentCounter) || !checkFreedStateEntities() || !checkRenderMeshes() ||
+        !stageTerrain(data) || !stageGeneration() || !stageStore(data))
     {
         result.error = error;
         return result;
@@ -1339,7 +1420,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     return result;
 }
 
-bool WorldLoader::checkRenderMeshes()
+bool StagingCore::checkRenderMeshes()
 {
     if (!staged[RenderInstance::id]) return true;
     auto& s = static_cast<StagedOf<RenderInstance>&>(*staged[RenderInstance::id]);
@@ -1358,8 +1439,17 @@ bool WorldLoader::checkRenderMeshes()
     return true;
 }
 
+LoadResult World::loadDirectoryState(const std::vector<uint8_t>& blob, DirectoryLoad& dir)
+{
+    WorldLoader loader(*this);
+    return loader.run(blob, &dir);
+}
+
 LoadResult World::tryLoad(const std::vector<uint8_t>& data)
 {
+    // S25: a commit's completion must not land in a replaced store, and the record files must be consistent before the
+    // new store is used; the queued reads are dropped (their chunks go with the residency)
+    if (saveDir && isHost() && !inStep()) saveDir->beforeLoad();
     WorldLoader loader(*this);
     // The extract is marked dirty at the commit, before the load listeners (WorldLoader::run)
     return loader.run(data);

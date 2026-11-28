@@ -182,6 +182,9 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult listSites(const json11::Json& a);
     // S24
     ApiResult streamingStatus(const json11::Json& a);
+    // S25: the save directory and the chunk store
+    ApiResult saveStatus(const json11::Json& a);
+    ApiResult commitSave(const json11::Json& a);
     ApiResult requestArrival(const json11::Json& a);
     ApiResult tombstone(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);

@@ -155,6 +155,12 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             setup.world.dataDirectory = v;
             dataGiven                 = true;
         }
+        else if (a == "--save")
+        {
+            const char* v = value("a directory");
+            if (!v) return false;
+            setup.saveDirectory = v;
+        }
         else if (a == "--coop")
         {
             options.coop = true;
@@ -215,6 +221,12 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
                                      : "--coop with --benchmark";
         return false;
     }
+    if (!setup.saveDirectory.empty() && (options.runScenarios || !options.benchmark.empty()))
+    {
+        // The scenarios and the benchmark build or replace their own worlds
+        error = std::string("--save with ") + (options.runScenarios ? "--scenarios" : "--benchmark");
+        return false;
+    }
     if (options.runScenarios && (options.timeOfDay || options.dayLength))
     {
         // The scenarios build their own worlds: the options would be ignored silently
@@ -253,6 +265,7 @@ int runGameScenarios(const EngineAppSetup& setup, const std::string& filter)
     }
     ScenarioOptions scenarioOptions;
     scenarioOptions.networkVariants           = setup.networkVariants;
+    scenarioOptions.directoryRoundTrip        = false;
     const std::vector<ScenarioResult> results = runScenarios(setup.world, list, filter, scenarioOptions);
     int failed                                = 0;
     for (const ScenarioResult& r : results)
@@ -281,7 +294,7 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
                   << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
                      "[--width N] [--height N] [--validation] [--no-vsync] [--stats] [--tonemap identity|aces] "
                      "[--exposure x] [--time-of-day h] [--day-length s] "
-                     "[--scenarios [filter]] [--mcp-port N] [--data <dir>] [--coop [delay]]";
+                     "[--scenarios [filter]] [--mcp-port N] [--data <dir>] [--coop [delay]] [--save <dir>]";
         for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
         std::cerr << std::endl;
         return 1;
@@ -293,6 +306,8 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         EngineApp app(setup, options);
         constructed = true;
         if (start) start(app, options);
+        // S25: the save directory after the game's start (an existing one replaces the world through the load path)
+        app.openSaveDirectory();
         // S36: --time-of-day / --day-length after the game's start (its world exists and has its state)
         if (options.timeOfDay || options.dayLength)
         {

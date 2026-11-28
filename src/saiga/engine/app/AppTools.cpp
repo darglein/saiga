@@ -830,10 +830,11 @@ void registerAppTools(McpServer& server, EngineApp& app)
 
             app.countScenarioRun();
             ScenarioOptions options;
-            options.deadline         = answerDeadline(server);
-            WorldSetup setup         = app.setup().world;
-            setup.sharedData         = live.sharedDataStore();
-            setup.sharedDataReadOnly = true;
+            options.deadline           = answerDeadline(server);
+            options.directoryRoundTrip = false;
+            WorldSetup setup           = app.setup().world;
+            setup.sharedData           = live.sharedDataStore();
+            setup.sharedDataReadOnly   = true;
             Json::array results;
             std::vector<uint8_t> finalSave;
             uint64_t finalStep = 0, finalHash = 0;

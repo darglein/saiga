@@ -218,6 +218,8 @@ class SAIGA_ENGINE_API Registry
     void addDefault(Entity e, ComponentId id);
     // Adds the value of a stage (PoolBase::stageDefault) without constructing another
     void addStaged(Entity e, ComponentId id, StagedValues& stage);
+    // Adds staged value i of a stage (the entity groups' reload, S25)
+    void addStagedAt(Entity e, ComponentId id, StagedValues& stage, size_t i);
     // Removes a component by ID (the entity must have it; not Transform)
     void removeById(Entity e, ComponentId id);
 

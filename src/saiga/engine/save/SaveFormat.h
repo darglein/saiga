@@ -39,6 +39,12 @@
 //         space in SpaceId order: SpaceId (u16), record count (u32); per record in ChunkId order: x (i32), z (i32),
 //         placement version (u16), stamped (u8: 0 or 1, the host's stamped set); version 2: the tombstone count (u32)
 //         and per key in (slot, counter) order the slot (u8) and the counter (u32). Version 1 reads as no tombstones
+//   EGRP? (S25, version 1; only when the chunk store has stored groups or unloaded spaces) the count of extra schema
+//         tables (u32) and the tables (SchemaTable::write) that stored groups use other than SCHM (number 0 is SCHM,
+//         the extra tables 1..); the count of chunks with groups (u32); per chunk in ChunkId order: space (u16), x, z
+//         (i32), group count (u32), per group its table number (u32), byte length (u64) and the group form
+//         (EntityGroup.h); the count of unloaded spaces (u32), per space in order: space (u16), a flag (u8: 1 with the
+//         space-state entity's group) and the group (table number, length, bytes)
 //   ENTS  slot count; per slot from 1: generation (u32), state (u8: 0 free, 2 alive), flags (u8); the free list
 //   COMP  per saved component type: schema index (u32), count (u64), byte length (u64), then per component the entity
 //         index (u32) and the binary form, in the pool's dense order (Transform: index order)
@@ -64,15 +70,16 @@ constexpr uint32_t kTagSpaces       = saveTag("SPCE");
 constexpr uint32_t kTagGeneration   = saveTag("GENR");
 constexpr uint32_t kTagTerrain      = saveTag("TERR");
 constexpr uint32_t kTagChunkRecords = saveTag("CREC");
+constexpr uint32_t kTagStoredGroups = saveTag("EGRP");
 constexpr uint32_t kTagEntities     = saveTag("ENTS");
 constexpr uint32_t kTagComponents   = saveTag("COMP");
 constexpr uint32_t kTagEvents       = saveTag("EVNT");
 constexpr uint32_t kTagActions      = saveTag("ACTN");
 constexpr uint32_t kTagState        = saveTag("STAT");
 
-// The section order (D7): HEAD, SCHM, SPCE?, GENR?, TERR?, CREC?, ENTS, COMP, EVNT, ACTN, STAT (? optional). S22
-// inserts TERR, S23a GENR and CREC at their positions (the recipe of the S21 plan, Scope 5). maxVersion: the highest
-// format version of an optional section this build reads (0 for the required ones)
+// The section order (D7): HEAD, SCHM, SPCE?, GENR?, TERR?, CREC?, EGRP?, ENTS, COMP, EVNT, ACTN, STAT (? optional).
+// S22 inserts TERR, S23a GENR and CREC, S25 EGRP at their positions (the recipe of the S21 plan, Scope 5). maxVersion:
+// the highest format version of an optional section this build reads (0 for the required ones)
 struct SaveSectionEntry
 {
     uint32_t tag;
@@ -80,9 +87,9 @@ struct SaveSectionEntry
     uint32_t maxVersion;
 };
 constexpr SaveSectionEntry kSaveSections[] = {
-    {kTagHeader, false, 0}, {kTagSchema, false, 0},      {kTagSpaces, true, 1},    {kTagGeneration, true, 1},
-    {kTagTerrain, true, 1}, {kTagChunkRecords, true, 2}, {kTagEntities, false, 0}, {kTagComponents, false, 0},
-    {kTagEvents, false, 0}, {kTagActions, false, 0},     {kTagState, false, 0},
+    {kTagHeader, false, 0},     {kTagSchema, false, 0},      {kTagSpaces, true, 1},       {kTagGeneration, true, 1},
+    {kTagTerrain, true, 1},     {kTagChunkRecords, true, 2}, {kTagStoredGroups, true, 1}, {kTagEntities, false, 0},
+    {kTagComponents, false, 0}, {kTagEvents, false, 0},      {kTagActions, false, 0},     {kTagState, false, 0},
 };
 
 // SPCE: the template name and kind per SpaceId

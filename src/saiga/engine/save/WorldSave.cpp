@@ -9,9 +9,15 @@
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/EngineVersion.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/save/ChunkStore.h"
+#include "saiga/engine/save/EntityGroup.h"
 #include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/save/SaveDirectory.h"
+#include "saiga/engine/save/SaveDirectoryFormat.h"
 #include "saiga/engine/save/SaveFormat.h"
+#include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/save/SchemaTable.h"
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -25,6 +31,16 @@ namespace Saiga
 namespace Engine
 {
 std::vector<uint8_t> World::save() const
+{
+    return saveBlob(false);
+}
+
+std::vector<uint8_t> World::saveWorldState() const
+{
+    return saveBlob(true);
+}
+
+std::vector<uint8_t> World::saveBlob(bool worldStateForm) const
 {
     SAIGA_ASSERT(isHost(), "World::save on a client (its state comes from the host)");
     SAIGA_ASSERT(!inStep() && commands.empty(), "World::save inside a step");
@@ -99,8 +115,8 @@ std::vector<uint8_t> World::save() const
         s.end();
     }
 
-    // TERR (S22): only with a chunk with terrain state
-    if (terrainEditStore->chunkCount() > 0)
+    // TERR (S22): only with a chunk with terrain state (S25: not in the world-state form, the records hold it)
+    if (!worldStateForm && terrainEditStore->chunkCount() > 0)
     {
         const TerrainEditStore& st = *terrainEditStore;
         s.beginOptional(kTagTerrain, kTerrainSectionVersion);
@@ -135,7 +151,7 @@ std::vector<uint8_t> World::save() const
         s.end();
     }
     // CREC (S23a): only with chunk records
-    if (!chunkRecords->records().empty())
+    if (!worldStateForm && !chunkRecords->records().empty())
     {
         const ChunkRecords& rec = *chunkRecords;
         s.beginOptional(kTagChunkRecords, kChunkRecordSectionVersion);
@@ -160,6 +176,123 @@ std::vector<uint8_t> World::save() const
                     w.write(k.counter);
                 }
             }
+        }
+        s.end();
+    }
+    // EGRP (S25): only with stored groups or unloaded spaces; disk-only groups are read through the file system
+    // (blobs stay self-contained)
+    if (!worldStateForm && store->hasContent())
+    {
+        s.beginOptional(kTagStoredGroups, kStoredGroupsSectionVersion);
+        std::vector<uint8_t> schmBytes;
+        {
+            BinaryWriter sw(schmBytes);
+            schema.write(sw);
+        }
+        // The store's tables in the blob's numbering: SCHM is 0, the others 1.. in first-use order
+        const auto& tables = store->tables();
+        std::vector<int64_t> number(tables.size(), -1);
+        std::vector<uint32_t> extra;
+        auto numberOf = [&](uint32_t t)
+        {
+            if (number[t] < 0)
+            {
+                std::vector<uint8_t> b;
+                BinaryWriter tw(b);
+                tables[t]->write(tw);
+                if (b == schmBytes)
+                    number[t] = 0;
+                else
+                {
+                    extra.push_back(t);
+                    number[t] = int64_t(extra.size());
+                }
+            }
+            return uint32_t(number[t]);
+        };
+        // The record of the chunk is read once for all its disk-only groups
+        ChunkId readChunk;
+        bool haveRead = false;
+        std::vector<RecordGroup> readGroups;
+        auto bytesOf = [&](const ChunkId& c, const StoredGroup& g)
+        {
+            GroupBytes b = g.bytes;
+            if (!b && saveDir && g.recordIndex >= 0)
+            {
+                if (!haveRead || !(readChunk == c))
+                {
+                    readGroups.clear();
+                    saveDir->readRecordGroups(c, readGroups);
+                    readChunk = c;
+                    haveRead  = true;
+                }
+                if (size_t(g.recordIndex) < readGroups.size() && readGroups[size_t(g.recordIndex)].bytes &&
+                    fnv1a64Bytes(readGroups[size_t(g.recordIndex)].bytes->data(),
+                                 readGroups[size_t(g.recordIndex)].bytes->size()) == g.hash)
+                    b = readGroups[size_t(g.recordIndex)].bytes;
+            }
+            return b;
+        };
+        // The readable groups first: a group whose record cannot be read (IO, corruption) is left out of the blob with
+        // a log line (a data error must not abort a save; the directory keeps the record)
+        using Readable = std::vector<std::pair<uint32_t, GroupBytes>>;
+        std::vector<std::pair<ChunkId, Readable>> chunkGroups;
+        auto readable = [&](const ChunkId& c, const ChunkEntry& e, size_t count)
+        {
+            Readable r;
+            size_t lost = 0;
+            for (size_t i = 0; i < count; ++i)
+            {
+                GroupBytes b = bytesOf(c, e.groups[i]);
+                if (b)
+                    r.push_back({e.groups[i].schema, b});
+                else
+                    lost++;
+            }
+            if (lost > 0)
+                SAIGA_LOG("save", "save: %zu stored groups of (%d, %d, %d) cannot be read and are not in the blob",
+                          lost, int(c.space), int(c.x), int(c.z));
+            return r;
+        };
+        for (const auto& [c, e] : store->chunks())
+        {
+            if (isSpaceRecordKey(c) || e.groups.empty()) continue;
+            Readable r = readable(c, e, e.groups.size());
+            if (!r.empty()) chunkGroups.push_back({c, std::move(r)});
+        }
+        std::vector<std::pair<SpaceId, Readable>> spaceGroups;
+        for (SpaceId sp : store->unloadedSpaces())
+        {
+            const ChunkEntry* e = store->entry(spaceRecordKey(sp));
+            spaceGroups.push_back({sp, e && !e->groups.empty() ? readable(spaceRecordKey(sp), *e, 1) : Readable()});
+        }
+        for (const auto& [c, r] : chunkGroups)
+            for (const auto& g : r) numberOf(g.first);
+        for (const auto& [sp, r] : spaceGroups)
+            for (const auto& g : r) numberOf(g.first);
+        w.write(uint32_t(extra.size()));
+        for (uint32_t t : extra) tables[t]->write(w);
+        auto writeGroupBytes = [&](uint32_t schema, const GroupBytes& b)
+        {
+            w.write(numberOf(schema));
+            w.write(uint64_t(b->size()));
+            out.insert(out.end(), b->begin(), b->end());
+        };
+        w.write(uint32_t(chunkGroups.size()));
+        for (const auto& [c, r] : chunkGroups)
+        {
+            w.write(c.space);
+            w.write(c.x);
+            w.write(c.z);
+            w.write(uint32_t(r.size()));
+            for (const auto& g : r) writeGroupBytes(g.first, g.second);
+        }
+        w.write(uint32_t(spaceGroups.size()));
+        for (const auto& [sp, r] : spaceGroups)
+        {
+            w.write(sp);
+            w.write(uint8_t(r.empty() ? 0 : 1));
+            if (!r.empty()) writeGroupBytes(r[0].first, r[0].second);
         }
         s.end();
     }
@@ -290,7 +423,33 @@ std::string World::dumpJson(Entity e) const
         for (uint32_t i = 1; i < reg.slotCount(); ++i)
             if (Entity x = reg.aliveAt(i); x.valid()) list.push_back(entityJson(x));
     }
-    return json11::Json(json11::Json::object{{"step", double(steps)}, {"time", time()}, {"entities", list}}).dump();
+    json11::Json::object top{{"step", double(steps)}, {"time", time()}, {"entities", list}};
+    // S25: the stored groups per chunk (count, root class, entities; not their components) and the unloaded spaces
+    if (!e.valid() && store->hasContent())
+    {
+        json11::Json::array chunks;
+        for (const auto& [c, en] : store->chunks())
+        {
+            if (isSpaceRecordKey(c) || en.groups.empty()) continue;
+            json11::Json::array groups;
+            for (const StoredGroup& g : en.groups)
+            {
+                GroupBytes b = g.bytes;
+                if (!b && saveDir) saveDir->readGroupForSave(c, g, b);
+                std::string cls;
+                uint32_t n = 0;
+                if (b && g.schema < store->tables().size()) describeGroup(*b, *store->tables()[g.schema], cls, n);
+                groups.push_back(json11::Json::object{{"root_class", cls}, {"entities", double(n)}});
+            }
+            chunks.push_back(json11::Json::object{
+                {"chunk", json11::Json::array{double(c.space), double(c.x), double(c.z)}}, {"groups", groups}});
+        }
+        top["stored_groups"] = chunks;
+        json11::Json::array spaces;
+        for (SpaceId s : store->unloadedSpaces()) spaces.push_back(double(s));
+        top["unloaded_spaces"] = spaces;
+    }
+    return json11::Json(top).dump();
 }
 
 std::string World::diff(const World& a, const World& b, int maxLines)

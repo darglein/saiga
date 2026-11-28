@@ -1236,6 +1236,7 @@ void TerrainSystem::replaceSources(std::vector<TerrainHeightSource> sources, std
     for (size_t i = 0; i < content.size(); ++i) spaces[i].content = std::move(content[i]);
     maskVersions.clear();
     // The old jobs: queued ones are cancelled, running ones joined, their completions discarded (a new pool on demand)
+    if (pool && beforePoolReset) beforePoolReset();
     pool.reset();
     requests.clear();
     for (size_t i = 0; i < spaces.size(); ++i)

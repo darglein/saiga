@@ -385,6 +385,8 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
 
 EngineApp::~EngineApp()
 {
+    // S25: the quit commit (if run() did not make it)
+    finishSave();
     // MCP first (no handler may run on a half-destroyed app), then the GPU work, the game's GPU state, the frame, the
     // world, the window
     if (server) server->stop();
@@ -558,6 +560,35 @@ void EngineApp::setLocalPlayer(Entity player)
     localPlayerEntity = player;
 }
 
+void EngineApp::openSaveDirectory()
+{
+    if (appSetup.saveDirectory.empty()) return;
+    SaveDirectoryOptions o;
+    o.commitIntervalSeconds = appSetup.saveCommitIntervalSeconds;
+    o.sync                  = appSetup.saveSync;
+    const SaveOpenResult r  = startWorld().openSaveDirectory(appSetup.saveDirectory, o);
+    if (!r.ok) throw std::runtime_error("--save: " + r.error);
+    SAIGA_LOG("save", "%s: commit %llu%s", appSetup.saveDirectory.c_str(), (unsigned long long)r.commit,
+              r.created ? " (a new save directory)" : "");
+}
+
+void EngineApp::finishSave()
+{
+    if (saveFinished || !gameWorld) return;
+    saveFinished = true;
+    World& w     = startWorld();
+    if (!w.hasSaveDirectory()) return;
+    // An in-flight commit first (a commit requested meanwhile would only be deferred)
+    w.waitForCommits();
+    w.commit();
+    const bool ok = w.waitForCommits();
+    SAIGA_LOG("save", "quit: commit %llu %s%s", (unsigned long long)w.saveStatus().committed,
+              ok ? "written" : "failed: ", ok ? "" : w.saveStatus().lastError.c_str());
+    // The process must not report success when its last changes were not saved (an earlier error code is kept)
+    if (!ok && exitStatus == 0) exitStatus = 1;
+    w.closeSaveDirectory();
+}
+
 int EngineApp::run()
 {
     const double stepDt = gameWorld->dt();
@@ -572,6 +603,7 @@ int EngineApp::run()
             std::this_thread::sleep_until(start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                                                       std::chrono::duration<double>(stepDt)));
     }
+    finishSave();
     return exitStatus;
 }
 

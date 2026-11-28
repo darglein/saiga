@@ -47,6 +47,10 @@ struct ScenarioOptions
     bool networkVariants = false;
     // Clients of the host + client variants (peers 1..clients)
     int clients = 1;
+    // SaveLoad (S25, §17.2): the swap also round-trips the state through a save directory (a memory file system: the
+    // old world adopts it as commit 1 and closes it, a fresh world opens it; its save() must equal the blob). On for
+    // the engine's scenario lists, off for the games' runners (engineMain, run_scenario)
+    bool directoryRoundTrip = true;
 };
 
 // The network of a host + client run (§17.3): the host and ScenarioOptions::clients client worlds over a
@@ -168,7 +172,9 @@ class SAIGA_ENGINE_API ScenarioWorld
         {
             size_t n = w->registry().aliveCount();
             if (w->worldStateEntity().valid()) n--;
-            for (SpaceId s = 0; w->spaceStateEntity(s).valid(); ++s) n--;
+            // S25: every space (an unloaded space has no state entity)
+            for (size_t s = 0; s < w->spaceCount(); ++s)
+                if (w->spaceStateEntity(SpaceId(s)).valid()) n--;
             return n;
         }
         else

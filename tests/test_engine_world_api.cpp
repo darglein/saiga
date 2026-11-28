@@ -21,6 +21,7 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/MemorySaveFileSystem.h"
 #include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/tools/WorldTools.h"
@@ -931,6 +932,9 @@ TEST(WorldTools, EveryToolAnswers)
     track("destroy", Json::object{{"entity", de}});
     track("pause", Json::object{});
     track("measure_performance", obj(R"({"steps": 3})"));
+    // S25: save_status without a directory; commit_save (an error without one) is covered by WorldTools.SaveTools
+    track("save_status", Json::object{});
+    called.insert("commit_save");
     std::remove((::testing::TempDir() + "/saiga_tools_before.sgws").c_str());
     for (const std::string& op : api->operations()) EXPECT_TRUE(called.count(op)) << op << " has no test call";
     // At most the profile history
@@ -2518,6 +2522,67 @@ TEST(WorldTools, ContentToolsOnAClient)
     r = callTool(server, "chunk_info", obj(R"({"chunk": [4, 5]})"));
     EXPECT_FALSE(r["result"]["isError"].bool_value());
     EXPECT_TRUE(toolJson(r)["stamped"].is_null()) << "stamped is host-only";
+}
+
+// S25: the save tools through handleMessage: save_status without and with a directory, commit_save (the commit number,
+// a deferred commit while one is in flight, the errors without a directory and on a client), world_status's save block
+TEST(WorldTools, SaveTools)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    auto call = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_FALSE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return toolJson(r);
+    };
+    auto error = [&](const std::string& name)
+    {
+        Json r = callTool(server, name, Json::object{});
+        EXPECT_TRUE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return r["result"]["content"][0]["text"].string_value();
+    };
+    EXPECT_FALSE(call("save_status", Json::object{})["open"].bool_value());
+    EXPECT_NE(error("commit_save").find("no save directory"), std::string::npos);
+    EXPECT_TRUE(call("world_status", Json::object{})["save"].is_null());
+    // A directory with asynchronous IO: the commit stays in flight until its completion is drained (a step)
+    SaveDirectoryOptions o;
+    o.fileSystem            = std::make_shared<MemorySaveFileSystem>();
+    o.synchronousIo         = false;
+    o.commitIntervalSeconds = 0;
+    ASSERT_TRUE(w.openSaveDirectory("mem", o).ok);
+    ASSERT_TRUE(w.waitForCommits());
+    Json st = call("save_status", Json::object{});
+    EXPECT_TRUE(st["open"].bool_value());
+    EXPECT_EQ(st["committed"].number_value(), 1);
+    EXPECT_EQ(st["statistics"]["commits"].number_value(), 1);
+    const Json c = call("commit_save", Json::object{});
+    EXPECT_EQ(c["commit"].number_value(), 2);
+    const Json d = call("commit_save", Json::object{});
+    EXPECT_TRUE(d["deferred"].bool_value());
+    EXPECT_EQ(d["in_flight"].number_value(), 2);
+    EXPECT_EQ(call("world_status", Json::object{})["save"]["in_flight"].number_value(), 2);
+    ASSERT_TRUE(w.waitForCommits());
+    // The deferred request commits at the next step boundary
+    w.step();
+    ASSERT_TRUE(w.waitForCommits());
+    EXPECT_EQ(call("save_status", Json::object{})["committed"].number_value(), 3);
+    w.closeSaveDirectory();
+    // A client
+    auto net      = LoopbackTransport::createNetwork(2, LoopbackOptions());
+    WorldSetup cs = apiSetup();
+    cs.transport  = net[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    World client(cs);
+    McpServer clientServer("client");
+    auto clientApi = registerWorldTools(clientServer, client);
+    Poller clientPoller(clientServer);
+    Json r = callTool(clientServer, "commit_save", Json::object{});
+    EXPECT_TRUE(r["result"]["isError"].bool_value());
+    EXPECT_NE(r["result"]["content"][0]["text"].string_value().find("client"), std::string::npos);
 }
 
 // S24: the streaming tools through handleMessage: streaming_status (counts, centres, the paged chunk list, a world

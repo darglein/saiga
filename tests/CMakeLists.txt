@@ -224,6 +224,12 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_streaming.cpp "saiga_engine")
     saiga_test(test_engine_streaming_scenarios.cpp "saiga_engine")
     saiga_test(test_engine_streaming_benchmark.cpp "saiga_engine")
+    # World save directory (S25): entity unloading and reloading, the save directory (memory file system), the crash
+    # enumeration of commits (G9), the non-gating save benchmark
+    saiga_test(test_engine_unload.cpp "saiga_engine")
+    saiga_test(test_engine_save_directory.cpp "saiga_engine")
+    saiga_test(test_engine_save_crash.cpp "saiga_engine")
+    saiga_test(test_engine_save_benchmark.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

@@ -18,6 +18,7 @@
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Prefab.h"
 #include "saiga/engine/content/gen/FixedMath.h"
+#include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
@@ -410,6 +411,25 @@ void flightScenarios(ScenarioList& list)
              });
     // S16b: a driver of the default peer (a client's in the host + client variants): the lever on the host-owned plane,
     // the sticks written on the driver's owner; stepUntil (the sticks arrive up to 8 steps late)
+    // S25: a driven plane flies 1 km from its start (beyond the kept distance of the start): the driver and the plane
+    // are separate roots linked by Entity fields (Driver.vehicle, VehicleSeat.driver); both stay resident (the driver
+    // is a player, the plane a StreamingAnchor) and the link holds
+    list.add("driver_link_after_far_flight",
+             [](ScenarioWorld& w)
+             {
+                 const Driven d                               = spawnDriven<Aircraft>(w.world(), w.defaultPeer(), 0);
+                 const Entity plane                           = d.vehicle;
+                 const Vec3 start                             = w.world().read<Transform>(plane).position();
+                 w.world().get<AircraftState>(plane).throttle = 1.0;
+                 w.check(
+                     w.stepUntil([&] { return (w.world().read<Transform>(plane).position() - start).norm() > 1000; },
+                                 60 * 60),
+                     "flew 1 km");
+                 w.check(w.world().alive(d.driver) && w.world().alive(plane), "the driver and the plane are resident");
+                 w.check(drivenVehicle(w.world(), d.driver) == plane, "the driver's vehicle is the plane");
+                 w.check(w.world().read<VehicleSeat>(plane).driver == d.driver, "the plane's seat names the driver");
+                 w.check(w.world().chunkStoreView().totalGroups() == 0, "nothing of them is stored");
+             });
     list.add("climbs_with_full_throttle",
              [](ScenarioWorld& w)
              {

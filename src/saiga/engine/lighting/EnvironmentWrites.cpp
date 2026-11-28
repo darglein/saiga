@@ -156,10 +156,16 @@ bool setWeather(World& world, SpaceId space, const WeatherChange& c, std::string
         error = "this world has no Weather (EnvironmentSetup::enabled)";
         return false;
     }
-    if (space >= world.spaceCount() || !world.alive(world.spaceStateEntity(space)))
+    if (space >= world.spaceCount())
     {
         error =
             "space: no space " + std::to_string(space) + " (the world has " + std::to_string(world.spaceCount()) + ")";
+        return false;
+    }
+    // S25: an unloaded space's state is in its space record until a streaming centre loads it again
+    if (!world.alive(world.spaceStateEntity(space)))
+    {
+        error = "space: the space " + std::to_string(space) + " is not loaded (no streaming centre)";
         return false;
     }
     if ((c.cloudiness && !checkRange("cloudiness", *c.cloudiness, 0, 1, false, error)) ||

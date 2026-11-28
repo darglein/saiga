@@ -23,6 +23,7 @@
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
@@ -86,6 +87,7 @@ const std::vector<Operation>& operationTable()
         {"chunk_info", false, {"space", "chunk", "position"}},
         {"list_sites", false, {"space", "near", "limit", "after"}},
         {"streaming_status", false, {"space", "chunks", "limit", "after"}},
+        {"save_status", false, {}},
         {"load_snapshot", true, {"name", "paused"}},
         {"export_snapshot", true, {"name", "file", "overwrite"}},
         {"import_snapshot", true, {"name", "file", "overwrite"}},
@@ -109,6 +111,7 @@ const std::vector<Operation>& operationTable()
         {"time_scale", true, {"scale"}},
         {"reset_profile", true, {}},
         {"apply", true, {"operations"}},
+        {"commit_save", true, {}},
     };
     return table;
 }
@@ -408,7 +411,9 @@ void WorldApi::journalRecord(const StructuralLog::Record& r, uint64_t stepIndex)
     {
         // Destroy appends Transform first, then the other components: folded
         lastDestroyed = r.added ? Entity{} : r.entity;
-        journal.push_back(Change{nextSeq++, stepIndex, r.added ? "created" : "destroyed", r.entity, -1});
+        // S25: an unload (the entity went into its chunk's stored groups) is not a destroy
+        journal.push_back(
+            Change{nextSeq++, stepIndex, r.added ? "created" : (r.unloaded ? "unloaded" : "destroyed"), r.entity, -1});
     }
     else if (!r.added && r.entity == lastDestroyed)
         return;
@@ -581,6 +586,8 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "chunk_info") return chunkInfo(args);
     if (operation == "list_sites") return listSites(args);
     if (operation == "streaming_status") return streamingStatus(args);
+    if (operation == "save_status") return saveStatus(args);
+    if (operation == "commit_save") return commitSave(args);
     if (operation == "request_arrival") return requestArrival(args);
     if (operation == "tombstone") return tombstone(args);
     if (operation == "spawn") return spawn(args);
@@ -813,6 +820,12 @@ ApiResult WorldApi::worldStatus(const Json&)
                                           {"entities", entities[s]},
                                           {"players", players[s]}});
         o["spaces"] = spaces;
+    }
+    // S25: the save directory (when one is open)
+    if (w->hasSaveDirectory())
+    {
+        const SaveStatus st = w->saveStatus();
+        o["save"]           = Json::object{{"committed", double(st.committed)}, {"in_flight", double(st.inFlight)}};
     }
     // S24: streaming (the residency of this peer)
     {
@@ -1770,6 +1783,63 @@ ApiResult WorldApi::chunkInfo(const Json& a)
                                     {"parts", partsJson(w->residency().partsReady(c))},
                                     {"requested", w->residency().requested(c)}};
     return ApiResult::success(out);
+}
+
+ApiResult WorldApi::saveStatus(const Json&)
+{
+    const SaveStatus s          = w->saveStatus();
+    const ChunkStore::Stats& st = w->chunkStoreView().stats();
+    Json::object o{{"open", s.open},
+                   {"path", s.path},
+                   {"committed", double(s.committed)},
+                   {"in_flight", double(s.inFlight)},
+                   {"last_commit_step", double(s.lastCommitStep)},
+                   {"last_commit_time", s.lastCommitTime},
+                   {"last_error", s.lastError},
+                   {"dirty_chunks", double(s.dirtyChunks)},
+                   {"stored_chunks", double(s.storedChunks)},
+                   {"stored_groups", double(s.storedGroups)},
+                   {"unloaded_spaces", double(s.unloadedSpaces)},
+                   {"region_files", double(s.regionFiles)},
+                   {"region_bytes", double(s.regionBytes)},
+                   {"live_bytes", double(s.liveBytes)},
+                   {"terrain_memory_bytes", double(s.terrainMemoryBytes)}};
+    o["statistics"] = Json::object{{"groups_unloaded", double(st.groupsUnloaded)},
+                                   {"entities_unloaded", double(st.entitiesUnloaded)},
+                                   {"groups_reloaded", double(st.groupsReloaded)},
+                                   {"entities_reloaded", double(st.entitiesReloaded)},
+                                   {"dropped_references", double(st.droppedReferences)},
+                                   {"failed_groups", double(st.failedGroups)},
+                                   {"reload_hook_errors", double(st.reloadHookErrors)},
+                                   {"spaces_unloaded", double(st.spacesUnloaded)},
+                                   {"spaces_reloaded", double(st.spacesReloaded)},
+                                   {"records_read", double(st.recordsRead)},
+                                   {"records_written", double(st.recordsWritten)},
+                                   {"bytes_written", double(st.bytesWritten)},
+                                   {"commits", double(st.commits)},
+                                   {"failed_commits", double(st.failedCommits)},
+                                   {"compactions", double(st.compactions)},
+                                   {"last_freeze_ms", st.lastFreezeMs},
+                                   {"max_freeze_ms", st.maxFreezeMs},
+                                   {"last_commit_write_ms", st.lastCommitWriteMs}};
+    return ApiResult::success(o);
+}
+
+ApiResult WorldApi::commitSave(const Json&)
+{
+    if (!w->isHost()) return ApiResult::failure("commit_save: a client has no save directory (the host saves)");
+    if (!w->hasSaveDirectory()) return ApiResult::failure("commit_save: no save directory is open (--save <dir>)");
+    // A request inside a hook or a load would be dropped, not deferred
+    if (!w->saveCallsAllowed()) return ApiResult::failure("commit_save: inside a game hook or a load");
+    const SaveStatus before = w->saveStatus();
+    if (before.inFlight != 0)
+    {
+        w->commit();
+        return ApiResult::success(Json::object{{"deferred", true}, {"in_flight", double(before.inFlight)}});
+    }
+    const uint64_t c = w->commit();
+    if (c == 0) return ApiResult::failure("commit_save: the commit was refused");
+    return ApiResult::success(Json::object{{"commit", double(c)}, {"deferred", false}});
 }
 
 ApiResult WorldApi::streamingStatus(const Json& a)
