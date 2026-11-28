@@ -210,8 +210,8 @@ void apply(const PipelineState& state, uint32_t reference, const PipelineState* 
     {
         if (fixedIndexRestartSupported())
             setCapability(GL_PRIMITIVE_RESTART_FIXED_INDEX, state.primitiveRestart);
-        else
-            SAIGA_ASSERT(!state.primitiveRestart, "primitive restart needs OpenGL 4.3 or GL_ARB_ES3_compatibility");
+        else if (state.primitiveRestart)
+            SAIGA_EXIT_ERROR("primitive restart needs OpenGL 4.3 or GL_ARB_ES3_compatibility");
         // The restart with an index of its own; Vulkan has only the fixed index.
         if (all) glDisable(GL_PRIMITIVE_RESTART);
     }

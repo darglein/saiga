@@ -18,7 +18,8 @@ class Shader;
 
 // Sets the complete fixed-function state of `state` in the current context: every value, also those that equal
 // OpenGL's defaults, so the result doesn't depend on what ran before. stencilReference is the reference value of the
-// stencil test (dynamic state in Vulkan). Primitive restart needs OpenGL 4.3 or GL_ARB_ES3_compatibility.
+// stencil test (dynamic state in Vulkan). Primitive restart needs OpenGL 4.3 or GL_ARB_ES3_compatibility; without it, a
+// state with primitive restart is a fatal error.
 //
 // With the PipelineStateCache enabled, only the values that differ from the last applied state are set.
 SAIGA_OPENGL_API void applyPipelineState(const PipelineState& state, uint32_t stencilReference = 0);
