@@ -56,9 +56,14 @@ bool World::hasSaveDirectory() const
     return saveDir != nullptr;
 }
 
+bool World::saveCallsAllowed() const
+{
+    return !inStep() && hookDepth == 0 && loadHookPhase == 0 && !loadInProgress;
+}
+
 uint64_t World::commit()
 {
-    if (!isHost() || inStep() || hookDepth != 0 || loadHookPhase != 0 || !saveDir)
+    if (!isHost() || !saveCallsAllowed() || !saveDir)
     {
         SAIGA_LOG("save", "commit refused: %s",
                   !saveDir ? "no save directory" : (!isHost() ? "a client" : "inside a step or a hook"));
@@ -76,6 +81,12 @@ bool World::closeSaveDirectory()
 {
     if (!saveDir) return true;
     SAIGA_ASSERT(!inStep(), "World::closeSaveDirectory inside a step");
+    // Refused inside a game hook or a load: the open's own load runs hooks while the directory is in use
+    if (!saveCallsAllowed())
+    {
+        SAIGA_LOG("save", "closeSaveDirectory refused: inside a hook or a load");
+        return false;
+    }
     const bool ok = saveDir->close();
     // A close that could not read every stored group back keeps the directory (the caller may retry)
     if (!saveDir->isOpen()) saveDir.reset();

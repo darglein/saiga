@@ -1829,6 +1829,8 @@ ApiResult WorldApi::commitSave(const Json&)
 {
     if (!w->isHost()) return ApiResult::failure("commit_save: a client has no save directory (the host saves)");
     if (!w->hasSaveDirectory()) return ApiResult::failure("commit_save: no save directory is open (--save <dir>)");
+    // A request inside a hook or a load would be dropped, not deferred
+    if (!w->saveCallsAllowed()) return ApiResult::failure("commit_save: inside a game hook or a load");
     const SaveStatus before = w->saveStatus();
     if (before.inFlight != 0)
     {

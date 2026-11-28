@@ -649,8 +649,21 @@ void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Qua
         SAIGA_ASSERT(false, "moveToSpace: a client cannot move a replicated entity (or a subtree with one)");
         return;
     }
-    // S25: an unloaded target space loads at once (a command during a step: at the phase's flush)
-    if (isHost() && store->spaceUnloaded(space)) loadSpaceNow(space);
+    // S25: an unloaded target space loads at once. During a step the load waits for the phase's flush, and so does
+    // the move (a later system must not see the root in a space without its state entity); the root is rechecked then
+    if (isHost() && store->spaceUnloaded(space))
+    {
+        if (deferring())
+        {
+            record(makeCommand(
+                [e, space, position, rotation](World& w)
+                {
+                    if (w.reg.alive(e)) w.moveToSpace(e, space, position, rotation);
+                }));
+            return;
+        }
+        loadSpaceNow(space);
+    }
     if (isHost())
         repl->ownerMove(e, space, position, rotation);
     else

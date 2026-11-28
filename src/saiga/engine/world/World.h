@@ -363,7 +363,8 @@ class SAIGA_ENGINE_API World
     // in phase 6. On the host, for a spawned client-owned root, the pose is applied here and sent to the owner as an
     // OwnerCommand with the space and the incremented command counter. The same space is a plain teleport. Asserts a
     // dead or reserved entity, a child, a state entity, an unknown space, a call inside parallelEach and, on a client,
-    // a replicated entity (R-NET-2).
+    // a replicated entity (R-NET-2). S25: into an unloaded space during a step, the move is deferred to the phase's
+    // flush together with the space's load (a root destroyed meanwhile is not moved).
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
     // Host: starts a transition of a root (a player, a vehicle, ...) to the link's SpaceLink target at its arrival pose
     // (copied now; §12.4, S21): an arrival (requestArrival's rules, S24) with the link. Between steps applied at once,
@@ -621,6 +622,9 @@ class SAIGA_ENGINE_API World
     // Freezes commit c now and hands it to the IO queue; returns c, or 0 if refused (a client, inside a step or a hook,
     // no directory) or deferred (a commit in flight: committed at the first step boundary after it completed)
     uint64_t commit();
+    // Not inside a step, a game hook or a load: commit and closeSaveDirectory may run (a request made in a hook is
+    // refused, not retained)
+    bool saveCallsAllowed() const;
     // Runs the IO queue on the caller until no commit is in flight (quit, tests); false if the last one failed
     bool waitForCommits();
     // waitForCommits, reads every disk-only group back into memory, unlocks; the world keeps a memory store
