@@ -53,7 +53,8 @@ GLFWwindow* ImGui_GLFW_Renderer::g_Window = NULL;
 
 
 
-ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params) : ImGuiRenderer(params)
+ImGui_GLFW_Renderer::ImGui_GLFW_Renderer(GLFWwindow* window, const ImGuiParameters& params)
+    : ImGuiOpenGLRenderer(params)
 {
     ImGui_ImplOpenGL3_Init();
     g_Window = window;
@@ -103,6 +104,7 @@ void ImGui_GLFW_Renderer::beginFrame()
 }
 void ImGui_GLFW_Renderer::render()
 {
+    checkTextures();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     GLFWwindow* backup = glfwGetCurrentContext();

@@ -74,7 +74,7 @@ class SAIGA_OPENGL_API TextureBase
     void bindImageTexture(GLuint imageUnit, GLenum access);
 
 
-    GLuint getId() { return id; }
+    GLuint getId() const { return id; }
     GLenum getTarget() { return target; }
 
 

@@ -17,7 +17,7 @@ class OpenGLWindow;
  * ImGui on an OpenGL window without a window system (OffscreenWindow): draws with the OpenGL3 backend into the
  * window's default framebuffer, see ImGuiHeadlessPlatform for input, viewports and the clipboard.
  */
-class SAIGA_OPENGL_API ImGui_Headless_Renderer : public ImGuiRenderer
+class SAIGA_OPENGL_API ImGui_Headless_Renderer : public ImGuiOpenGLRenderer
 {
    public:
     ImGui_Headless_Renderer(OpenGLWindow& window, const ImGuiParameters& params);

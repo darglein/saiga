@@ -42,7 +42,7 @@ struct GLFWwindow;
 
 namespace Saiga
 {
-class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGuiRenderer,
+class SAIGA_OPENGL_API ImGui_GLFW_Renderer : public ImGuiOpenGLRenderer,
                                              public glfw_KeyListener,
                                              public glfw_MouseListener
 {

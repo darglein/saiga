@@ -15,7 +15,7 @@
 namespace Saiga
 {
 ImGui_Headless_Renderer::ImGui_Headless_Renderer(OpenGLWindow& window, const ImGuiParameters& params)
-    : ImGuiRenderer(params), window(window)
+    : ImGuiOpenGLRenderer(params), window(window)
 {
     ImGui_ImplOpenGL3_Init();
 }
@@ -49,6 +49,7 @@ void ImGui_Headless_Renderer::beginFrame()
 
 void ImGui_Headless_Renderer::render()
 {
+    checkTextures();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
