@@ -20,6 +20,7 @@
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/save/EntityGroup.h"
+#include "saiga/engine/save/EntityUnloading.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveDirectory.h"
 #include "saiga/engine/save/SaveDirectoryFormat.h"
@@ -911,6 +912,17 @@ bool WorldLoader::stageStore(const std::vector<uint8_t>& data)
             stagedStore.unloadedSpaces.insert(sp.space);
             if (sp.hasGroup && !stage(sp.group, stagedStore.groups[spaceRecordKey(sp.space)], where)) return false;
         }
+    }
+    // Stored groups and unloaded spaces come back only through the entity unloading of a streaming host world: in
+    // any other world they would stay stored for good, so such a save is refused
+    if (!w.unloading->attached())
+    {
+        bool stored = !stagedStore.unloadedSpaces.empty();
+        for (const auto& kv : stagedStore.groups) stored = stored || !kv.second.empty();
+        if (stored)
+            return fail(
+                "the save has unloaded entities or spaces: it loads only into a streaming host world "
+                "(WorldConfig::streaming)");
     }
     // An unloaded space has no space-state entity in ENTS
     for (uint32_t i = 1; i < uint32_t(p.slots.size()); ++i)

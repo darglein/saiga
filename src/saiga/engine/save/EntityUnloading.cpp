@@ -285,7 +285,14 @@ void EntityUnloading::unloadSpaces()
     {
         const SpaceId s = SpaceId(i);
         if (w.chunkStoreView().spaceUnloaded(s) || spaceHasCentre(s) || spaceHasRoot(s)) continue;
-        w.recordOrRun([s](World& world) { world.unloadSpaceNow(s); });
+        // Rechecked at the flush: a command recorded earlier in the phase (a move, a spawn, a new centre) may have
+        // put a root or a centre into the space
+        w.recordOrRun(
+            [this, s](World& world)
+            {
+                if (world.chunkStoreView().spaceUnloaded(s) || spaceHasCentre(s) || spaceHasRoot(s)) return;
+                world.unloadSpaceNow(s);
+            });
     }
 }
 

@@ -27,6 +27,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -144,10 +145,11 @@ struct Latch
         cv.notify_all();
         cv.wait(l, [this] { return !closed; });
     }
-    void waitEntered(int n)
+    // Bounded: false after the deadline (the caller opens the latch anyway, so a failure never hangs the test)
+    bool waitEntered(int n)
     {
         std::unique_lock<std::mutex> l(m);
-        cv.wait(l, [&] { return entered >= n || !closed; });
+        return cv.wait_for(l, std::chrono::seconds(30), [&] { return entered >= n || !closed; });
     }
 };
 Latch& latch()
@@ -459,14 +461,17 @@ TEST(SaveDirectory, LoadWhileCommitInFlight)
     ASSERT_EQ(w.commit(), 2u);
     EXPECT_EQ(w.saveStatus().inFlight, 2u);
     // The load waits for the commit (held: the latch opens once the task waits on it)
+    bool entered = false;
     std::thread opener(
-        []
+        [&entered]
         {
-            latch().waitEntered(1);
+            entered = latch().waitEntered(1);
             latch().open();
         });
-    ASSERT_TRUE(w.tryLoad(blob).ok());
+    const bool loaded = w.tryLoad(blob).ok();
     opener.join();
+    ASSERT_TRUE(loaded);
+    EXPECT_TRUE(entered);
     w.saveDirectory()->ioQueue().hookForTests = nullptr;
     EXPECT_EQ(w.saveStatus().inFlight, 0u);
     EXPECT_EQ(w.saveStatus().committed, 2u);
@@ -796,7 +801,7 @@ TEST(SaveDirectory, CommitWhileInFlight)
     const PersistentId moved = w.makePersistent(w.spawn<Grower>(kA + Vec3(20, 0, 0)));
     teleport(w, sc.player, kA + Vec3(0, 0, 3000));
     // The groups at B (disk-only since commit 1) reload while commit 2 is in flight... the player goes there below
-    latch().waitEntered(1);
+    EXPECT_TRUE(latch().waitEntered(1));
     latch().open();
     w.step();
     ASSERT_TRUE(w.waitForCommits());
@@ -816,7 +821,7 @@ TEST(SaveDirectory, CommitWhileInFlight)
     teleport(w, sc.player, kB);
     w.step();
     for (PersistentId id : sc.stored) EXPECT_TRUE(w.resolve(id).valid());
-    latch().waitEntered(1);
+    EXPECT_TRUE(latch().waitEntered(1));
     latch().open();
     ASSERT_TRUE(w.waitForCommits());
     w.saveDirectory()->ioQueue().hookForTests = nullptr;

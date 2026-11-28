@@ -117,6 +117,13 @@ bool readRecord(SaveFileSystem& fs, const RecordLocation& loc, const ChunkId& ke
         if (status) *status = s;
         return s == ReadStatus::Ok;
     };
+    // The length comes from the index: bounded before the allocation (no valid record is larger; a format error,
+    // which changes nothing on disk)
+    if (loc.length > kMaxRecordBytes)
+    {
+        error = chunkName(key) + ": the record's length " + std::to_string(loc.length) + " exceeds the largest record";
+        return result(ReadStatus::Format);
+    }
     std::vector<uint8_t> bytes(loc.length);
     if (!fs.readAt(loc.file.path(), loc.offset, loc.length, bytes.data(), &error))
     {
@@ -522,8 +529,17 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
         {
             if (!newFile(t, tg)) return fail("create " + tg.key.path());
         }
-        else if (!fs.truncate(tg.key.path(), tg.end, &e))
-            return fail("truncate " + tg.key.path());
+        else
+        {
+            // A file shorter than its committed end lost committed records: truncate would extend it with zeros
+            // and the next records would follow a hole, so the commit fails instead
+            uint64_t size = 0;
+            if (!fs.fileSize(tg.key.path(), size, &e)) return fail("size of " + tg.key.path());
+            if (size < tg.end)
+                return fail(tg.key.path() + " is shorter (" + std::to_string(size) + " bytes) than its committed end " +
+                            std::to_string(tg.end));
+            if (!fs.truncate(tg.key.path(), tg.end, &e)) return fail("truncate " + tg.key.path());
+        }
         targets[t] = tg;
     }
     // 1: the header (before any record that uses a new table)

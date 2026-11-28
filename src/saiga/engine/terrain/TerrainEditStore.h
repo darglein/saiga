@@ -104,8 +104,9 @@ class SAIGA_ENGINE_API TerrainEditStore
     // Reserve: allocates the block that holds sample (i, k) if missing (zeroed: invisible until written)
     void reserveBlock(SpaceId space, int64_t i, int64_t k);
     bool blockAllocated(SpaceId space, int64_t i, int64_t k) const { return block(space, i, k) != nullptr; }
-    // Reserve for a later writeDelta(space, i, k, value): allocates the block only if value is non-zero and differs
-    // from the current delta (the allocation rule of every path, §12.1)
+    // Reserve for a later writeDelta(space, i, k, value): nothing when value equals the current delta; otherwise
+    // allocates the block if value is non-zero (the allocation rule of every path, §12.1) or, also for a write of 0,
+    // clones a block shared with a frozen commit (S25)
     void reserveFor(SpaceId space, int64_t i, int64_t k, int32_t value)
     {
         if (value == delta(space, i, k)) return;

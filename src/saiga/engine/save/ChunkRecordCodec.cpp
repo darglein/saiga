@@ -10,6 +10,7 @@
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 
 #include <algorithm>
+#include <map>
 #include <tuple>
 #include <zstd.h>
 
@@ -387,8 +388,11 @@ void encodeIndex(const ChunkIndex& index, std::vector<uint8_t>& out)
     w.write(kTagChunkIndex);
     w.write(kChunkIndexFormat);
     w.write(uint32_t(index.files.size()));
+    // The ordinal of each file in the table (a linear scan per entry was quadratic in the region count).
+    std::map<RegionKey, uint32_t> ordinal;
     for (const auto& [k, end] : index.files)
     {
+        ordinal.emplace(k, uint32_t(ordinal.size()));
         w.write(k.space);
         w.write(k.rx);
         w.write(k.rz);
@@ -405,8 +409,8 @@ void encodeIndex(const ChunkIndex& index, std::vector<uint8_t>& out)
         uint32_t file = 0xFFFFFFFFu;
         if (e.location)
         {
-            for (size_t i = 0; i < index.files.size(); ++i)
-                if (index.files[i].first == e.location->file) file = uint32_t(i);
+            auto it = ordinal.find(e.location->file);
+            if (it != ordinal.end()) file = it->second;
             SAIGA_ASSERT(file != 0xFFFFFFFFu, "encodeIndex: a location names a file outside the table");
         }
         w.write(file);

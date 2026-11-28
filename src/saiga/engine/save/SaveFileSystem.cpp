@@ -9,6 +9,7 @@
 #include "saiga/engine/save/SaveFileSystem.h"
 
 #include "saiga/core/util/string_to_path.h"
+#include "saiga/engine/save/SaveDirectoryFormat.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -39,6 +40,12 @@ bool SaveFileSystem::readAll(const std::string& path, std::vector<uint8_t>& out,
 {
     uint64_t size = 0;
     if (!fileSize(path, size, error)) return false;
+    // Untrusted: no file the save directory reads whole (header.sgh, the world files) is larger
+    if (size > kMaxWorldFileBytes)
+    {
+        if (error) *error = path + ": " + std::to_string(size) + " bytes, more than the largest save file";
+        return false;
+    }
     out.resize(size_t(size));
     return size == 0 || readAt(path, 0, size, out.data(), error);
 }
@@ -321,11 +328,12 @@ class DiskSaveFileSystem final : public SaveFileSystem
         {
             // The parents of the created components, and always the save directory's own parent (an earlier attempt
             // may have created the directory without making its entry durable): a failure fails the lock
-            std::set<std::filesystem::path> parents;
-            for (const std::filesystem::path& p : created) parents.insert(p.parent_path());
-            parents.insert(dir.parent_path());
-            for (std::filesystem::path parent : parents)
+            // A failed attempt keeps its unsynced parents for the retry (which no longer sees them as created)
+            for (const std::filesystem::path& p : created) unsyncedParents.insert(p.parent_path());
+            unsyncedParents.insert(dir.parent_path());
+            while (!unsyncedParents.empty())
             {
+                std::filesystem::path parent = *unsyncedParents.begin();
                 if (parent.empty()) parent = ".";
                 const int d = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
                 if (d < 0) return fail(error, "open the directory " + parent.string() + ": " + lastError());
@@ -333,6 +341,7 @@ class DiskSaveFileSystem final : public SaveFileSystem
                 const std::string why = synced ? std::string() : lastError();
                 ::close(d);
                 if (!synced) return fail(error, "sync the directory " + parent.string() + ": " + why);
+                unsyncedParents.erase(unsyncedParents.begin());
             }
         }
         const int fd = ::open(full("lock").c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
@@ -378,6 +387,8 @@ class DiskSaveFileSystem final : public SaveFileSystem
     HANDLE lockHandle = INVALID_HANDLE_VALUE;
 #else
     int lockFd = -1;
+    // The parents of created directories whose sync has not succeeded yet (lock)
+    std::set<std::filesystem::path> unsyncedParents;
 #endif
 };
 }  // namespace

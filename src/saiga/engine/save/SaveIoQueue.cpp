@@ -96,7 +96,14 @@ void SaveIoQueue::submitHead()
 
 void SaveIoQueue::drainOnCaller()
 {
-    draining = true;
+    // A depth with a guard: a nested drain (from a done callback) keeps the outer one's state, and an exception
+    // does not leave the lane draining
+    struct DrainGuard
+    {
+        int& depth;
+        explicit DrainGuard(int& d) : depth(d) { ++depth; }
+        ~DrainGuard() { --depth; }
+    } guard(draining);
     while (outstanding)
     {
         StreamingPool& pool = w.terrain().streamingPool();
@@ -119,7 +126,6 @@ void SaveIoQueue::drainOnCaller()
         t.run();
         if (t.done) t.done();
     }
-    draining = false;
 }
 
 void SaveIoQueue::poolReset()

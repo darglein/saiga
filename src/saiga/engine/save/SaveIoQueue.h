@@ -65,7 +65,7 @@ class SAIGA_ENGINE_API SaveIoQueue
     World& w;
     std::deque<Task> queue;  // sorted by (priority, id)
     bool outstanding = false;
-    bool draining    = false;  // drainOnCaller runs: completions do not submit the next job
+    int draining     = 0;  // drainOnCaller runs (a depth: a done callback may drain again): no job is submitted
     uint64_t jobId   = 0;
     Task current;
     uint64_t nextId = 1;

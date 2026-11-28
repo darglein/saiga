@@ -1046,8 +1046,15 @@ void Replication::hostReplicate(bool networkOnly)
     candidates.clear();
     hierarchyNow.clear();
     changedNow.clear();
-    // (NetId, unloaded: Despawn instead of Destroy; S25) in record order
-    std::vector<std::pair<NetId, bool>> destroyed;
+    // In record order. unloaded: Despawn instead of Destroy (S25). detach: its Parent changed earlier in this pass
+    // (the client still has it under the old parent, whose Destroy or Despawn would cascade it the other way)
+    struct Destroyed
+    {
+        NetId id;
+        bool unloaded;
+        bool detach;
+    };
+    std::vector<Destroyed> destroyed;
     log.consume(
         logConsumer,
         [&](const StructuralLog::Record& r)
@@ -1067,7 +1074,13 @@ void Replication::hostReplicate(bool networkOnly)
                     // Destroyed after its spawn (an entity spawned and destroyed in one step sends nothing). S25: an
                     // unloaded entity is despawned; a bound NetId (an unloaded space's state entity) sends nothing,
                     // the client keeps it and the reload's bound spawn updates it
-                    if (!r.unloaded || s->netId >= kFirstDynamicNetId) destroyed.push_back({s->netId, r.unloaded});
+                    if (!r.unloaded || s->netId >= kFirstDynamicNetId)
+                    {
+                        // Transform's record comes first in a destroy: a Parent record before it is a real change
+                        const bool detach =
+                            std::find(hierarchyNow.begin(), hierarchyNow.end(), e) != hierarchyNow.end();
+                        destroyed.push_back({s->netId, r.unloaded, detach});
+                    }
                     const NetId id = s->netId;
                     HostSlot& ws   = writeSlot(e.index);
                     ws.spawned     = false;
@@ -1194,11 +1207,23 @@ void Replication::hostReplicate(bool networkOnly)
     }
 
     // 4. Destroys (after the hierarchy changes: a child moved out of a destroyed parent leaves it before the client's
-    // cascade)
-    for (const auto& [id, unloaded] : destroyed)
+    // cascade). The detaches of destroyed entities come before every Destroy and Despawn: the old parent may come
+    // earlier in the record order
+    for (const Destroyed& d : destroyed)
+        if (d.detach)
+            for (uint8_t p : regularPeers)
+            {
+                HierarchyMessage m;
+                m.netId  = d.id;
+                m.parent = 0;
+                w.send(p, m);
+                counts.hierarchySent++;
+            }
+    for (const Destroyed& d : destroyed)
         for (uint8_t p : regularPeers)
         {
-            if (unloaded)
+            const NetId id = d.id;
+            if (d.unloaded)
             {
                 w.send(p, DespawnMessage{id});
                 counts.despawnsSent++;
