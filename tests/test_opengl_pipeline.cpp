@@ -40,10 +40,16 @@ void main()
 )";
 
 // Every field differs from the defaults.
+// Fixed-index primitive restart is core since OpenGL 4.3; the context may be 3.3.
+bool FixedIndexRestartSupported()
+{
+    return getVersionMajor() * 10 + getVersionMinor() >= 43 || hasExtension("GL_ARB_ES3_compatibility");
+}
+
 PipelineState NonDefaultState()
 {
     PipelineState s;
-    s.primitiveRestart = true;
+    s.primitiveRestart = FixedIndexRestartSupported();
 
     RasterizationState& r = s.rasterization;
     r.polygonMode         = PolygonMode::Line;
