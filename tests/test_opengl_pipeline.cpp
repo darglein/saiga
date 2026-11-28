@@ -7,6 +7,7 @@
 // On Mesa's software renderer, as CI does:
 //   __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json ctest -R test_opengl_pipeline
 
+#include "saiga/core/camera/camera.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/shader.h"
@@ -36,6 +37,26 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     out_color = color;
+}
+)";
+
+// A white triangle above the center of the view, counterclockwise as seen from the camera.
+const char* triangle_shader = R"(
+##GL_VERTEX_SHADER
+#version 330
+uniform mat4 proj;
+void main()
+{
+    vec3 p[3]   = vec3[3](vec3(-1, 0.6, -2), vec3(1, 0.6, -2), vec3(0, 1.4, -2));
+    gl_Position = proj * vec4(p[gl_VertexID], 1);
+}
+
+##GL_FRAGMENT_SHADER
+#version 330
+layout(location = 0) out vec4 out_color;
+void main()
+{
+    out_color = vec4(1);
 }
 )";
 
@@ -111,13 +132,19 @@ class OpenGLPipeline : public OpenGLTest
 {
    public:
     static ivec4 Center(int w, int h) { return ReadPixels(w, h)(h / 2, w / 2).cast<int>(); }
+    // Row 0 is the first row in memory.
+    static TemplatedImage<ucvec4> Image(int w, int h) { return ReadPixels(w, h); }
 
    protected:
     void TearDown() override
     {
         PipelineStateCache::setEnabled(false);
         PipelineStateCache::setValidation(false);
-        if (context_available) applyPipelineState(PipelineState());
+        if (context_available)
+        {
+            setClipSpace(ClipSpace::OpenGL);
+            applyPipelineState(PipelineState());
+        }
         OpenGLTest::TearDown();
     }
 };
@@ -164,6 +191,50 @@ struct Target
     Framebuffer fb;
     GLuint vao = 0;
 };
+
+// Where the triangle of triangle_shader lands in a 16x16 image, drawn with a camera for the clip space.
+struct TriangleRows
+{
+    // The rows in memory the triangle covers in the middle column, -1 if none.
+    int first = -1, last = -1;
+    // The depth buffer value in the middle of those rows.
+    float depth = 0;
+};
+
+TriangleRows DrawTriangle(ClipSpace space, CullMode cull)
+{
+    const int size = 16;
+    setClipSpace(space);
+    Target target(size, size);
+    PerspectiveCamera camera;
+    camera.setProj(90, 1, 1, 3, space == ClipSpace::Vulkan);
+
+    auto shader = std::make_shared<Shader>();
+    shader->init_from_string(triangle_shader);
+    PipelineState state          = PipelineState::opaque();
+    state.rasterization.cullMode = cull;
+    GraphicsPipeline pipeline(shader, state);
+
+    glClearColor(0.f, 0.f, 0.f, 0.f);
+    glClearDepth(1.0);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    EXPECT_TRUE(pipeline.bind());
+    shader->upload(shader->getUniformLocation("proj"), camera.proj);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    pipeline.unbind();
+
+    TriangleRows rows;
+    const TemplatedImage<ucvec4> image = OpenGLPipeline::Image(size, size);
+    for (int row = 0; row < size; ++row)
+    {
+        if (image(row, size / 2)(0) == 0) continue;
+        if (rows.first < 0) rows.first = row;
+        rows.last = row;
+    }
+    if (rows.first >= 0)
+        glReadPixels(size / 2, (rows.first + rows.last) / 2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &rows.depth);
+    return rows;
+}
 
 std::shared_ptr<Shader> FullscreenShader()
 {
@@ -367,4 +438,46 @@ TEST_F(OpenGLPipeline, CullsFaces)
     GraphicsPipeline drawn(shader, cullFront);
     target.Draw(drawn, vec4(1.f, 1.f, 1.f, 1.f));
     EXPECT_EQ(target.Pixel(), ivec4(255, 255, 255, 255));
+}
+
+// With Vulkan's clip space and a camera with vulkanTransform, the image has Vulkan's rows in memory: the triangle above
+// the center lands in the first rows, which are the top of the image with Vulkan. The depth stays the same.
+TEST_F(OpenGLPipeline, VulkanClipSpaceHasVulkansRows)
+{
+    const TriangleRows gl = DrawTriangle(ClipSpace::OpenGL, CullMode::None);
+    ASSERT_GE(gl.first, 0);
+    EXPECT_GE(gl.first, 8);
+    EXPECT_EQ(clipSpace(), ClipSpace::OpenGL);
+
+    const TriangleRows vulkan = DrawTriangle(ClipSpace::Vulkan, CullMode::None);
+    EXPECT_EQ(clipSpace(), ClipSpace::Vulkan);
+    ASSERT_GE(vulkan.first, 0);
+    EXPECT_LT(vulkan.last, 8);
+    EXPECT_EQ(vulkan.first, 15 - gl.last);
+    EXPECT_EQ(vulkan.last, 15 - gl.first);
+    EXPECT_NEAR(vulkan.depth, gl.depth, 1e-5);
+    EXPECT_GT(vulkan.depth, 0.f);
+    EXPECT_LT(vulkan.depth, 1.f);
+}
+
+// FrontFace is the winding as seen in the image in both clip spaces: the triangle is counterclockwise, so it is culled
+// with the front faces and drawn with the back faces culled.
+TEST_F(OpenGLPipeline, FrontFaceKeepsItsMeaningInBothClipSpaces)
+{
+    for (ClipSpace space : {ClipSpace::OpenGL, ClipSpace::Vulkan})
+    {
+        EXPECT_GE(DrawTriangle(space, CullMode::Back).first, 0);
+        EXPECT_EQ(DrawTriangle(space, CullMode::Front).first, -1);
+    }
+}
+
+TEST_F(OpenGLPipeline, SetsEveryFieldInVulkansClipSpace)
+{
+    setClipSpace(ClipSpace::Vulkan);
+    const PipelineState state = NonDefaultState();
+    applyPipelineState(state);
+    EXPECT_EQ(pipelineStateDifference(state, queryPipelineState()), "");
+    GLint frontFace = 0;
+    glGetIntegerv(GL_FRONT_FACE, &frontFace);
+    EXPECT_EQ(static_cast<GLenum>(frontFace), GL_CCW);
 }

@@ -43,6 +43,9 @@ class SAIGA_CORE_API Camera : public Object3D, public Frustum
 
     //    Frustum frustum;
 
+    // The projection maps to Vulkan's clip space (y down, z from 0 to 1) instead of OpenGL's. The depth buffer values
+    // are the same in both, and so are the image coordinates of NormalizedToImage and ImageToNormalized when row 0 is
+    // the first row in memory (the top of the image with Vulkan, the bottom with OpenGL).
     bool vulkanTransform     = false;
     bool recompute_on_resize = true;
 
@@ -133,8 +136,8 @@ class SAIGA_CORE_API OrthographicCamera : public Camera
    public:
     float left, right, bottom, top;
     OrthographicCamera() {}
-    void setProj(float left, float right, float bottom, float top, float near, float far);
-    void setProj(AABB bb);
+    void setProj(float left, float right, float bottom, float top, float near, float far, bool vulkanTransform = false);
+    void setProj(AABB bb, bool vulkanTransform = false);
 
     SAIGA_CORE_API friend std::ostream& operator<<(std::ostream& os, const OrthographicCamera& ca);
 

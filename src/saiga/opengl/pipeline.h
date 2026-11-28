@@ -43,6 +43,26 @@ SAIGA_OPENGL_API PipelineState queryPipelineState(uint32_t* stencilReference = n
 // Lists the fields in which a and b differ, empty if they are equal.
 SAIGA_OPENGL_API std::string pipelineStateDifference(const PipelineState& a, const PipelineState& b);
 
+// The clip space gl_Position is in.
+enum class ClipSpace
+{
+    // OpenGL's: y up, z from -1 to 1. Row 0 of a framebuffer is the bottom of the image.
+    OpenGL,
+    // Vulkan's: y down, z from 0 to 1, as the projections of a Camera with vulkanTransform. Images then have the same
+    // rows in memory as with Vulkan (row 0 is the top), and so the same gl_FragCoord, texture coordinates and
+    // glReadPixels results; in the default framebuffer they are shown upside down. The depth values are the same as
+    // with OpenGL's clip space. FrontFace keeps Vulkan's meaning: the winding as seen in the image.
+    //
+    // For the application's own rendering: saiga's OpenGL renderers and shaders expect OpenGL's clip space.
+    Vulkan,
+};
+
+// Sets the clip space of the current context (glClipControl), OpenGL's by default. Vulkan's needs OpenGL 4.5 or
+// GL_ARB_clip_control. Like the PipelineStateCache, it is remembered per thread: set it again after making another
+// context current.
+SAIGA_OPENGL_API void setClipSpace(ClipSpace clipSpace);
+SAIGA_OPENGL_API ClipSpace clipSpace();
+
 // Remembers the state applyPipelineState set last, so that it can skip the calls that wouldn't change anything.
 //
 // Disabled by default: the cache is only correct if all state changes go through applyPipelineState and

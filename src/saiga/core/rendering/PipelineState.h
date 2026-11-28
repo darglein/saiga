@@ -78,6 +78,8 @@ enum class CullMode : uint8_t
     FrontAndBack
 };
 
+// The winding of the front faces as seen in the image, with row 0 of the framebuffer at the top (Vulkan) or at the
+// bottom (OpenGL, see ClipSpace in saiga/opengl/pipeline.h).
 enum class FrontFace : uint8_t
 {
     CounterClockwise,
