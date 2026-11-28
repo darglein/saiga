@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "saiga/core/rendering/PipelineState.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/vulkan/svulkan.h"
@@ -103,6 +104,12 @@ class SAIGA_VULKAN_API PipelineInfo
                           const std::vector<vk::VertexInputAttributeDescription>& attributes);
 
     void addShaders(Saiga::Vulkan::GraphicsShaderPipeline& shaders);
+
+    // Sets the input assembly, rasterization, depth-stencil and blend state from the API independent description
+    // (saiga/core/rendering/PipelineState.h). With the stencil test the reference value becomes dynamic state
+    // (vk::CommandBuffer::setStencilReference), as it is an argument of the draw in OpenGL. Vulkan always clips to the
+    // scissor rectangle; without the scissor test, set one that covers the viewport.
+    void setState(const PipelineState& state);
 
     // The returned struct points into this object, which must stay alive until the pipeline is created.
     vk::GraphicsPipelineCreateInfo createCreateInfo(vk::PipelineLayout pipelineLayout, const RenderingFormats& formats);

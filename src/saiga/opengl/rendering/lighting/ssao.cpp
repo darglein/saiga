@@ -10,6 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 
 namespace Saiga
@@ -106,7 +107,7 @@ void SSAO::clearSSAO()
     // clear with 1 -> no ambient occlusion
     //    glClearColor(1.0f,1.0f,1.0f,1.0f);
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT);
     //    glClearColor(0.0f,0.0f,0.0f,0.0f);
     ssao_framebuffer2.unbind();
 }
@@ -115,6 +116,8 @@ void SSAO::render(Camera* cam, const ViewPort& vp, GBuffer* gbuffer)
 {
     glViewport(0, 0, ssaoSize[0], ssaoSize[1]);
     ssao_framebuffer.bind();
+    // Fullscreen quads.
+    applyPipelineState(PipelineState());
 
 
     if(ssaoShader->bind())

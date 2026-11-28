@@ -78,8 +78,16 @@ void ParticleSystem::render(Camera* cam)
 {
     //    std::cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
+    // Drawn inside the pass of someone else: only the blending changes, and it is restored afterwards, so the pass's
+    // state (and the PipelineStateCache) stays as it was.
+    const bool blendWasEnabled = glIsEnabled(GL_BLEND) == GL_TRUE;
+    GLint blendFunc[4]         = {};
     if (blending)
     {
+        glGetIntegerv(GL_BLEND_SRC_RGB, &blendFunc[0]);
+        glGetIntegerv(GL_BLEND_DST_RGB, &blendFunc[1]);
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendFunc[2]);
+        glGetIntegerv(GL_BLEND_DST_ALPHA, &blendFunc[3]);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     }
@@ -104,7 +112,9 @@ void ParticleSystem::render(Camera* cam)
 
     if (blending)
     {
-        glDisable(GL_BLEND);
+        glBlendFuncSeparate(static_cast<GLenum>(blendFunc[0]), static_cast<GLenum>(blendFunc[1]),
+                            static_cast<GLenum>(blendFunc[2]), static_cast<GLenum>(blendFunc[3]));
+        if (!blendWasEnabled) glDisable(GL_BLEND);
     }
 }
 

@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/text/all.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 using namespace Saiga;
@@ -46,9 +47,11 @@ class Sample : public SampleWindowDeferred
     {
         if (render_info.render_pass == RenderPass::GUI)
         {
-            glDisable(GL_DEPTH_TEST);
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            // Over everything, blended with its alpha.
+            PipelineState text  = PipelineState();
+            text.blend          = BlendState::alpha();
+            text.blend.srcAlpha = BlendFactor::SrcAlpha;
+            applyPipelineState(text);
 
             renderer->bindCamera(text_overlay.GetCamera());
             text_overlay.render();

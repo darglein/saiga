@@ -156,6 +156,10 @@ void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
         // and draw the wireframe without polygon offset.
         //    glPolygonOffset(0.0f,-500.0f);
 
+        // Drawn inside the pass of someone else: only the polygon mode changes, and it is restored afterwards, so the
+        // pass's state (and the PipelineStateCache) stays as it was.
+        GLint polygonMode[2] = {};
+        glGetIntegerv(GL_POLYGON_MODE, polygonMode);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         if (unified_buffer)
         {
@@ -163,7 +167,7 @@ void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
             unified_buffer->Draw();
             unified_buffer->Unbind();
         }
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glPolygonMode(GL_FRONT_AND_BACK, static_cast<GLenum>(polygonMode[0]));
         //    glDisable(GL_POLYGON_OFFSET_LINE);
 
         wireframeshader->unbind();

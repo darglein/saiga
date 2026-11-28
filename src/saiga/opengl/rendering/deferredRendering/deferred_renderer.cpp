@@ -12,7 +12,9 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
 #include "saiga/opengl/imgui/imgui_opengl.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
+#include "saiga/opengl/rendering/deferredRendering/deferred_pipeline_states.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
@@ -123,11 +125,10 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
         setViewPort(viewport);
 
-        glEnable(GL_SCISSOR_TEST);
+        // The clears only touch the viewport.
         setScissor(viewport);
         clearGBuffer();
         lighting.initRender();
-        glDisable(GL_SCISSOR_TEST);
         renderGBuffer({camera, viewport});
     }
 
@@ -153,6 +154,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
     {
         auto tim = timer->Measure("Forward");
+        applyPipelineState(ForwardPipelineState());
         renderingInterface->render({camera, RenderPass::Forward});
     }
 
@@ -223,6 +225,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
         postProcessor.renderLast(target_framebuffer, viewport);
 
         target_framebuffer->bind();
+        applyPipelineState(PipelineState());
         renderingInterface->render({camera, RenderPass::Final});
         target_framebuffer->unbind();
 
@@ -237,12 +240,7 @@ void DeferredRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpo
 
 void DeferredRenderer::clearGBuffer()
 {
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-
     gbuffer.bind();
-
-    // glViewport(0, 0, renderWidth, renderHeight);
 
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
 
@@ -256,7 +254,7 @@ void DeferredRenderer::clearGBuffer()
     }
 
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, true);
 
     gbuffer.unbind();
 }
@@ -265,54 +263,12 @@ void DeferredRenderer::clearGBuffer()
 
 void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::ViewPort>& camera)
 {
-    glDisable(GL_BLEND);
-
-    if (params.maskUsedPixels)
-    {
-        // mark all written pixels with 0 in the stencil buffer
-        glEnable(GL_STENCIL_TEST);
-        glStencilFunc(GL_ALWAYS, 0, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-    }
-    else
-    {
-        glDisable(GL_STENCIL_TEST);
-    }
-
     gbuffer.bind();
-
-    //    setViewPort(camera.second);
-    //    glViewport(0, 0, renderWidth, renderHeight);
-
-
-
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-
-
-    if (params.offsetGeometry)
-    {
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(params.offsetFactor, params.offsetUnits);
-    }
-
-    if (params.wireframe)
-    {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glLineWidth(params.wireframeLineSize);
-    }
+    applyPipelineState(GBufferPipelineState(params.maskUsedPixels, params.offsetGeometry, params.offsetFactor,
+                                            params.offsetUnits, params.wireframe));
+    if (params.wireframe) glLineWidth(params.wireframeLineSize);
     RenderingInterface* renderingInterface = dynamic_cast<RenderingInterface*>(rendering);
     renderingInterface->render({camera.first, RenderPass::Deferred});
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-
-    if (params.offsetGeometry)
-    {
-        glDisable(GL_POLYGON_OFFSET_FILL);
-    }
-
-    glDisable(GL_STENCIL_TEST);
-
     gbuffer.unbind();
 
     assert_no_glerror();
@@ -321,18 +277,13 @@ void DeferredRenderer::renderGBuffer(const std::pair<Saiga::Camera*, Saiga::View
 
 void DeferredRenderer::writeGbufferDepthToCurrentFramebuffer()
 {
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_ALWAYS);
+    applyPipelineState(DepthCopyPipelineState());
     if (blitDepthShader->bind())
     {
         blitDepthShader->uploadTexture(gbuffer.getTextureDepth().get());
         quadMesh.BindAndDraw();
         blitDepthShader->unbind();
     }
-    glDepthFunc(GL_LESS);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
     assert_no_glerror();
 }

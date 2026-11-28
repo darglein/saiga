@@ -7,6 +7,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 
@@ -116,12 +117,15 @@ class Sample : public SampleWindowDeferred
 
             if (renderWireframe)
             {
-                glEnable(GL_POLYGON_OFFSET_LINE);
-                //        glLineWidth(1);
-                glPolygonOffset(0, -500);
-
+                // The wireframe towards the camera, so it isn't hidden by the faces it belongs to.
+                const PipelineState pass                  = currentPipelineState();
+                PipelineState wireframe                   = pass;
+                wireframe.rasterization.depthBias         = true;
+                wireframe.rasterization.depthBiasSlope    = 0;
+                wireframe.rasterization.depthBiasConstant = -500;
+                applyPipelineState(wireframe);
                 object.renderWireframe(render_info.camera);
-                glDisable(GL_POLYGON_OFFSET_LINE);
+                applyPipelineState(pass);
             }
         }
         else if (render_info.render_pass == RenderPass::GUI)

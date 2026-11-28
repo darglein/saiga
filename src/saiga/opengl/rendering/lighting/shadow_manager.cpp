@@ -8,6 +8,7 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/texture/CubeTexture.h"
 
@@ -121,14 +122,18 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
         current_point_light_array_size = num_pointlight_shadow_maps;
     }
 
-    glEnable(GL_POLYGON_OFFSET_FILL);
-
     float shadowMult = backFaceShadows ? -1 : 1;
 
-    if (backFaceShadows)
-        glCullFace(GL_FRONT);
-    else
-        glCullFace(GL_BACK);
+    PipelineState shadowState           = PipelineState::opaque();
+    shadowState.rasterization.cullMode  = backFaceShadows ? CullMode::Front : CullMode::Back;
+    shadowState.rasterization.depthBias = true;
+    // Again before each shadow map: the application renders them and may change the state.
+    auto applyShadowState = [&](const vec2& polygon_offset)
+    {
+        shadowState.rasterization.depthBiasSlope    = shadowMult * polygon_offset.x();
+        shadowState.rasterization.depthBiasConstant = shadowMult * polygon_offset.y();
+        applyPipelineState(shadowState);
+    };
 
     shadowCameraBuffer.bind(CAMERA_DATA_BINDING_POINT);
 
@@ -144,17 +149,13 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
     {
         if (light->shouldCalculateShadowMap())
         {
-            glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-
-
             for (int i = 0; i < light->getNumCascades(); ++i)
             {
                 glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, cascaded_shadows->getId(), 0,
                                           light->shadow_id + i);
                 glViewport(0, 0, 2048, 2048);
-                glClear(GL_DEPTH_BUFFER_BIT);
-                glEnable(GL_DEPTH_TEST);
-                glDepthMask(GL_TRUE);
+                clearFramebuffer(GL_DEPTH_BUFFER_BIT);
+                applyShadowState(light->polygon_offset);
 
                 light->shadowCamera.setProj(light->orthoBoxes[i]);
                 light->shadowCamera.recalculatePlanes();
@@ -171,15 +172,13 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
     {
         if (light->shouldCalculateShadowMap())
         {
-            glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
             SAIGA_ASSERT(spot_light_shadows);
             SAIGA_ASSERT(light->shadow_id >= 0 && light->shadow_id < current_spot_light_array_size);
             glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, spot_light_shadows->getId(), 0,
                                       light->shadow_id);
 
-            glClear(GL_DEPTH_BUFFER_BIT);
-            glEnable(GL_DEPTH_TEST);
-            glDepthMask(GL_TRUE);
+            clearFramebuffer(GL_DEPTH_BUFFER_BIT);
+            applyShadowState(light->polygon_offset);
             glViewport(0, 0, 512, 512);
 
             CameraDataGLSL cd(&light->shadowCamera);
@@ -195,16 +194,13 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
             SAIGA_ASSERT(point_light_shadows);
             SAIGA_ASSERT(light->shadow_id >= 0 && light->shadow_id < current_point_light_array_size);
 
-            glPolygonOffset(shadowMult * light->polygon_offset.x(), shadowMult * light->polygon_offset.y());
-
             for (int i = 0; i < 6; i++)
             {
                 glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, point_light_shadows->getId(), 0,
                                           light->shadow_id * 6 + i);
 
-                glClear(GL_DEPTH_BUFFER_BIT);
-                glEnable(GL_DEPTH_TEST);
-                glDepthMask(GL_TRUE);
+                clearFramebuffer(GL_DEPTH_BUFFER_BIT);
+                applyShadowState(light->polygon_offset);
                 glViewport(0, 0, 512, 512);
 
                 light->calculateCamera(i);
@@ -224,9 +220,6 @@ void ShadowManager::RenderShadowMaps(Camera* view_point, RenderingInterface* ren
                                          shadow_data_point_light_cpu.size() * sizeof(ShadowData), 0);
     shadow_data_directional_light.updateBuffer(shadow_data_directional_light_cpu.data(),
                                                shadow_data_directional_light_cpu.size() * sizeof(ShadowData), 0);
-
-
-    glPolygonOffset(0, 0);
 }
 
 

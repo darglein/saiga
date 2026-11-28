@@ -6,6 +6,7 @@
 
 #include "saiga/core/model/all.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 #include "saiga/opengl/window/message_box.h"
 using namespace Saiga;
@@ -100,13 +101,18 @@ class Sample : public SampleWindowDeferred
 
         if (render_info.render_pass == RenderPass::Forward)
         {
-            glEnable(GL_POLYGON_OFFSET_LINE);
-            glPolygonOffset(0.0f, -500.0f);
+            // The wireframes towards the camera, so they aren't hidden by the faces they belong to.
+            const PipelineState pass                  = currentPipelineState();
+            PipelineState wireframe                   = pass;
+            wireframe.rasterization.depthBias         = true;
+            wireframe.rasterization.depthBiasSlope    = 0;
+            wireframe.rasterization.depthBiasConstant = -500;
+            applyPipelineState(wireframe);
             for (auto& o : objects)
             {
                 o.renderWireframe(render_info.camera);
             }
-            glDisable(GL_POLYGON_OFFSET_LINE);
+            applyPipelineState(pass);
 
             for (auto& o : line_objects)
             {

@@ -11,6 +11,7 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/program.h"
@@ -105,7 +106,8 @@ void DeferredLighting::initRender()
 
     //    glClearColor(0,0,0,0);
     glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT);
+    // The renderer sets the scissor rectangle to its viewport.
+    clearFramebuffer(GL_COLOR_BUFFER_BIT, true);
     lightAccumulationBuffer.unbind();
 }
 
@@ -129,30 +131,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
 
 
-    // deferred lighting uses additive blending of the lights.
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ONE);
-
-    // never overwrite current depthbuffer
-    glDepthMask(GL_FALSE);
-
-    if (stencilCulling)
-    {
-        // all light volumes are using stencil culling
-        glEnable(GL_STENCIL_TEST);
-    }
-    else
-    {
-        glDisable(GL_STENCIL_TEST);
-    }
-
-    // use depth test for all light volumes
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-
-    //    glClearStencil(0x0);
-    //    glClear(GL_STENCIL_BUFFER_BIT);
     currentStencilId = 1;
 
     assert_no_glerror();
@@ -213,26 +191,20 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
 
     assert_no_glerror();
 
-    // reset depth test to default value
-    glDepthFunc(GL_LESS);
-
-
-
-    // use default culling
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-
-    glDisable(GL_DEPTH_TEST);
-
     {
         auto tim = timer->Measure("Directional Lights");
+        // Fullscreen quads, added to the lights. With stencil culling only on the pixels the geometry pass drew (the
+        // others still have the 0xFF of the clear).
+        PipelineState directional          = LightPipelineState();
+        directional.rasterization.cullMode = CullMode::Back;
         if (stencilCulling)
         {
-            glStencilFunc(GL_NOTEQUAL, 0xFF, 0xFF);
-            //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-            //    glStencilFunc(GL_ALWAYS, 0xFF, 0xFF);
-            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            directional.depthStencil.stencilTest = true;
+            StencilFaceState notCleared;
+            notCleared.compareOp = CompareOp::NotEqual;
+            directional.depthStencil.setStencil(notCleared);
         }
+        applyPipelineState(directional, 0xFF);
 
 
         // volumetric directional lights are not supported
@@ -252,10 +224,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         renderDirectionalLights(cam, viewPort, true);
     }
 
-    if (stencilCulling)
-    {
-        glDisable(GL_STENCIL_TEST);
-    }
     assert_no_glerror();
 
     if (renderVolumetric)
@@ -264,11 +232,6 @@ void DeferredLighting::render(Camera* cam, const ViewPort& viewPort)
         postprocessVolumetric();
         lightAccumulationBuffer.bind();
     }
-
-    // reset state
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
 
     if (drawDebug)
     {
@@ -291,10 +254,8 @@ void DeferredLighting::postprocessVolumetric()
         volumetricBlurShader2 = shaderLoader.load<Shader>("lighting/volumetricBlur2.glsl");
     }
 
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
-
-
+    // A fullscreen quad.
+    applyPipelineState(PipelineState());
     if (volumetricBlurShader->bind())
     {
         volumetricBuffer.bind();
@@ -326,56 +287,34 @@ void DeferredLighting::postprocessVolumetric()
 
 
 
+PipelineState DeferredLighting::LightPipelineState()
+{
+    // The lights are added up, and they never overwrite the depth buffer.
+    PipelineState s;
+    s.blend = BlendState::additive();
+    return s;
+}
+
 void DeferredLighting::setupStencilPass()
 {
-    // don't write color in stencil pass
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-    // render only front faces
-    glCullFace(GL_BACK);
-
-    // default depth test
-    glDepthFunc(GL_LEQUAL);
-
-    // set stencil to 'id' if depth test fails
-    // all 'failed' pixels are now marked in the stencil buffer with the id
-    glStencilFunc(GL_ALWAYS, currentStencilId, 0xFF);
-    //    glStencilFunc(GL_LEQUAL, currentStencilId, 0xFF);
-    glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+    // Marks the pixels in front of the light volume's front faces with the light's id: the depth test of the front
+    // faces fails there. No color is written.
+    PipelineState s             = LightPipelineState();
+    s.blend.colorWriteMask      = 0;
+    s.rasterization.cullMode    = CullMode::Back;
+    s.depthStencil.depthTest    = true;
+    s.depthStencil.depthCompare = CompareOp::LessOrEqual;
+    s.depthStencil.stencilTest  = true;
+    StencilFaceState markInFront;
+    markInFront.depthFailOp = StencilOp::Replace;
+    s.depthStencil.setStencil(markInFront);
+    applyPipelineState(s, currentStencilId);
 }
 void DeferredLighting::setupLightPass(bool isVolumetric)
 {
-    // write color in the light pass
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-    // render only back faces
-    glCullFace(GL_FRONT);
-
-    if (lightDepthTest && !isVolumetric)
-    {
-        // reversed depth test: it passes if the light volume is behind an object
-        glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_GEQUAL);
-    }
-    else
-    {
-        glDisable(GL_DEPTH_TEST);
-    }
-
+    int stencilId = currentStencilId;
     if (stencilCulling)
     {
-        // discard all pixels that are marked with 'id' from the previous pass
-        glStencilFunc(GL_NOTEQUAL, currentStencilId, 0xFF);
-        //    glStencilFunc(GL_NEVER, currentStencilId, 0xFF);
-        //    glStencilFunc(GL_GREATER, currentStencilId, 0xFF);
-        //    glStencilFunc(GL_EQUAL, 0x0, 0xFF);
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-        //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volume
-        // this also works, when the camera is inside the volume, but fails when the far plane is intersecting the
-        // volume
-
-
         // increase stencil id, so the next light will write a different value to the stencil buffer.
         // with this trick the expensive clear can be saved after each light
         currentStencilId++;
@@ -384,11 +323,33 @@ void DeferredLighting::setupLightPass(bool isVolumetric)
         {
             currentStencilId = 1;
             glClearStencil(0x0);
-            glClear(GL_STENCIL_BUFFER_BIT);
+            clearFramebuffer(GL_STENCIL_BUFFER_BIT);
             // we need to clear here in case we have too many lights.
         }
         SAIGA_ASSERT(currentStencilId < 256);
     }
+
+    // The back faces of the light volume.
+    PipelineState s          = LightPipelineState();
+    s.rasterization.cullMode = CullMode::Front;
+    if (lightDepthTest && !isVolumetric)
+    {
+        // reversed depth test: it passes if the light volume is behind an object
+        s.depthStencil.depthTest    = true;
+        s.depthStencil.depthCompare = CompareOp::GreaterOrEqual;
+    }
+    if (stencilCulling)
+    {
+        // discard all pixels that are marked with 'id' from the previous pass
+        //-> the reverse depth test + the stencil test make now sure that the current pixel is in the light volume
+        // this also works, when the camera is inside the volume, but fails when the far plane is intersecting the
+        // volume
+        s.depthStencil.stencilTest = true;
+        StencilFaceState notMarked;
+        notMarked.compareOp = CompareOp::NotEqual;
+        s.depthStencil.setStencil(notMarked);
+    }
+    applyPipelineState(s, stencilId);
 
     if (renderVolumetric && isVolumetric)
         lightAccumulationBuffer.drawTo({0, 1});
@@ -458,10 +419,8 @@ void DeferredLighting::applyVolumetricLightBuffer()
     if (!textureShader) textureShader = shaderLoader.load<MVPTextureShader>("lighting/light_test.glsl");
 
     auto tim = timer->Measure("Blend Volumetric");
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendEquation(GL_FUNC_ADD);
-    glBlendFunc(GL_ONE, GL_ONE);
+    // A fullscreen quad, added to the lights.
+    applyPipelineState(LightPipelineState());
 
     lightAccumulationBuffer.bind();
 
