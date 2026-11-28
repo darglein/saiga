@@ -2318,7 +2318,11 @@ void Replication::onOwnerCommand(uint8_t from, const OwnerCommandMessage& m)
         return;
     }
     const Entity e = entityOfNetId(m.netId);
-    if (!e.valid())
+    // An earlier command of the entity still waits (its Spawn and this command arrived in one pass): this one waits
+    // behind it, so the retry applies them in order (else the older pose and counter would overwrite the newer)
+    bool earlierWaits = false;
+    for (const auto& [step, q] : pendingOwnerCommands) earlierWaits = earlierWaits || q->netId == m.netId;
+    if (!e.valid() || earlierWaits)
     {
         // Its Spawn has not arrived yet (an OwnerCommand on Control can overtake the State channel, e.g. right after
         // JoinAccept): kept and retried after every receive pass (retryOwnerCommands), so neither the pose nor the

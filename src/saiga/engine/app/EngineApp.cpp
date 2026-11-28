@@ -1114,21 +1114,29 @@ void EngineApp::streamTerrain()
         streamMs = 0;
     }
     frameStreamMs = streamMs;
-    // The captures take the first frame before which no terrain upload is pending (at most 16 frames later)
-    if (!pendingCaptures.empty() && !mcpIncomplete)
+    // Current-frame captures take this frame. Complete captures take the first frame after a complete point before
+    // which no terrain upload is pending (at most 16 frames later); they never hold a current-frame capture back
+    if (!pendingCaptures.empty())
     {
-        // Current-frame captures do not wait for uploads either
-        const bool ready = !anyComplete || terrain.terrainUploadsPending() == 0;
-        if (ready || captureWaitFrames >= 16 || !(fatal || mcpCapture))
+        const bool ready           = terrain.terrainUploadsPending() == 0;
+        const bool releaseComplete = !mcpIncomplete && (ready || captureWaitFrames >= 16 || !(fatal || mcpCapture));
+        if (releaseComplete && anyComplete && !ready && (fatal || mcpCapture))
+            SAIGA_LOG("app", "capture: terrain uploads still pending after %d frames", captureWaitFrames);
+        std::vector<PendingCapture> waiting;
+        for (PendingCapture& c : pendingCaptures)
         {
-            if (!ready && (fatal || mcpCapture))
-                SAIGA_LOG("app", "capture: terrain uploads still pending after %d frames", captureWaitFrames);
-            for (PendingCapture& c : pendingCaptures) renderScene->requestScreenshot(c.callback);
-            frameCaptures = std::move(pendingCaptures);
-            pendingCaptures.clear();
-            captureWaitFrames = 0;
+            if (c.complete && !releaseComplete)
+            {
+                waiting.push_back(std::move(c));
+                continue;
+            }
+            renderScene->requestScreenshot(c.callback);
+            frameCaptures.push_back(std::move(c));
         }
-        else
+        pendingCaptures = std::move(waiting);
+        if (pendingCaptures.empty())
+            captureWaitFrames = 0;
+        else if (!mcpIncomplete)
             captureWaitFrames++;
     }
 }

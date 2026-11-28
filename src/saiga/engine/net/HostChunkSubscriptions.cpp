@@ -302,7 +302,12 @@ void HostChunkSubscriptions::commit()
     pendingIndex.erase(pendingIndex.begin(), pendingIndex.begin() + std::ptrdiff_t(indexesStaged));
     for (const auto& [peer, list] : indexed)
         for (const ChunkId& c : list)
-            if (subscribedAll(peer, c.space)) enqueue(peer, c, 0);
+        {
+            // A queued ticket is a re-request the client still waits for: the index's ticket 0 never replaces it
+            if (!subscribedAll(peer, c.space)) continue;
+            const Peer& p = table[peer];
+            if (!p.queued.count(c)) enqueue(peer, c, 0);
+        }
     walked        = 0;
     indexesStaged = 0;
     served.clear();

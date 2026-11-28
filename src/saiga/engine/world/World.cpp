@@ -2305,13 +2305,9 @@ void World::receiveMessages(bool engineOnly)
                 rejectInput(m.peer, "a message from a peer that was not admitted");
                 continue;
             }
-            if (engineOnly && m.id >= MessageId(EngineMessage::FirstGame))
-            {
-                deferred.push_back(std::move(inbox[i]));
-                continue;
-            }
             if (!isHost() && joinStateValue == JoinState::Rejected)
             {
+                // Before the engine-only deferral: dropped in network-only passes too (not carried in the inbox).
                 // Counted, logged once (a rejected client would otherwise log 8 lines every step for ever)
                 netCounts.rejected++;
                 if (counterRejected >= 0) prof.addCounter(counterRejected, 1);
@@ -2320,6 +2316,11 @@ void World::receiveMessages(bool engineOnly)
                     loggedRejectedDrops = true;
                     SAIGA_LOG("net", "the join was rejected: every later message of the host is dropped");
                 }
+                continue;
+            }
+            if (engineOnly && m.id >= MessageId(EngineMessage::FirstGame))
+            {
+                deferred.push_back(std::move(inbox[i]));
                 continue;
             }
             else if (joinStateValue == JoinState::Joining && m.id != MessageId(EngineMessage::JoinAccept) &&

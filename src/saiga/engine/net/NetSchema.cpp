@@ -84,7 +84,10 @@ NetSchema NetSchema::fromWorld(const World& world)
         std::string k = t.name + '\0' + std::to_string(t.version);
         for (const FieldInfo& f : t.fields)
         {
-            k += '\0' + f.name + '\0' + f.type + '\0' + std::to_string(f.quantize);
+            uint64_t q = 0;
+            static_assert(sizeof(q) == sizeof(f.quantize), "the quantization step is a double");
+            std::memcpy(&q, &f.quantize, sizeof(q));  // exact (to_string rounds to 6 decimals)
+            k += '\0' + f.name + '\0' + f.type + '\0' + std::to_string(q);
             for (const std::string& v : f.enumValues) k += '\1' + v;
         }
         return k;
