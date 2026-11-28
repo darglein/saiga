@@ -90,6 +90,8 @@ void writeGroup(const World& world, Entity root, const SchemaTable& schema, uint
         out.droppedReferences++;
         return Entity{};
     };
+    // The callers never unload a larger subtree (EntityUnloading::unloadable): parseGroupForm would refuse it
+    SAIGA_ASSERT(out.entities.size() <= kMaxGroupEntities, "writeGroup: the subtree exceeds kMaxGroupEntities");
     BinaryWriter w(out.bytes);
     w.write(step);
     w.write(uint32_t(out.entities.size()));

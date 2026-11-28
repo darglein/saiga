@@ -919,6 +919,8 @@ bool WorldLoader::stageStore(const std::vector<uint8_t>& data)
     {
         bool stored = !stagedStore.unloadedSpaces.empty();
         for (const auto& kv : stagedStore.groups) stored = stored || !kv.second.empty();
+        // A directory's disk-only groups are listed in its index entries (their bytes are read lazily)
+        for (const auto& kv : stagedStore.indexEntries) stored = stored || !kv.second.groups.empty();
         if (stored)
             return fail(
                 "the save has unloaded entities or spaces: it loads only into a streaming host world "

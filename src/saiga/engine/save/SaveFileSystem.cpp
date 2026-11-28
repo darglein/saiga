@@ -270,8 +270,12 @@ class DiskSaveFileSystem final : public SaveFileSystem
         if (fd < 0) return fail(error, "open " + path + ": " + lastError());
         const bool ok         = writeFd(fd, data, size);
         const std::string why = ok ? std::string() : lastError();
-        ::close(fd);
-        return ok || fail(error, "write " + path + ": " + why);
+        // close may report a delayed write error (NFS, quotas): a failed close fails the write (the write's own
+        // error wins when both failed)
+        const bool closed          = ::close(fd) == 0;
+        const std::string closeWhy = closed ? std::string() : lastError();
+        if (!ok) return fail(error, "write " + path + ": " + why);
+        return closed || fail(error, "close " + path + ": " + closeWhy);
     }
     bool writeNew(const std::string& path, const uint8_t* data, size_t size, std::string* error) override
     {

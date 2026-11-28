@@ -1207,6 +1207,10 @@ World::~World()
     if (saveDir) saveDir->waitForCommits();
     // Observers (the world API, waiting tools) stop using the world
     for (auto& l : destroyListeners) l.second();
+    // S25: the save directory and the entity unloading while every member lives (~EntityUnloading removes its
+    // step-start hook from stepStartHooks, a member declared after it and destroyed first)
+    saveDir.reset();
+    unloading.reset();
     // Before the structural log (a member declared after it): its consumer goes; the sink is not called
     extractor.reset();
 }
