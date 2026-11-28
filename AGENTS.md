@@ -39,6 +39,9 @@ src/
                         (WindowParameters::backend, `window_backend` in config.ini): glfw_Window or, headless, the
                         OffscreenWindow (egl/, an EGL pbuffer with ImGui and no window system), or without EGL (Windows) the
                         HiddenGLFWWindow (a GLFW window that is never shown, with the same ImGui)
+                        imgui/imgui_opengl.h: ImGuiOpenGLRenderer, the base of the OpenGL ImGui renderers;
+                        addTexture/removeTexture give the ImTextureID of a texture as the Vulkan ImGui renderer does,
+                        requireAddedTextures asserts when ImGui draws a texture that wasn't added
                         pipeline.h: applyPipelineState sets the complete fixed-function state of a PipelineState
                         (core/rendering/PipelineState.h, API independent; Vulkan: PipelineInfo::setState),
                         GraphicsPipeline pairs it with a shader. Every pass of the renderers applies its state before

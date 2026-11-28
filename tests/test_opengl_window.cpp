@@ -11,8 +11,10 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/opengl/egl/offscreen_window.h"
+#include "saiga/opengl/imgui/imgui_opengl.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/rendering/empty_renderer.h"
+#include "saiga/opengl/texture/Texture.h"
 #include "saiga/opengl/window/StandaloneWindow.h"
 
 #include "gtest/gtest.h"
@@ -58,6 +60,11 @@ class HeadlessApp : public StandaloneWindow
                                                         background(2) / 255.f, background(3) / 255.f));
         ImGui::Begin("test", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings);
         if (ImGui::Button("press", ImVec2(100, 50))) presses++;
+        if (image != ImTextureID_Invalid)
+        {
+            ImGui::SetCursorPos(ImVec2(150, 100));
+            ImGui::Image(image, ImVec2(50, 50));
+        }
         ImGui::End();
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(2);
@@ -74,8 +81,17 @@ class HeadlessApp : public StandaloneWindow
 
     OpenGLWindow& Window() { return *window; }
 
+    ImGuiOpenGLRenderer& ImGuiGL()
+    {
+        auto* imgui = dynamic_cast<ImGuiOpenGLRenderer*>(renderer->imgui.get());
+        SAIGA_ASSERT(imgui);
+        return *imgui;
+    }
+
     EmptyRenderer* renderer = nullptr;
     int presses             = 0;
+    // Drawn at (150, 100) with a size of 50x50 unless invalid.
+    ImTextureID image = ImTextureID_Invalid;
 };
 
 // A raw EGL context, created once and released again, tells whether this machine has an EGL display at all.
@@ -187,6 +203,46 @@ TEST_F(OpenGLWindowTest, Resizes)
     EXPECT_EQ(ImGui::GetIO().DisplaySize.y, 100);
     EXPECT_EQ(Pixel(frame, 90, 390), background.cast<int>());
     EXPECT_NE(Pixel(frame, 25, 50), background.cast<int>());
+}
+
+// A 2x2 texture of a single color.
+std::shared_ptr<Texture> SolidTexture(ucvec4 color)
+{
+    std::vector<ucvec4> texels(4, color);
+    auto texture = std::make_shared<Texture>();
+    texture->create(2, 2, GL_RGBA, GL_RGBA8, GL_UNSIGNED_BYTE, texels.data());
+    return texture;
+}
+
+TEST_F(OpenGLWindowTest, DrawsAnAddedTexture)
+{
+    const ucvec4 green(0, 255, 0, 255);
+    auto texture               = SolidTexture(green);
+    ImGuiOpenGLRenderer& imgui = app->ImGuiGL();
+    imgui.requireAddedTextures = true;
+    app->image                 = imgui.addTexture(*texture);
+    EXPECT_EQ(imgui.textureCount(), 1u);
+
+    auto frame = app->Frame();
+    EXPECT_EQ(Pixel(frame, 125, 175), green.cast<int>());
+    EXPECT_TRUE(imgui.unknownTextures().empty());
+
+    app->image = ImTextureID_Invalid;
+    imgui.removeTexture(imgui.addTexture(*texture));
+    EXPECT_EQ(imgui.textureCount(), 1u);
+    imgui.removeTexture(static_cast<ImTextureID>(texture->getId()));
+    EXPECT_EQ(imgui.textureCount(), 0u);
+}
+
+// A texture name handed to ImGui directly works with OpenGL but draws nothing with Vulkan.
+TEST_F(OpenGLWindowTest, FindsTexturesThatWereNotAdded)
+{
+    auto texture = SolidTexture(ucvec4(0, 0, 255, 255));
+    app->image   = static_cast<ImTextureID>(texture->getId());
+    app->Frame();
+    const std::vector<ImTextureID> unknown = app->ImGuiGL().unknownTextures();
+    ASSERT_EQ(unknown.size(), 1u);
+    EXPECT_EQ(unknown.front(), app->image);
 }
 
 TEST_F(OpenGLWindowTest, KeepsTheClipboardInTheProcess)

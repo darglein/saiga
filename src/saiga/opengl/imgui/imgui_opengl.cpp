@@ -8,12 +8,60 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_internal.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/core/util/statistics.h"
+
+#include <algorithm>
+#include <string>
 
 namespace Saiga
 {
+ImTextureID ImGuiOpenGLRenderer::addTexture(const TextureBase& texture)
+{
+    SAIGA_ASSERT(texture.getId() != 0, "ImGuiOpenGLRenderer::addTexture: the texture is not created");
+    const ImTextureID id = static_cast<ImTextureID>(texture.getId());
+    textures[id]++;
+    return id;
+}
 
+void ImGuiOpenGLRenderer::removeTexture(ImTextureID id)
+{
+    auto it = textures.find(id);
+    SAIGA_ASSERT(it != textures.end(), "ImGuiOpenGLRenderer::removeTexture: unknown texture");
+    if (it == textures.end()) return;
+    if (--it->second == 0) textures.erase(it);
+}
 
+std::vector<ImTextureID> ImGuiOpenGLRenderer::unknownTextures() const
+{
+    std::vector<ImTextureID> unknown;
+    if (ImGui::GetCurrentContext() != imguiContext()) return unknown;
+    const ImTextureID font = ImGui::GetIO().Fonts->TexRef.GetTexID();
+    for (ImGuiViewport* viewport : ImGui::GetPlatformIO().Viewports)
+    {
+        const ImDrawData* data = viewport->DrawData;
+        if (!data || !data->Valid) continue;
+        for (const ImDrawList* list : data->CmdLists)
+        {
+            for (const ImDrawCmd& cmd : list->CmdBuffer)
+            {
+                if (cmd.UserCallback) continue;
+                const ImTextureID id = cmd.GetTexID();
+                if (id == font || textures.count(id) > 0) continue;
+                if (std::find(unknown.begin(), unknown.end(), id) == unknown.end()) unknown.push_back(id);
+            }
+        }
+    }
+    return unknown;
+}
+
+void ImGuiOpenGLRenderer::checkTextures() const
+{
+    if (!requireAddedTextures) return;
+    const std::vector<ImTextureID> unknown = unknownTextures();
+    SAIGA_ASSERT(unknown.empty(), "ImGui draws texture " + std::to_string(unknown.empty() ? 0 : unknown.front()) +
+                                      ", which was not added with ImGuiOpenGLRenderer::addTexture");
+}
 
 }  // namespace Saiga
 
