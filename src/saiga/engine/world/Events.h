@@ -30,6 +30,7 @@ enum class EngineEvent : uint16_t
     Action,
     SpaceTransition,  // S21
     TerrainEdited,    // S22
+    IslandLimit,      // S24
     Count
 };
 
@@ -148,6 +149,23 @@ struct TerrainEditedEvent
     }
 };
 
+// The islands of players exceed WorldConfig::maxSimulationIslands (§12.3; S24, G14): emitted by the host's streaming
+// system in a step whose count exceeds the limit while the last reported count did not, or exceeds it and is larger
+// than the last reported one (IslandState). A soft warning for games (spread the players, refuse joins).
+// Replicate::Never
+struct IslandLimitEvent
+{
+    static constexpr const char* name = "IslandLimitEvent";
+    static constexpr EventId id       = EventId(EngineEvent::IslandLimit);
+    static constexpr uint32_t version = 1;
+    uint32_t count                    = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("count", count);
+    }
+};
+
 inline void registerEngineEvents(EventRegistry& events)
 {
     events.add<DamageEvent>();
@@ -156,6 +174,7 @@ inline void registerEngineEvents(EventRegistry& events)
     events.add<ActionEvent>();
     events.add<SpaceTransitionEvent>();
     events.add<TerrainEditedEvent>();
+    events.add<IslandLimitEvent>();
 }
 
 }  // namespace Engine

@@ -1686,6 +1686,13 @@ void Replication::ownerPose(bool extrapolate)
             it = ownerRecords.erase(it);
             continue;
         }
+        // S24 (G12): a held client-owned root keeps its host pose until its arrival completes (the owner's states are
+        // dropped; the command counter rule of §13.3 is unchanged)
+        if (w.streaming() && w.heldRoot(e))
+        {
+            ++it;
+            continue;
+        }
         for (const auto& c : o.components)
         {
             if (!reg.entityMask(e).test(c.first)) continue;

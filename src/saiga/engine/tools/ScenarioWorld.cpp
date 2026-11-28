@@ -33,6 +33,14 @@ WorldSetup scenarioSetup(WorldSetup s)
     // Content within 128 m of a player is stamped (§17.2; S23a): a scenario that needs content farther away moves its
     // Player there
     for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = std::min(t.fullRadius, 128.0);
+    // S24 (§17.2): the simulation radius at most 128 m (and the lowered fullRadius), a residencyRadius clamped to it,
+    // no prefetch: a scenario world's required and requested distance is fullRadius
+    for (SpaceTemplate& t : s.config.spaceTemplates)
+    {
+        t.simulationRadius = std::min({t.simulationRadius, 128.0, t.fullRadius});
+        if (t.residencyRadius != 0) t.residencyRadius = std::min(t.residencyRadius, t.fullRadius);
+        t.prefetchMargin = 0;
+    }
     // The worlds of a scenario (host, clients, the save/load replacement) share one content cache (§17.2; one per
     // setup: the runner passes its own to every run)
     if (!s.sharedContent) s.sharedContent = std::make_shared<ContentCache>();
@@ -62,6 +70,8 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
     // A replacement world shares the data (also after reload_data)
     worldSetup.sharedData = w->sharedDataStore();
     w->setTickEveryStep(true);
+    // S24 (§8.6): synchronous chunk loading in every world of a scenario (reproducible, R-DET-1)
+    w->setStreamingSynchronous(true);
     // Every world of the scenario has its own recording sink, so the extract runs in every scenario (§17.2, S19b)
     hostSink = giveSink(*w);
     if (network.enabled)
@@ -79,6 +89,7 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
             cs.localPeer  = uint8_t(i);
             clientWorlds.push_back(std::make_unique<World>(cs));
             clientWorlds.back()->setTickEveryStep(true);
+            clientWorlds.back()->setStreamingSynchronous(true);
             clientSinks.push_back(giveSink(*clientWorlds.back()));
             // The render name tables must match (S26's handshake compares them; S19b)
             if (clientWorlds.back()->renderTableHash() != w->renderTableHash())
@@ -591,6 +602,8 @@ void ScenarioWorld::saveLoad()
     auto fresh                       = std::make_unique<World>(worldSetup);
     // Before the load: configure() and onLoad() of the loaded game objects see the scenario's tick setting
     fresh->setTickEveryStep(w->tickEveryStep());
+    // S24: synchronous chunk loading (the load's residency rebuild too)
+    fresh->setStreamingSynchronous(true);
     // Its own sink before the load: the load's structural records create the instances (S19b)
     RecordingRenderSink* freshSink = giveSink(*fresh);
     const LoadResult r             = fresh->tryLoad(saved);

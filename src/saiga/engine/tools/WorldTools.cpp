@@ -104,7 +104,9 @@ std::vector<ToolSpec> toolSpecs()
         {"world_status",
          "Reads step index, simulation time, paused, time scale, entity and game object counts and the "
          "world hash, the content generation {seed (a string), mismatch, checked: a client's check of the host's "
-         "generation state}, and per space (spaces) the entity count and the players in it; in an app with --coop (the "
+         "generation state}, per space (spaces) the entity count and the players in it, streaming {enabled, resident "
+         "and "
+         "pending chunks, stalls, islands, simulated entities}; in an app with --coop (the "
          "tools see the client world) also host: the hidden host world's step, time, paused, time scale, counts, "
          "dropped steps and hash. Changes nothing.",
          S::ObjectSchema({})},
@@ -124,8 +126,8 @@ std::vector<ToolSpec> toolSpecs()
               {"limit", S::IntegerProperty("Maximum entities (1..1000, default 100)")},
               {"after", S::IntegerProperty("Entity index to continue after")}})},
         {"inspect",
-         "Reads one entity: class, flags (simulated, world/space state), parent, children and all components (or the "
-         "named ones) as JSON. Changes nothing.",
+         "Reads one entity: class, flags (simulated, world/space state), held (its root waits for a streaming arrival: "
+         "frozen and hidden), parent, children and all components (or the named ones) as JSON. Changes nothing.",
          S::ObjectSchema({{"entity", entityProperty("The entity")},
                           {"components", arrayProperty("Only these components", Json::object{{"type", "string"}})}},
                          {"entity"})},
@@ -166,6 +168,20 @@ std::vector<ToolSpec> toolSpecs()
                           {"position", S::Vec3Property("Position in meters in the target space")},
                           {"rotation", quatProperty("Rotation quaternion [w,x,y,z] (default: the current one)")}},
                          {"entity", "space", "position"})},
+        {"request_arrival",
+         "Requests an arrival of a root at position [x,y,z] in a space (default: its current one) with rotation "
+         "[w,x,y,z] (default: the current one); host only, between steps. In a streaming world a player root is held "
+         "(frozen, hidden, its pose unchanged) and the target's chunks load first; it moves in phase 1 of the step "
+         "after "
+         "its island (the chunks within simulationRadius of the target) is resident. Other roots and worlds without "
+         "streaming arrive in the next step. Refused (an error with the reason): an arrival already pending, the hard "
+         "island limit, a position outside the space or not finite, an unknown space, a child or state entity. Returns "
+         "accepted, the target and the island progress (0..1). Changes: adds PendingTransition.",
+         S::ObjectSchema({{"entity", entityProperty("The root entity")},
+                          {"space", S::IntegerProperty("Target space (default: the entity's)")},
+                          {"position", S::Vec3Property("Position in meters in the target space")},
+                          {"rotation", quatProperty("Rotation quaternion [w,x,y,z] (default: the current one)")}},
+                         {"entity", "position"})},
         {"edit_terrain",
          "Terraforms the height-map terrain of an open-world space (host only, between steps; the change is "
          "replicated to the clients and saved): op \"add\" / \"subtract\" (strength: metres at the center, 0..64) "
@@ -203,13 +219,33 @@ std::vector<ToolSpec> toolSpecs()
          "Reads one chunk's generated content state: placement_version (its record's, else the current one), "
          "recorded, stamped (host), sequence (the modification sequence of terrain edits and tombstones), tombstones "
          "[{slot, counter}] (at most 200, truncated), tombstone_count, instances per slot (the accepted tier-1 "
-         "instances of the placement), the site keys of the chunk and the content_hash (generated on demand). The "
-         "chunk by chunk [x, z] or by position [x, z] in metres. Changes nothing.",
+         "instances of the placement), the site keys of the chunk, the content_hash (generated on demand) and its "
+         "residency on this peer {state none / requested / resident, parts, requested}. The chunk by chunk [x, z] or "
+         "by "
+         "position [x, z] in metres. Changes nothing.",
          S::ObjectSchema(
              {{"space", S::IntegerProperty("Space (default 0)")},
               {"chunk", chunkProperty("Chunk [x, z]")},
               {"position", positionXzProperty("A position [x, z] or [x, y, z] in metres (instead of chunk)")}},
              {})},
+        {"streaming_status",
+         "Reads the streaming state of this peer's world (WorldConfig::streaming; enabled false otherwise): "
+         "synchronous, the statistics (requested, applied, results dropped, applied after a modification, unloaded, "
+         "built inline, streaming_stalls (steps with a player on a chunk that is not ready), player stall steps, "
+         "recent "
+         "stalls (of the last 600 steps), island limit steps, mover holds, Simulated evaluations, resident bytes, the "
+         "last streaming / simulation / load rebuild times in ms), per space (optional filter space) the requested, "
+         "resident and pending chunks and the centres {entity, position, arrival}, the islands {count, limit, "
+         "hard_limit}, the simulated entity count and the streaming pool {created, queued, running, residency_jobs}; "
+         "with chunks: true the chunks in ChunkId order {space, chunk [x, z], state none / requested / resident, "
+         "parts, "
+         "wanted, requested, distance to the nearest centre, job}, paged (limit, default 100, at most 1000; after: the "
+         "next value of the previous page). Changes nothing.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Only this space")},
+                          {"chunks", Json::object{{"type", "boolean"}, {"description", "List the chunks"}}},
+                          {"limit", S::IntegerProperty("Chunks per page (1..1000, default 100)")},
+                          {"after", S::IntegerProperty("The next value of the previous page")}},
+                         {})},
         {"list_sites",
          "Reads the sites (authored places) of a space's world plan in plan order: key, prefab, version, position "
          "[x, base height, z] in metres, quarter_turns, base_height, footprint [x0, z0, x1, z1] in local metres, the "

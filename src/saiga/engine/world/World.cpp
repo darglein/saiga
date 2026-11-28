@@ -28,6 +28,9 @@
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
+#include "saiga/engine/streaming/Systems.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
 #include "saiga/engine/terrain/HookGenerator.h"
@@ -77,7 +80,7 @@ World::World(const WorldSetup& setup)
     // The spaces (S20) and their content generation (S23a, phase A of the pipeline): the templates are checked first (a
     // template error is a setup error, fatal in every build, D1), then the generators, the space list and every plan
     {
-        validateSpaceTemplates(setup.config.spaceTemplates);
+        validateSpaceTemplates(setup.config.spaceTemplates, setup.config.streaming);
         setupSeed                             = setup.seed;
         generationSetup.seed                  = setup.seed;
         generationSetup.config.spaceTemplates = setup.config.spaceTemplates;
@@ -118,6 +121,11 @@ World::World(const WorldSetup& setup)
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
     gridConsumer = log.addConsumer();
+    // S24: the residency and the Simulated evaluation (used only with WorldConfig::streaming; the consumer is created
+    // only then, so worlds without streaming keep their log)
+    residencyPtr = std::make_unique<ChunkResidency>(*this);
+    simulation   = std::make_unique<SimulationSet>(*this);
+    if (config.streaming) simulation->attach();
 
     // Engine lists first, then the game's (§7.9, §18.2)
     registerEngineComponents(reg, setup);
@@ -130,6 +138,13 @@ World::World(const WorldSetup& setup)
     events.validateRegistration();
 
     registerEngineSystems(systems);
+    // S24: the residency update and the Simulated evaluation, phase 7 before stamping (stamping follows the ready
+    // chunks)
+    if (config.streaming)
+    {
+        systems.add(Phase::Streaming, "streaming", streamingSystem, RunOn::Both);
+        systems.add(Phase::Streaming, "simulation", simulationSystem, RunOn::Both);
+    }
     // S23a: prefab stamping, the first system of phase 7, when some plan has sites or a generator in use is not legacy
     // (a load can replace the plans with the saved pins' plans, which may have sites; PR review: they were never
     // stamped); before setupProfiler: it gets its profiler scope. Legacy worlds (no sites possible) have neither
@@ -195,7 +210,14 @@ void World::setupProfiler()
         terrainEditScopes[size_t(p)] = prof.scope(phasePath + "/commands/terrain_edit");
     }
     // The extract after phase 8's systems, replication and interpolation (S19b)
-    extractScope    = prof.scope(std::string("step/phase:") + phaseName(Phase::Extract) + "/extract");
+    extractScope = prof.scope(std::string("step/phase:") + phaseName(Phase::Extract) + "/extract");
+    // S24: the step start of a streaming world (the refresh and the evaluation of the changes between steps) and the
+    // stall counter
+    if (config.streaming)
+    {
+        stepStartScope = prof.scope("step/streaming_start");
+        stallsCounter  = prof.counter("streaming/stalls");
+    }
     entitiesCounter = prof.counter("entities");
     objectsCounter  = prof.counter("game_objects");
     updatedCounter  = prof.counter("objects_updated");  // behaviourSystem adds to it
@@ -607,35 +629,37 @@ void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Qua
         repl->ownerMove(e, space, position, rotation);
     else
         teleportTo(e, space, position, rotation);
+    // S24 (G8): the moved root's Simulated tag at once (its effect on the coverage follows in the next evaluation)
+    refreshSimulated(e);
 }
 
-void World::requestTransition(Entity e, Entity link)
+bool World::requestTransition(Entity e, Entity link)
 {
     checkNotParallel("requestTransition");
     if (!isHost())
     {
         SAIGA_ASSERT(false, "requestTransition on a client (a host command)");
-        return;
+        return false;
     }
     if (!reg.alive(e))
     {
         SAIGA_ASSERT(false, "requestTransition: the entity is not alive (or reserved)");
-        return;
+        return false;
     }
     if (reg.has<Parent>(e))
     {
         SAIGA_ASSERT(false, "requestTransition: the entity is a child (its parent decides)");
-        return;
+        return false;
     }
     if (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))
     {
         SAIGA_ASSERT(false, "requestTransition: a world-state or space-state entity");
-        return;
+        return false;
     }
     if (!reg.alive(link) || !reg.has<SpaceLink>(link))
     {
         SAIGA_ASSERT(false, "requestTransition: the link is not alive or has no SpaceLink");
-        return;
+        return false;
     }
     const SpaceLink& l = reg.read<SpaceLink>(link);
     // Data errors (a hand-written or tool-edited link, a second request): refused in every build
@@ -643,33 +667,57 @@ void World::requestTransition(Entity e, Entity link)
     {
         SAIGA_LOG_E("world", e, "requestTransition refused: the link e%u:%u targets the unknown space %d", link.index,
                     link.generation, int(l.target));
-        return;
+        return false;
     }
     if (reg.has<PendingTransition>(e))
     {
         SAIGA_LOG_E("world", e, "requestTransition refused: a transition is pending already (the first request wins)");
-        return;
+        return false;
+    }
+    // S24 (G14): the hard island limit
+    std::string error;
+    if (!checkIslandLimit(e, l.target, l.arrival, &error))
+    {
+        SAIGA_LOG_E("world", e, "requestTransition refused: %s", error.c_str());
+        return false;
     }
     PendingTransition p;
     p.link     = link;
     p.target   = l.target;
     p.position = l.arrival;
     p.rotation = l.arrivalRotation;
+    addArrival(e, p, "requestTransition");
+    return true;
+}
+
+void World::addArrival(Entity e, const PendingTransition& arrival, const char* operation)
+{
     if (!deferring())
     {
         if (inStep()) transitionsRequestedInStep.push_back(e);
-        addNow<PendingTransition>(e, std::move(p));
+        addNow<PendingTransition>(e, PendingTransition(arrival));
+        // S24: a player root is held at once (frozen; the extract hides it)
+        refreshSimulated(e);
         return;
     }
+    const std::string what = operation;
     record(makeCommand(
-        [e, p](World& w) mutable
+        [e, p = arrival, what](World& w) mutable
         {
             // Re-checked at the flush: the entity may have died or got a parent (or a request) in the same phase
             if (!w.reg.alive(e) || w.reg.has<Parent>(e) || w.reg.has<PendingTransition>(e))
             {
                 SAIGA_LOG_E("world", e,
-                            "requestTransition dropped at the flush: not an alive root without a pending "
-                            "transition any more");
+                            "%s dropped at the flush: not an alive root without a pending transition any more",
+                            what.c_str());
+                return;
+            }
+            // Several requests recorded in one phase each passed against the applied state: the hard island limit is
+            // checked again with the arrivals applied before this one (countAccepted counts them at their targets)
+            std::string error;
+            if (!w.checkIslandLimit(e, p.target, p.position, &error))
+            {
+                SAIGA_LOG_E("world", e, "%s dropped at the flush: %s", what.c_str(), error.c_str());
                 return;
             }
             w.transitionsRequestedInStep.push_back(e);
@@ -937,7 +985,10 @@ std::optional<Vec3> World::tierOnePosition(ChunkId chunk, InstanceKey key) const
         return std::nullopt;
     const auto& slots = generators().find(g.generatorId)->slots;
     if (key.generatorSlot >= slots.size()) return std::nullopt;
-    const auto p             = pipeline->chunkPlacement(chunk, effectivePlacementVersion(chunk));
+    // S24 (G17): a resident chunk's held placement first (it never regenerates when the cache evicts)
+    const uint16_t version = effectivePlacementVersion(chunk);
+    auto p                 = residencyPtr->heldPlacement(chunk, version);
+    if (!p) p = pipeline->chunkPlacement(chunk, version);
     const TierOneInstance* t = findInstance(*p, key);
     if (!t) return std::nullopt;
     // ReSnapOnEdit instances stand on the current surface, TombstoneOnEdit ones at their generated y
@@ -1546,6 +1597,8 @@ void World::runStep()
     // discard)
     const auto stepStart = prof.enabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
     recordsAtStepStart   = log.appendedTotal();
+    // S24 (G5): the refresh when the centres changed between steps, the evaluation of the changes made between steps
+    if (config.streaming) streamingStepStart();
     // Queued player actions become ActionEvents; with the events of the last step they become readable
     deliverActions();
     // The terrain changes kept by an aborted step become readable in this one (S22)
@@ -1581,6 +1634,8 @@ void World::runStep()
                 Profiler::Timer flushTimer(prof, flushScopes[size_t(p)]);
                 prof.addCounter(commandsCounter, double(commands.size()));
                 flushCommands();
+                // S24 (G8): the entities created by the flush and the held toggles before the next phase's views
+                if (config.streaming) simulation->evaluateCreated();
             }
             // After phase 8's systems and their commands: replication (host), owner state (owners), interpolation
             if (phase == Phase::Extract)
@@ -1625,6 +1680,7 @@ void World::runStep()
     prof.setCounter(entitiesCounter, double(reg.aliveCount()));
     prof.setCounter(objectsCounter, double(reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0));
     prof.setCounter(gridCounter, double(grid.size()));
+    if (config.streaming) prof.setCounter(stallsCounter, double(residencyPtr->stats().streamingStalls));
     if (prof.enabled)
         prof.add(stepScope,
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - stepStart).count());

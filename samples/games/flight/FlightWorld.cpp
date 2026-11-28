@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/components/StreamingAnchor.h"
 #include "saiga/engine/content/ContentHashFile.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
@@ -138,6 +139,9 @@ void flightDemoPilotSystem(World& w, double)
 void AircraftBase::onSpawn()
 {
     if (!has<AircraftState>()) add<AircraftState>();
+    // S24: every plane is a streaming centre (the autopilot has no Player): its chunks stay resident, the content
+    // around it is stamped, it is simulated
+    if (!has<StreamingAnchor>()) add<StreamingAnchor>();
     // Drawn by the engine (S19b)
     if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance(kAirplaneMesh));
     if (!has<VehicleSeat>())
@@ -261,6 +265,12 @@ SpaceTemplate flightSpaceTemplate()
     t.generator   = kFlightOverworldGenerator;
     // The trees, rocks and ruins up to 3 km (the content sets; the 32 km world needs more than the 1 km default)
     t.fullRadius = 3000;
+    // S24 (G22): the resident chunks around every plane: required 1 km, requested 1.6 km, kept 1.86 km (about 170
+    // chunks of 1 m bases, 45 MB; about 10 new chunks per second at 200 m/s); the entities within 500 m are simulated
+    t.residencyRadius  = 1000;
+    t.simulationRadius = 500;
+    t.prefetchMargin   = 600;
+    t.unloadMargin     = 256;
     return t;
 }
 
@@ -278,8 +288,10 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
     // S23c: the 32 km overworld of the OverworldGenerator (the prototype's hook is no longer used by flight)
     s.seed                  = context->seed;
     s.config.spaceTemplates = {flightSpaceTemplate()};
-    s.generators            = registerFlightGenerators;
-    s.components            = [](Registry& r)
+    // S24 (G22): the 32 km world streams around the planes (the S27 target)
+    s.config.streaming = true;
+    s.generators       = registerFlightGenerators;
+    s.components       = [](Registry& r)
     {
         r.registerComponent<AircraftControls>(Replicate::OwnerAuthoritative);
         r.registerComponent<AircraftState>(Replicate::Host);

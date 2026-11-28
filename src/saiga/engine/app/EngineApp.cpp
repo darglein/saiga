@@ -15,10 +15,12 @@
 #include "saiga/engine/app/AppTools.h"
 #include "saiga/engine/app/LightingTab.h"
 #include "saiga/engine/app/LightingTools.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -1031,6 +1033,14 @@ void EngineApp::streamTerrain()
     {
         double timeout = 120;
         if (!fatal) timeout = std::max(0.0, std::chrono::duration<double>(*mcpDeadline - start).count() - 0.05);
+        // S24: the residency of the streaming centres first (its time is part of the stream time): the stamped content
+        // and the held movers of the frame are complete; a timeout is logged (derived data, the rest arrives later).
+        // With
+        // --coop the hidden host world stamps the content: its residency too
+        if (fatal)
+            for (World* world : {hostWorldPtr.get(), gameWorld.get()})
+                if (world && world->streaming() && !world->completeResidency(30))
+                    SAIGA_LOG("app", "the residency of the streaming centres was not complete within 30 s");
         const bool complete = terrain.completeView(view.space, view.position, timeout);
         frameCompletePoint  = complete;
         if (!complete)
@@ -1077,7 +1087,37 @@ void EngineApp::updateSpaceLoading()
         loading.reset();
         return;
     }
+    // S24 (G19): the local player's pending arrival (the host's component, or the replicated one on a client; a client
+    // keeps it until the move's command is applied): a load of the target space from the request frame on
+    if (w.streaming() && localPlayerEntity.valid() && w.alive(localPlayerEntity))
+    {
+        const Entity root          = w.rootOf(localPlayerEntity);
+        const PendingTransition* p = w.tryRead<PendingTransition>(root);
+        if (p || w.heldRoot(root))
+        {
+            if (!loading || !loading->arrival || loading->entity != root)
+            {
+                loading          = SpaceLoading{};
+                loading->arrival = true;
+                loading->entity  = root;
+            }
+            if (p)
+            {
+                loading->space = p->target;
+                loading->progress =
+                    std::max(loading->progress, 0.5 * w.residency().islandProgress(p->target, p->position));
+            }
+            return;
+        }
+    }
     const double r = w.spaceReadiness(view.space, view.position, appSetup.loadingRadius);
+    if (loading && loading->arrival && (view.space != lastViewSpace || !haveLastViewSpace))
+    {
+        // The move happened: the same load continues in the new view space (no flash)
+        haveLastViewSpace = true;
+        lastViewSpace     = view.space;
+        loading->space    = view.space;
+    }
     if (!haveLastViewSpace || view.space != lastViewSpace)
     {
         // A switch (also during a load: the rule starts again for the new space); a load only if not ready (D6: an
@@ -1091,15 +1131,23 @@ void EngineApp::updateSpaceLoading()
     }
     if (!loading) return;
     loading->frames++;
-    loading->progress = std::max(loading->progress, r);
+    loading->progress = std::max(loading->progress, loading->arrival ? 0.5 + 0.5 * r : r);
+    // S24: an arrival's load also waits for the player's chunk on this peer (a client's mover holds until then)
+    bool playerReady = true;
+    if (loading->arrival && w.alive(loading->entity))
+    {
+        const Transform& t = w.read<Transform>(loading->entity);
+        playerReady        = w.chunkReady(t.space(), t.position().x(), t.position().z());
+    }
     // End rule 2: completeView made the desired set resident and sent for this camera (the capture itself waits for
     // the uploads)
-    if (frameCompletePoint)
+    if (frameCompletePoint && playerReady)
     {
         loading.reset();
         return;
     }
-    if (loadEnds(*loading, r, w.terrain().terrainUploadsPending(), appSetup.loadingMaxFrames))
+    if ((playerReady || loading->frames >= appSetup.loadingMaxFrames) &&
+        loadEnds(*loading, r, w.terrain().terrainUploadsPending(), appSetup.loadingMaxFrames))
     {
         if (loading->frames >= appSetup.loadingMaxFrames && !(r >= 1 && w.terrain().terrainUploadsPending() == 0))
             SAIGA_LOG("app", "loading of space '%s' ended after %llu frames at %.2f",

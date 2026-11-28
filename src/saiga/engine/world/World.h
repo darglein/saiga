@@ -31,6 +31,7 @@
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
+#include "saiga/engine/streaming/StreamingSettings.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Commands.h"
 #include "saiga/engine/world/EventQueues.h"
@@ -75,6 +76,15 @@ struct WorldConfig
     // The spaces of the world (§7.9, §12.4; S20), SpaceId = index: an explicit list (R-REG-1). Empty: one default
     // template (flat, no hook: no terrain, D1). Checked by validateSpaceTemplates (fatal in every build)
     std::vector<SpaceTemplate> spaceTemplates;
+    // Streaming (§12.3; S24, G1): chunks become resident around the streaming centres (players, StreamingAnchor
+    // entities, pending player arrivals), only the entities near players are Simulated, movers hold on missing
+    // chunks, arrivals wait for their island. Off (default): every entity is Simulated, nothing is resident and
+    // transitions complete in the next step (S23b)
+    bool streaming = false;
+    // The island limits (§12.3, G14): IslandLimitEvent when the islands of players exceed maxSimulationIslands; with
+    // hardIslandLimit requestArrival refuses an arrival that would exceed it
+    int maxSimulationIslands = 4;
+    bool hardIslandLimit     = false;
 };
 
 struct WorldSetup
@@ -167,6 +177,9 @@ SAIGA_ENGINE_API std::optional<HookGrassRule> grassRuleOf(const Generator& gener
 class ExtractSystem;
 class TerrainSystem;
 class TerrainEditStore;
+class ChunkResidency;
+class SimulationSet;
+struct PendingTransition;
 struct StagedValues;
 
 class SAIGA_ENGINE_API World
@@ -347,12 +360,12 @@ class SAIGA_ENGINE_API World
     // a replicated entity (R-NET-2).
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
     // Host: starts a transition of a root (a player, a vehicle, ...) to the link's SpaceLink target at its arrival pose
-    // (copied now; §12.4, S21): adds PendingTransition, completed by spaceTransitionSystem in phase 1 of the next step
-    // (before S24). Between steps applied at once, during a step a command (the flush drops it with a log line if the
-    // entity died, got a parent or a PendingTransition meanwhile). Asserts on a client, a dead or reserved entity, a
-    // child, a state entity, a dead link or one without SpaceLink; refused with a log line (every build): a target that
-    // is not a space, an entity that already has a PendingTransition (the first request wins).
-    void requestTransition(Entity e, Entity link);
+    // (copied now; §12.4, S21): an arrival (requestArrival's rules, S24) with the link. Between steps applied at once,
+    // during a step a command (the flush drops it with a log line if the entity died, got a parent or a
+    // PendingTransition meanwhile). Asserts on a client, a dead or reserved entity, a child, a state entity, a dead
+    // link or one without SpaceLink; refused with a log line and false (every build): a target that is not a space, an
+    // entity that already has a PendingTransition (the first request wins), the hard island limit.
+    bool requestTransition(Entity e, Entity link);
     // Engine messages only (receive, owner poses without extrapolation, phase 6's transform system, replication and
     // owner state, the flush): no game systems, listeners, actions or events; the step index and the transform flags
     // do not change (end-of-scenario sync, §17.3)
@@ -520,6 +533,58 @@ class SAIGA_ENGINE_API World
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
+
+    // ---- streaming (§12.3, §12.4; S24) ----------------------------------------------------------------------------
+
+    // WorldConfig::streaming
+    bool streaming() const { return config.streaming; }
+    // Runtime settings (not saved; between steps): the residency's jobs in flight and the synchronous mode (every
+    // requested chunk built inline in the requesting update, no pool: ScenarioWorld, §8.6)
+    void setStreamingSettings(const StreamingSettings& settings);
+    const StreamingSettings& streamingSettings() const { return streamSettings; }
+    void setStreamingSynchronous(bool on);
+    // The resident chunk set (engine-internal; tests, tools)
+    ChunkResidency& residency() { return *residencyPtr; }
+    const ChunkResidency& residency() const { return *residencyPtr; }
+    // The chunk at (x, z) (clamped to the space's chunk range) is requested and resident (G7); true in a world without
+    // streaming (everything is available on demand)
+    bool chunkReady(SpaceId space, double x, double z) const;
+    // The chunk containing (x, z) clamped to the space's chunk range
+    ChunkId chunkAt(SpaceId space, double x, double z) const;
+    // Between steps: applies what is ready and runs the pool on the caller until every required chunk of every centre
+    // is resident; false at the deadline (the rest arrives asynchronously). True at once without streaming
+    bool completeResidency(double timeoutSeconds = 120);
+    // The entity is Simulated (§12.3): its systems and its game object run in phases 2-5
+    bool simulated(Entity e) const { return reg.alive(e) && (reg.flags(e) & Registry::kSimulated); }
+    // Re-evaluates the Simulated tag of e's root (and its subtree) at once (an alwaysSimulate edit, a teleport); a
+    // no-op without streaming
+    void refreshSimulated(Entity e);
+    // The Simulated evaluation (engine-internal; tests)
+    SimulationSet& simulationSet() { return *simulation; }
+    const SimulationSet& simulationSet() const { return *simulation; }
+    // Host: an arrival of a root at a pose in a space (§12.4; G12): adds PendingTransition (rotation: the root's
+    // current one). In a streaming world a player root is held (frozen, hidden, its pose unchanged) until the arrival's
+    // island is resident, then moved in phase 1; other roots and worlds without streaming arrive in the next step
+    // (S21's rule). Between steps applied at once, during a step a command. Asserts on a client, a dead or reserved
+    // entity, a child, a state entity; refused with a log line and false (every build): an unknown space, a non-finite
+    // position or one outside the space's x/z range, a pending arrival (the first request wins), the hard island limit
+    bool requestArrival(Entity e, SpaceId space, const Vec3& position, std::optional<Quat> rotation = std::nullopt);
+    // The refusal checks of requestArrival without a change (the world API): false with the error
+    bool checkArrival(Entity e, SpaceId space, const Vec3& position, std::string* error) const;
+    // The island progress of e's pending arrival in [0, 1] (none: no pending arrival; 1 without streaming)
+    std::optional<double> arrivalProgress(Entity e) const;
+    // The islands of players (G14): the residency's count of the last update (host; computed now between steps)
+    int islandCount() const;
+    // Engine-internal: the root of an entity (itself for a root)
+    Entity rootOf(Entity e) const;
+    // Engine-internal (G23): a root whose subtree contains an alive Player
+    bool isPlayerRoot(Entity root) const;
+    // Engine-internal (G12): a player root with a pending arrival in a streaming world (frozen, hidden, no owner poses;
+    // on a client also until the move's OwnerCommand is applied)
+    bool heldRoot(Entity root) const;
+    // Engine-internal: the entity and its descendants, parents before children; whether it has children
+    std::vector<Entity> subtree(Entity root) const { return collectSubtree(root); }
+    bool hasChildren(Entity e) const { return childCount(e) > 0; }
 
     // ---- time and steps (§8.3, §8.6) -----------------------------------------------------------------------------
 
@@ -1104,6 +1169,21 @@ class SAIGA_ENGINE_API World
     void emitTerrainChanges();
     void emitTerrainEvent(const TerrainChange& c);
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
+    // S24: the residency and the Simulated evaluation; declared before terrainSys (the pool goes first: its completions
+    // hold only the residency's shared delivery queue) and before the content render sets
+    StreamingSettings streamSettings;
+    std::unique_ptr<ChunkResidency> residencyPtr;
+    std::unique_ptr<SimulationSet> simulation;
+    // The profiler counter streaming/stalls and the scope of the step start (step/streaming_start)
+    int stallsCounter = -1, stepStartScope = -1;
+    // The step start of a streaming world (G5): the refresh when the centres changed, the evaluation of the changes
+    // made between steps
+    void streamingStepStart();
+    // Adds the arrival between steps / at a flush, or records it as a command (requestArrival, requestTransition)
+    void addArrival(Entity e, const PendingTransition& arrival, const char* operation);
+    // G14: false (with the error) when hardIslandLimit is set and the arrival of the player root e would raise the
+    // island count above maxSimulationIslands
+    bool checkIslandLimit(Entity e, SpaceId space, const Vec3& position, std::string* error) const;
     // S23b: the content render sets; declared before terrainSys, so the streaming pool (and its completions) goes first
     std::unique_ptr<ContentRenderSystem> contentRenderSys;
     // The spaces' terrain (S20)

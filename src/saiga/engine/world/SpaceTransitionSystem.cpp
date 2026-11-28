@@ -13,6 +13,7 @@
 #include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
 
@@ -44,12 +45,26 @@ void spaceTransitionSystem(World& w, double)
             invalid = "the entity is a state entity";
         else if (p.target >= w.spaceCount())
             invalid = "the target is not a space";
+        else if (!p.position.allFinite())
+            invalid = "the position is not finite";
+        else if (w.streaming() && w.isPlayerRoot(e))
+        {
+            // Only requestArrival validates the range; a save or add_component does not, and a held player root whose
+            // island is outside its space would wait (frozen) for ever
+            const double size = w.spaceTemplate(p.target).sizeMeters();
+            if (p.position.x() < 0 || p.position.z() < 0 || p.position.x() > size || p.position.z() > size)
+                invalid = "the position is outside the space's x/z range";
+        }
         if (invalid)
         {
             SAIGA_LOG_E("world", e, "space transition to space %d dropped: %s", int(p.target), invalid);
             w.remove<PendingTransition>(e);
             continue;
         }
+        // S24 (G12): in a streaming world a player root arrives when its island (the chunks intersecting the
+        // simulationRadius disc of the arrival position) is requested and resident; it is held until then (re-checked
+        // every step). Other roots and worlds without streaming arrive now (S21's rule)
+        if (w.streaming() && w.isPlayerRoot(e) && w.residency().islandProgress(p.target, p.position) < 1) continue;
         const SpaceId from = reg.read<Transform>(e).space();
         w.moveToSpace(e, p.target, p.position, p.rotation);
         w.events.emit(SpaceTransitionEvent{e, p.link, from, p.target});

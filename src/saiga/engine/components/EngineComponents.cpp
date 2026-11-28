@@ -10,6 +10,7 @@
 
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/IslandState.h"
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/NetLocal.h"
@@ -21,6 +22,7 @@
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/components/StreamingAnchor.h"
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/ecs/Registry.h"
@@ -52,7 +54,8 @@ void registerEngineComponents(Registry& registry, const WorldSetup& setup)
     registry.registerComponent<RenderInstance>(Replicate::HostReliable);
     // S21: entrances (clients show prompts) and requested transitions (host-only state, saved)
     registry.registerComponent<SpaceLink>(Replicate::Host);
-    registry.registerComponent<PendingTransition>(Replicate::Never);
+    // S24 (G13): replicated, so the owning client preloads its arrival's target, holds and hides its player
+    registry.registerComponent<PendingTransition>(Replicate::Host);
     // S36: the time of day and the weather; world and space state only with the environment (D4), so plain worlds
     // keep their entities, hashes and saves
     if (setup.environment.enabled)
@@ -67,6 +70,13 @@ void registerEngineComponents(Registry& registry, const WorldSetup& setup)
     }
     // S36b: the local lights of entities (rarely changing: reliable, not in the snapshots; on/off toggles included)
     registry.registerComponent<LightSource>(Replicate::HostReliable);
+    // S24: streaming centres without a Player; the reported island count (a global of streaming worlds only, so
+    // worlds without streaming keep their entities)
+    registry.registerComponent<StreamingAnchor>(Replicate::Never);
+    if (setup.config.streaming)
+        registry.registerGlobal<IslandState>(Replicate::Never);
+    else
+        registry.registerComponent<IslandState>(Replicate::Never);
 }
 
 }  // namespace Engine

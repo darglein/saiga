@@ -72,6 +72,11 @@ void buildChangedList(World& w)
 }
 }  // namespace
 
+void ensureHierarchyOrder(World& w)
+{
+    if (w.hierarchyDirty) rebuildHierarchy(w);
+}
+
 bool updateChildren(World& w, bool teleportsOnly)
 {
     if (w.hierarchyDirty) rebuildHierarchy(w);

@@ -18,6 +18,7 @@
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/core/StreamingPool.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
@@ -25,9 +26,12 @@
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -81,6 +85,7 @@ const std::vector<Operation>& operationTable()
         {"terrain_edits", false, {"space", "limit", "after"}},
         {"chunk_info", false, {"space", "chunk", "position"}},
         {"list_sites", false, {"space", "near", "limit", "after"}},
+        {"streaming_status", false, {"space", "chunks", "limit", "after"}},
         {"load_snapshot", true, {"name", "paused"}},
         {"export_snapshot", true, {"name", "file", "overwrite"}},
         {"import_snapshot", true, {"name", "file", "overwrite"}},
@@ -90,6 +95,7 @@ const std::vector<Operation>& operationTable()
         {"remove_component", true, {"entity", "component"}},
         {"set_transform", true, {"entity", "position", "rotation", "scale", "teleport"}},
         {"move_to_space", true, {"entity", "space", "position", "rotation"}},
+        {"request_arrival", true, {"entity", "space", "position", "rotation"}},
         {"edit_terrain", true, {"space", "op", "center", "radius", "strength"}},
         {"tombstone", true, {"space", "chunk", "slot", "counter"}},
         {"spawn", true, {"class", "position", "rotation", "scale", "space", "components"}},
@@ -574,6 +580,8 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "terrain_edits") return terrainEdits(args);
     if (operation == "chunk_info") return chunkInfo(args);
     if (operation == "list_sites") return listSites(args);
+    if (operation == "streaming_status") return streamingStatus(args);
+    if (operation == "request_arrival") return requestArrival(args);
     if (operation == "tombstone") return tombstone(args);
     if (operation == "spawn") return spawn(args);
     if (operation == "destroy") return destroy(args);
@@ -806,6 +814,17 @@ ApiResult WorldApi::worldStatus(const Json&)
                                           {"players", players[s]}});
         o["spaces"] = spaces;
     }
+    // S24: streaming (the residency of this peer)
+    {
+        if (w->streaming()) w->simulationSet().countSimulated();
+        const StreamingStats& s = w->residency().stats();
+        o["streaming"]          = Json::object{{"enabled", w->streaming()},
+                                               {"resident", s.residentChunks},
+                                               {"pending", s.pendingJobs + s.queuedChunks},
+                                               {"stalls", double(s.streamingStalls)},
+                                               {"islands", w->streaming() && w->isHost() ? w->islandCount() : 0},
+                                               {"simulated", s.simulated}};
+    }
     // Co-op (S16b): the hidden host world runs the simulation (the client runs no vehicle, lap or behaviour systems)
     if (inCoop()) o["host"] = hostStatus(*coopHooks.host);
     if (const Transport* t = w->transport())
@@ -1003,6 +1022,8 @@ ApiResult WorldApi::inspect(const Json& a)
                                           {"space_state", bool(flags & Registry::kSpaceState)}}},
                    {"children", children},
                    {"components", components}};
+    // S24: a held root (a pending player arrival in a streaming world: frozen, hidden)
+    o["held"] = w->heldRoot(w->rootOf(e));
     if (const char* c = className(*w, e)) o["class"] = c;
     if (const Parent* p = w->tryRead<Parent>(e)) o["parent"] = entityJson(p->entity);
     return ApiResult::success(o);
@@ -1353,6 +1374,8 @@ ApiResult WorldApi::setComponent(const Json& a)
     if (!pool->mergeJson(e.index, values, error)) return ApiResult::failure(error);
     if (id == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
     if (id == Behaviour::id) assignTickInterval(*w, e, w->get<Behaviour>(e), false);
+    // S24: an alwaysSimulate edit applies without a move (a plain write is not in the structural log)
+    if (id == Behaviour::id) w->refreshSimulated(e);
     return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
 }
 
@@ -1375,6 +1398,8 @@ ApiResult WorldApi::addComponent(const Json& a)
     if (id == RenderInstance::id && !uniformScale(w->read<Transform>(e).scale()))
         return ApiResult::failure("scale: an entity with RenderInstance has a uniform scale (x = y = z)");
     if (!addComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
+    // S24: the Simulated tag at once (a Player, StreamingAnchor or PendingTransition changes the root's rule)
+    w->refreshSimulated(e);
     return ApiResult::success(componentJson(*w, e, id));
 }
 
@@ -1394,6 +1419,8 @@ ApiResult WorldApi::removeComponent(const Json& a)
     if (stateEntity(w->registry(), e) && (w->registry().isGlobal(id) || w->registry().isSpaceState(id)))
         return ApiResult::failure("world-state components cannot be removed");
     w->removeByIdNow(e, id);
+    // S24: the Simulated tag at once (as add_component)
+    w->refreshSimulated(e);
     return ApiResult::success(Json::object{{"removed", w->registry().componentInfo(id).name}});
 }
 
@@ -1670,6 +1697,19 @@ bool chunkArg(const World& w, const Json& a, SpaceId space, ChunkId& out, std::s
     return true;
 }
 
+const char* chunkStateName(ChunkState s)
+{
+    return s == ChunkState::Resident ? "resident" : (s == ChunkState::Requested ? "requested" : "none");
+}
+
+Json partsJson(uint8_t parts)
+{
+    Json::array a;
+    if (parts & PartBase) a.push_back("base");
+    if (parts & PartPlacement) a.push_back("placement");
+    return a;
+}
+
 std::string hex64(uint64_t v)
 {
     char text[32];
@@ -1725,7 +1765,153 @@ ApiResult WorldApi::chunkInfo(const Json& a)
                      {"content_hash", hex64(placement->hashes.total)}};
     if (truncated) out["truncated"] = true;
     if (w->isHost()) out["stamped"] = w->contentRecords().isStamped(c);
+    // S24: the chunk's residency on this peer
+    out["residency"] = Json::object{{"state", chunkStateName(w->residency().state(c))},
+                                    {"parts", partsJson(w->residency().partsReady(c))},
+                                    {"requested", w->residency().requested(c)}};
     return ApiResult::success(out);
+}
+
+ApiResult WorldApi::streamingStatus(const Json& a)
+{
+    std::string error;
+    int64_t limit = 0, after = -1;
+    bool chunks = false;
+    if (!boolArg(a, "chunks", false, chunks, error) || !intArg(a, "limit", 1, 1000, 100, limit, error) ||
+        !intArg(a, "after", -1, std::numeric_limits<int32_t>::max(), -1, after, error))
+        return ApiResult::failure(error);
+    bool filtered = false;
+    SpaceId only  = 0;
+    if (!a["space"].is_null())
+    {
+        if (!spaceArg(*w, a, only, error)) return ApiResult::failure(error);
+        filtered = true;
+    }
+    const ChunkResidency& r = w->residency();
+    if (w->streaming()) w->simulationSet().countSimulated();
+    const StreamingStats& s = r.stats();
+    Json::object o{{"enabled", w->streaming()},
+                   {"synchronous", w->streamingSettings().synchronous},
+                   {"max_in_flight", w->streamingSettings().maxInFlight}};
+    o["stats"] = Json::object{{"requested", double(s.requested)},
+                              {"applied", double(s.applied)},
+                              {"results_dropped", double(s.resultsDropped)},
+                              {"applied_after_modification", double(s.appliedAfterModification)},
+                              {"unloaded", double(s.unloaded)},
+                              {"sync_built", double(s.syncBuilt)},
+                              {"streaming_stalls", double(s.streamingStalls)},
+                              {"player_stall_steps", double(s.playerStallSteps)},
+                              {"recent_stalls", r.recentStalls()},
+                              {"island_limit_steps", double(s.islandLimitSteps)},
+                              {"mover_holds", double(s.moverHolds)},
+                              {"evaluations", double(s.evaluations)},
+                              {"resident_bytes", double(s.residentBytes)},
+                              {"last_streaming_ms", s.lastStreamingMs},
+                              {"last_simulation_ms", s.lastSimulationMs},
+                              {"last_load_rebuild_ms", s.lastLoadRebuildMs}};
+    // Per space with a centre or a chunk: the counts and the centres
+    const std::vector<ChunkStatus> list = r.chunkStatuses();
+    std::map<SpaceId, std::array<int, 3>> counts;  // requested, resident, pending
+    for (const ChunkStatus& c : list)
+    {
+        std::array<int, 3>& n = counts[c.chunk.space];
+        n[0] += c.requested ? 1 : 0;
+        n[1] += c.state == ChunkState::Resident ? 1 : 0;
+        n[2] += c.state == ChunkState::Requested ? 1 : 0;
+    }
+    std::map<SpaceId, Json::array> centres;
+    for (const StreamingCentre& c : r.centres())
+    {
+        counts[c.space];
+        centres[c.space].push_back(
+            Json::object{{"entity", entityJson(c.entity)},
+                         {"position", Json::array{c.position.x(), c.position.y(), c.position.z()}},
+                         {"arrival", c.arrival}});
+    }
+    Json::array spaces;
+    for (const auto& [space, n] : counts)
+    {
+        if (filtered && space != only) continue;
+        spaces.push_back(Json::object{{"space", int(space)},
+                                      {"name", w->spaceTemplate(space).name},
+                                      {"requested", n[0]},
+                                      {"resident", n[1]},
+                                      {"pending", n[2]},
+                                      {"centres", centres[space]}});
+    }
+    o["spaces"]            = spaces;
+    o["islands"]           = Json::object{{"count", w->streaming() && w->isHost() ? w->islandCount() : 0},
+                                          {"limit", w->worldConfig().maxSimulationIslands},
+                                          {"hard_limit", w->worldConfig().hardIslandLimit}};
+    o["simulated"]         = s.simulated;
+    const TerrainSystem& t = w->terrain();
+    o["pool"]              = Json::object{{"created", t.poolCreated()},
+                                          {"queued", t.poolCreated() ? const_cast<TerrainSystem&>(t).streamingPool().queued() : 0},
+                                          {"running", t.poolCreated() ? const_cast<TerrainSystem&>(t).streamingPool().running() : 0},
+                                          {"residency_jobs", s.pendingJobs}};
+    if (chunks)
+    {
+        // In ChunkId order (space, x, z), paged by the entry index
+        Json::array out;
+        int64_t next = -1;
+        size_t index = 0;
+        for (const ChunkStatus& c : list)
+        {
+            const int64_t i = int64_t(index++);
+            if (i <= after || (filtered && c.chunk.space != only)) continue;
+            if (int64_t(out.size()) == limit)
+            {
+                next = i - 1;
+                break;
+            }
+            out.push_back(Json::object{{"space", int(c.chunk.space)},
+                                       {"chunk", Json::array{c.chunk.x, c.chunk.z}},
+                                       {"state", chunkStateName(c.state)},
+                                       {"parts", partsJson(c.ready)},
+                                       {"wanted", partsJson(c.wanted)},
+                                       {"requested", c.requested},
+                                       {"distance", c.distance},
+                                       {"job", c.jobInFlight}});
+        }
+        o["chunks"] = out;
+        o["total"]  = double(list.size());
+        if (next >= 0) o["next"] = double(next);
+    }
+    return ApiResult::success(o);
+}
+
+ApiResult WorldApi::requestArrival(const Json& a)
+{
+    std::string error;
+    Entity e;
+    if (!w->isHost()) return ApiResult::failure("request_arrival: a host command (this world is a client)");
+    if (w->inStep()) return ApiResult::failure("request_arrival: between steps only");
+    if (!aliveEntity(*w, a["entity"], e, error)) return ApiResult::failure(error);
+    SpaceId space = w->alive(e) ? w->read<Transform>(e).space() : 0;
+    if (!a["space"].is_null() && !spaceArg(*w, a, space, error)) return ApiResult::failure(error);
+    Vec3 position;
+    if (!readVec3(a["position"], position, error, "position")) return ApiResult::failure(error);
+    std::optional<Quat> rotation;
+    if (!a["rotation"].is_null())
+    {
+        // As move_to_space
+        JsonReader r(emptyObject(), true);
+        Quat q = w->read<Transform>(e).rotation();
+        r.read(a["rotation"], q, "rotation");
+        if (!r.ok()) return ApiResult::failure(r.errorMessage());
+        const double n = std::sqrt(q.w() * q.w() + q.x() * q.x() + q.y() * q.y() + q.z() * q.z());
+        if (!(n > 1e-12) || !std::isfinite(n)) return ApiResult::failure("rotation: not a valid quaternion");
+        rotation = Quat(q.w() / n, q.x() / n, q.y() / n, q.z() / n);
+    }
+    if (!w->checkArrival(e, space, position, &error)) return ApiResult::failure("request_arrival refused: " + error);
+    if (!w->requestArrival(e, space, position, rotation)) return ApiResult::failure("request_arrival refused");
+    const std::optional<double> progress = w->arrivalProgress(e);
+    return ApiResult::success(Json::object{{"accepted", true},
+                                           {"entity", entityJson(e)},
+                                           {"space", int(space)},
+                                           {"position", Json::array{position.x(), position.y(), position.z()}},
+                                           {"progress", progress ? *progress : 1.0},
+                                           {"held", w->heldRoot(e)}});
 }
 
 ApiResult WorldApi::listSites(const Json& a)

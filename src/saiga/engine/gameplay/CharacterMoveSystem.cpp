@@ -13,6 +13,7 @@
 
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/world/World.h"
 
 namespace Saiga
@@ -21,11 +22,25 @@ namespace Engine
 {
 void characterMoveSystem(World& w, double dt)
 {
+    const bool streaming = w.streaming();
+    uint64_t holds       = 0;
     w.ownedBy<Transform, const CharacterIntent>(w.localPeer())
         .each(
-            [&w, dt](Entity, Transform& t, const CharacterIntent& intent)
+            [&w, dt, streaming, &holds](Entity, Transform& t, const CharacterIntent& intent)
             {
                 const SpaceId space = t.space();
+                const Vec3& from    = t.position();
+                // S24 (G11): in a streaming world nothing is written while the current or the destination chunk is not
+                // requested and resident on this peer (chunkReady clamps to the space's chunk range)
+                if (streaming)
+                {
+                    const Vec3 to = from + intent.desiredVelocity * dt;
+                    if (!w.chunkReady(space, from.x(), from.z()) || !w.chunkReady(space, to.x(), to.z()))
+                    {
+                        holds++;
+                        return;
+                    }
+                }
                 if (intent.desiredVelocity == Vec3::Zero())
                 {
                     if (!w.spaceHasTerrain(space)) return;
@@ -38,6 +53,7 @@ void characterMoveSystem(World& w, double dt)
                 p.y()  = w.terrainHeight(space, p.x(), p.z());
                 t.setPosition(p);
             });
+    if (holds > 0) w.residency().statsForUpdate().moverHolds += holds;
 }
 
 }  // namespace Engine

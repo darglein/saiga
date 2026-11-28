@@ -35,6 +35,8 @@ enum class EngineComponent : uint8_t
     WorldTime,          // S36
     Weather,            // S36
     LightSource,        // S36b
+    StreamingAnchor,    // S24
+    IslandState,        // S24
     Count
 };
 

@@ -11,14 +11,18 @@
 #include "saiga/engine/app/DebugUiStyle.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/LightingTab.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/Window.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <map>
 
 namespace Saiga
 {
@@ -765,6 +769,78 @@ void EngineApp::togglePause()
     queueBetweenSteps([this]() { worldApi->call(gameWorld->isPaused() ? "resume" : "pause", json11::Json::object{}); });
 }
 
+void EngineApp::streamingSection()
+{
+    const World& w = *gameWorld;
+    if (!w.streaming())
+    {
+        ImGui::TextDisabled("streaming is off (WorldConfig::streaming): every entity is simulated");
+        return;
+    }
+    gameWorld->simulationSet().countSimulated();
+    const ChunkResidency& r = w.residency();
+    const StreamingStats& s = r.stats();
+    if (DebugUiStyle::beginProperties("##streaming"))
+    {
+        DebugUiStyle::property("mode");
+        ImGui::Text("%s, %d jobs at most", w.streamingSettings().synchronous ? "synchronous" : "asynchronous",
+                    w.streamingSettings().maxInFlight);
+        DebugUiStyle::property("chunks");
+        ImGui::Text("%d resident, %d requested, %d jobs, %d queued", s.residentChunks, s.requestedChunks, s.pendingJobs,
+                    s.queuedChunks);
+        DebugUiStyle::property("stalls");
+        ImGui::Text("%llu steps (%d of the last 600), %d players now", (unsigned long long)s.streamingStalls,
+                    r.recentStalls(), r.stalledPlayers());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Steps in which a player stood on a chunk that was not resident (its mover held)");
+        DebugUiStyle::property("islands");
+        if (w.isHost())
+            ImGui::Text("%d (limit %d%s)", s.islands, w.worldConfig().maxSimulationIslands,
+                        w.worldConfig().hardIslandLimit ? ", hard" : "");
+        else
+            ImGui::TextDisabled("host only");
+        DebugUiStyle::property("simulated");
+        ImGui::Text("%d of %u entities", s.simulated, w.registry().aliveCount());
+        DebugUiStyle::property("time");
+        ImGui::Text("streaming %.2f ms, simulation %.2f ms", s.lastStreamingMs, s.lastSimulationMs);
+        DebugUiStyle::property("resident bytes");
+        ImGui::Text("%.1f MB", double(s.residentBytes) / (1 << 20));
+        DebugUiStyle::property("results");
+        ImGui::Text("%llu applied, %llu dropped, %llu after an edit", (unsigned long long)s.applied,
+                    (unsigned long long)s.resultsDropped, (unsigned long long)s.appliedAfterModification);
+        DebugUiStyle::endProperties();
+    }
+    // Per space with a centre: the requested / resident / pending chunks
+    std::map<SpaceId, std::array<int, 4>> perSpace;  // centres, requested, resident, pending
+    for (const StreamingCentre& c : r.centres()) perSpace[c.space][0]++;
+    for (const ChunkStatus& c : r.chunkStatuses())
+    {
+        if (!perSpace.count(c.chunk.space)) continue;
+        std::array<int, 4>& n = perSpace[c.chunk.space];
+        n[1] += c.requested ? 1 : 0;
+        n[2] += c.state == ChunkState::Resident ? 1 : 0;
+        n[3] += c.state == ChunkState::Requested ? 1 : 0;
+    }
+    if (!perSpace.empty() &&
+        ImGui::BeginTable("##streamingSpaces", 5, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg))
+    {
+        for (const char* h : {"space", "centres", "requested", "resident", "pending"}) ImGui::TableSetupColumn(h);
+        ImGui::TableHeadersRow();
+        for (const auto& [space, n] : perSpace)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Text("%d '%s'", int(space), w.spaceTemplate(space).name.c_str());
+            for (int v : n)
+            {
+                ImGui::TableNextColumn();
+                ImGui::Text("%d", v);
+            }
+        }
+        ImGui::EndTable();
+    }
+}
+
 void EngineApp::engineTab()
 {
     World& w = *gameWorld;
@@ -888,6 +964,8 @@ void EngineApp::engineTab()
             ImGui::EndTable();
         }
     }
+    // S24: the resident chunk set of this world (its streaming centres), stalls, islands, Simulated
+    if (ui->section("engine/Streaming", "Streaming", false)) streamingSection();
     if (ui->section("engine/Camera", "Camera and input", false))
     {
         if (DebugUiStyle::beginProperties("##camera"))

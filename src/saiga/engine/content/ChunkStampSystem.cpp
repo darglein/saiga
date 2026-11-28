@@ -19,6 +19,7 @@
 #include "saiga/engine/content/Systems.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
+#include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -176,17 +177,20 @@ void stampChunk(World& w, const ChunkId& chunk, const std::vector<StampRecord>& 
 void chunkStampSystem(World& w, double)
 {
     const GenerationPipeline& g = w.generation();
-    // The chunks within fullRadius of a Player (the chunk square intersects the disc), per space, in ChunkId order
+    // The chunks within fullRadius of a Player (the chunk square intersects the disc), per space, in ChunkId order.
+    // S24: in a streaming world the centres of the residency (player roots, StreamingAnchor roots, arrival targets) and
+    // only ready chunks (stamping creates entities: it must not depend on the unload hysteresis), within
+    // min(fullRadius, the requested distance)
     std::set<ChunkId> chunks;
-    w.view<const Player, const Transform>().each(
-        [&](Entity, const Player&, const Transform& t)
+    const bool streaming = w.streaming();
+    auto collect         = [&](SpaceId space, const Vec3& p)
+    {
+        if (space < g.spaceCount())
         {
-            const SpaceId space = t.space();
-            if (space >= g.spaceCount()) return;
             const SpaceGeneration& sp = g.space(space);
             if (sp.plan->sitesByChunk.empty()) return;
-            const double r  = sp.settings.fullRadius;
-            const Vec3 p    = t.position();
+            const double r =
+                streaming ? std::min(sp.settings.fullRadius, sp.settings.requestedDistance()) : sp.settings.fullRadius;
             const int64_t n = sp.settings.sizeChunks;
             if (!std::isfinite(p.x()) || !std::isfinite(p.z()) || !(r >= 0)) return;
             // The candidate range, clamped to [-1, n] before the conversion (PR review: a coordinate of 1e30 overflowed
@@ -207,9 +211,17 @@ void chunkStampSystem(World& w, double)
                     c.space = space;
                     c.x     = int32_t(cx);
                     c.z     = int32_t(cz);
-                    if (sp.plan->sitesByChunk.count(c)) chunks.insert(c);
+                    if (sp.plan->sitesByChunk.count(c) && (!streaming || w.residency().ready(c))) chunks.insert(c);
                 }
-        });
+        }
+    };
+    if (streaming)
+    {
+        for (const StreamingCentre& c : w.residency().centres()) collect(c.space, c.position);
+    }
+    else
+        w.view<const Player, const Transform>().each([&](Entity, const Player&, const Transform& t)
+                                                     { collect(t.space(), t.position()); });
     const ChunkRecords& records = w.contentRecords();
     for (const ChunkId& c : chunks)
     {

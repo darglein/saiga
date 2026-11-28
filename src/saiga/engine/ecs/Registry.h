@@ -198,6 +198,9 @@ class SAIGA_ENGINE_API Registry
     // changedThisStep = teleported = 0
     // changedOut (optional): receives the alive entities (full handles) changed in the step that ends
     void shiftTransformFlags(std::vector<Entity>* changedOut = nullptr);
+    // The indices of the alive entities whose Transform changed since the last shift (S24: the step start of a
+    // streaming world finds the changes made between steps; one pass over the slots, appended to out)
+    void collectChangedThisStep(std::vector<uint32_t>& out) const;
 
     // world.hash(): every alive entity in index order (index, generation, the saved components in ID order, Transform
     // first), then the free list

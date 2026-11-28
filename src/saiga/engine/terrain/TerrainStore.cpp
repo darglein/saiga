@@ -8,6 +8,8 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <iterator>
+
 namespace Saiga
 {
 namespace Engine
@@ -28,23 +30,71 @@ const TerrainStore::Tile* TerrainStore::tile(const RegionId& region) const
 void TerrainStore::addTile(const RegionId& region, Vulkan::TerrainTileData data, uint64_t frame)
 {
     checkThread();
-    auto [it, added]       = tileMap.try_emplace(region);
-    it->second.data        = std::move(data);
+    auto [it, added] = tileMap.try_emplace(region);
+    // A pinned tile keeps its data (S24: the residency's base heights are bit-equal to the visual job's)
+    if (added || !it->second.pinned) it->second.data = std::move(data);
     it->second.lastDesired = std::max(it->second.lastDesired, frame);
-    if (added) perLevel[region.level]++;
+    if (!it->second.visual)
+    {
+        it->second.visual = true;
+        perLevel[region.level]++;
+    }
 }
 
 void TerrainStore::removeTile(const RegionId& region)
 {
     checkThread();
-    if (tileMap.erase(region)) perLevel[region.level]--;
+    auto it = tileMap.find(region);
+    if (it == tileMap.end()) return;
+    if (it->second.visual)
+    {
+        it->second.visual = false;
+        perLevel[region.level]--;
+    }
+    if (!it->second.pinned) tileMap.erase(it);
 }
 
 void TerrainStore::markDesired(const RegionId& region, uint64_t frame)
 {
     checkThread();
     auto it = tileMap.find(region);
-    if (it != tileMap.end()) it->second.lastDesired = frame;
+    if (it == tileMap.end()) return;
+    it->second.lastDesired = frame;
+    if (!it->second.visual)
+    {
+        it->second.visual = true;
+        perLevel[region.level]++;
+    }
+}
+
+void TerrainStore::pinTile(const RegionId& region, Vulkan::TerrainTileData data)
+{
+    checkThread();
+    auto [it, added] = tileMap.try_emplace(region);
+    if (added) it->second.data = std::move(data);
+    if (!it->second.pinned)
+    {
+        it->second.pinned = true;
+        pinnedCount++;
+    }
+}
+
+void TerrainStore::unpinTile(const RegionId& region)
+{
+    checkThread();
+    auto it = tileMap.find(region);
+    if (it == tileMap.end() || !it->second.pinned) return;
+    it->second.pinned = false;
+    pinnedCount--;
+    if (!it->second.visual) tileMap.erase(it);
+}
+
+size_t TerrainStore::pinnedBytes() const
+{
+    size_t b = 0;
+    for (const auto& t : tileMap)
+        if (t.second.pinned && t.second.data.heights) b += t.second.data.heights->size() * 4;
+    return b;
 }
 
 int TerrainStore::tilesAtLevel(int level) const
@@ -81,14 +131,22 @@ void TerrainStore::removeMask(const ChunkId& chunk)
 
 void TerrainStore::dropAll()
 {
-    dropStreamed();
+    checkThread();
+    tileMap.clear();
+    perLevel.fill(0);
+    pinnedCount = 0;
+    maskMap.clear();
     pyramidData.reset();
 }
 
 void TerrainStore::dropStreamed()
 {
     checkThread();
-    tileMap.clear();
+    for (auto it = tileMap.begin(); it != tileMap.end();)
+    {
+        it->second.visual = false;
+        it                = it->second.pinned ? std::next(it) : tileMap.erase(it);
+    }
     perLevel.fill(0);
     maskMap.clear();
 }

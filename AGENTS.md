@@ -129,12 +129,22 @@ src/
                         AuthoredSpaceGenerator; api/ComponentJson (the component-JSON path of spawn and stamping);
                         net/GenerationStateMessage; tests/test_engine_content.cpp (+ content_lint.h, the fixture in
                         tests/content_lint_fixture/, content_test_generator.h, content_test_setup.h),
-                        _content_benchmark.cpp; ecs/: Registry,
+                        _content_benchmark.cpp; streaming/ (S24, §12.3; worlds with WorldConfig::streaming):
+                        ChunkResidency (the resident chunk set around the streaming centres: pinned level-0 base tiles,
+                        held placements, residency jobs on the streaming pool applied in phase 7, the step-start
+                        refresh, synchronous mode for ScenarioWorld, completeResidency, dropAll), SimulationSet (the
+                        Simulated tag by 32 m cells), Islands (IslandLimitEvent, IslandState), StreamingStats /
+                        StreamingSettings, the systems streaming and simulation (phase 7), Arrivals.cpp
+                        (requestArrival, checkArrival, arrivalProgress, the held state) and WorldStreaming.cpp (the
+                        World's streaming members); tests/test_engine_streaming.cpp, _streaming_scenarios.cpp,
+                        _streaming_benchmark.cpp (SAIGA_STREAMING_BENCHMARK=full: the local form), streaming_test_setup.h;
+                        ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
                         (S19b: the mesh name an entity renders), SpaceLink (S21: an entrance to another space),
-                        PendingTransition (S21: a requested transition), LightSource (S36b: an entity's local light,
+                        PendingTransition (S21: a requested transition; S24: an arrival, Replicate::Host),
+                        StreamingAnchor / IslandState (S24), LightSource (S36b: an entity's local light,
                         sent by the extract: ExtractSystem::updateLights), WorldTime / Weather (S36: the time of day
                         (global) and the weather (space state) with WorldSetup::environment.enabled, else plain
                         components); lighting/ (S36): EnvironmentSetup, EnvironmentFile (environment.json), the
@@ -303,7 +313,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-87 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+90 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -371,12 +381,14 @@ ctest -R test_core_ini --output-on-failure             # one test
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
     `test_vulkan_world` 9.5 s (prototype scenes with terrain and trees; S36: their frames shade with the lighting's
-    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 6.5 s
-    (70 tests; the MCP deadline tests wait ~3 s of real time), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
+    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 7.5 s
+    (73 tests; the MCP deadline tests wait ~3 s of real time; S24: the streaming app tests 0.8 s, an app whose complete
+    point and arrival generate the residency of a terrain space), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
     the S36 golden mode: cascades at 1024, the horizon map, ACES), `test_engine_content` 6 s (the test generator's
     pyramids and the committed hashes), `test_vulkan_scene` 5.5 s, `test_vulkan_terrain` 5 s, the S36 lighting
     binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`
-    3.5 s (34 tests: an EngineApp per test, the tab tests drive ImGui), `test_engine_lighting_render` 3 s (goldens),
+    4.7 s (34 tests: an EngineApp per test, the tab tests drive ImGui; measured 4.6-4.75 s after S36's UI rounds, the
+    earlier 3.5 s line was stale), `test_engine_lighting_render` 3 s (goldens),
     `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), every other binary <= 2 s. These
     are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
@@ -467,6 +479,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   (cd build-bench/samples/games && ./game_world --benchmark flyover)   # and --benchmark forest, --benchmark terraform
   (cd build-bench/samples/games && ./game_world --benchmark night)     # S36b: 400 lamps at 22:00, reported only
   (cd build-bench/samples/vulkan && ./sample_vulkan_scene_benchmark)     # culling benchmark (S18), headless
+  # S24: the streaming benchmark (headless, no window; configure build-bench with -DSAIGA_BUILD_TESTS=ON for it):
+  cmake --build build-bench --target test_engine_streaming_benchmark --parallel
+  SAIGA_STREAMING_BENCHMARK=full ./build-bench/tests/test_engine_streaming_benchmark      # full-off: without streaming
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
   ignored) and writes

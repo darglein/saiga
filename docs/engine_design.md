@@ -185,9 +185,10 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | `RenderScene` prototype passes (S19a): the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5); S20: `setPrototypeEnvironment` (the sky on `TerrainFrame`, the foliage texture; replaces `setPrototypeTerrain`, `PrototypeWorld`, `TerrainRenderer` and `GrassRenderer`); S36a1c: `setFoliageTexture`, the light from the environment (§10.7), no `setTime` | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/` | [exists] |
 | `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
-| Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition`, `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
+| Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition` (S24: an arrival, returns `bool`), `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
 | Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the messages `TerrainModification` / `TerrainChunkState`, the host state list and `sendChunkSnapshot`, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
 | Tombstones and content rendering (S23b): `ChunkRecord {placementVersion, tombstones}` on every peer, effective records, `World::onRecordChanged`, `CREC` format 2; `World::tombstone` / `checkTombstone` / `isTombstoned` / `chunkRecord` / `tierOnePosition` (`content/Tombstones`), the messages `TombstoneModification` / `ChunkRecordState` (`content/ContentMessages`), the host send-list entries, the snapshot's record part, `clearReplicatedChunkState`; the content render sets (`ContentRenderSystem`, centres `None \| View \| Players`, one set per chunk with tier 1 and static parts, the re-snap queue), `RecordingRenderSink`'s set arrays; grass masks from the generator (`Generator::grassEditRule`); tombstone-on-edit in `applyTerrainEdit`; the tools `chunk_info`, `list_sites`, `tombstone`; the `generated_site` golden (§10.1, §12.1, §12.2, §12.5, §13.2, §16.2, §17.6) | `src/saiga/engine/content/`, `src/saiga/engine/net/Replication.*`, `src/saiga/engine/terrain/`, `src/saiga/engine/sync/RecordingRenderSink.*`, `tests/test_engine_content.cpp`, `tests/test_engine_terrain_render.cpp` | [exists: S23b] |
+| Streaming (S24): `WorldConfig::streaming` / `maxSimulationIslands` / `hardIslandLimit`, the `SpaceTemplate` radii (`residencyRadius`, `simulationRadius`, `prefetchMargin`, `unloadMargin`), `ChunkResidency` (the resident chunk set: pinned level-0 base tiles in `TerrainStore`, held placements, residency jobs on the streaming pool, phase 7 and the step-start refresh, synchronous mode, `completeResidency`), `SimulationSet` (the `Simulated` tag by 32 m cells), `StreamingAnchor`, the mover hold and the stall counters, arrivals (`requestArrival`, `checkArrival`, `arrivalProgress`; `requestTransition` returns `bool`; `PendingTransition` `Replicate::Host`; held roots hidden by the extract), islands (`Islands`, `IslandLimitEvent`, `IslandState`), stamping on ready chunks, the load's rebuild; the tools `streaming_status` / `request_arrival`, the Engine tab's Streaming section, the arrival's loading screen; `game_flight` streams (§7.9, §7.10, §8.1, §12.3, §12.4, §16.2) | `src/saiga/engine/streaming/`, `src/saiga/engine/components/StreamingAnchor.h`, `IslandState.h`, `tests/test_engine_streaming*.cpp`, `tests/streaming_test_setup.h` | [exists: S24] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
@@ -454,7 +455,7 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
 - A setter compares with the stored value and changes the flags only if the value differs (bitwise), so idle entities
   written every step cause no hierarchy, grid or extract work.
 - Phase 6 scans the transforms once and builds the list of changed entity indices (sorted by index); hierarchy, grid and
-  extract iterate this list (tick intervals and `Simulated` are re-evaluated round-robin, §9.2); changes made in phases
+  extract iterate this list (tick intervals and, S24, `Simulated` are re-evaluated by grid cells, §8.4, §12.3); changes made in phases
   7 and 8 enter the next step's list through `changedLastStep`.
 - The flags are members of `Transform` (no back pointers; `parallelEach` writes only its own entity). At the end of
   every step `World::step` shifts them (`changedLastStep = changedThisStep`, `changedThisStep = teleported = 0`),
@@ -515,7 +516,9 @@ Health& w = world.get<Health>(e);          // write access
 - `parallelEach(fn, chunk = 256)` runs on the frame `JobPool` (§8.5) with fixed chunks of the candidate list (the
   smallest pool's dense array or the slots), so its result does not depend on the thread count; while it runs,
   structural changes, commands, `events.emit` and `random()` assert. `world.view` passes the `Simulated` flag as a
-  required flag in phases 2-5 (`Registry::view(requiredFlags)`); every new entity has the flag until S24.
+  required flag in phases 2-5 (`Registry::view(requiredFlags)`); in a streaming world a new entity's flag is evaluated
+  when it becomes alive (after its flush, at the step start; S24, §12.3); worlds without streaming keep every entity
+  simulated (G1).
 
 ### 7.6 Structural changes, commands, structural log [exists: S08]
 
@@ -628,8 +631,10 @@ struct WorldConfig                               // game policies (R-MECH-1)
     TickPolicy ticking;                           // S10: §8.4
     std::vector<SpaceTemplate> spaceTemplates;    // S20, S21: 1..65535 templates, SpaceId = index, append-only for a
                                                   // game's lifetime; space instances come from the world plan (§12.1, S23a)
-    int maxPlayers = 8, maxSimulationIslands = 4; // S24 (§12.3)
-    bool hardIslandLimit = false;                 // S24: true: requestArrival returns false beyond the limit
+    bool streaming = false;                       // [exists: S24] the resident chunk set, Simulated, arrivals (§12.3)
+    int maxSimulationIslands = 4;                 // [exists: S24] IslandLimitEvent above it (§12.3)
+    bool hardIslandLimit = false;                 // [exists: S24] true: requestArrival returns false beyond the limit
+    int maxPlayers = 8;                           // [planned: S33]
     bool clientPush = true;                       // S29: clients push host bodies with PushImpulse (§11)
     bool navigation = false;                      // in S45 (§9.7)
     int interpolationDelaySteps = 6;              // S16: RenderPose samples the buffer this far behind (§13.4)
@@ -658,11 +663,17 @@ struct SpaceTemplate                              // S20
     WaveSet waves;                                // S39: Gerstner waves of the sea (§10.9)
     int32_t sizeChunks = 128;                     // S20: the space covers chunks [0, sizeChunks)^2 (128 = 32 km);
                                                   // pyramid, tiles and the region quadtree are bounded by it
-    double simulationRadius = 384, fullRadius = 1000;   // §12.3; fullRadius exists from S23a (stamping)
+    double simulationRadius = 384, fullRadius = 1000;   // §12.3; fullRadius exists from S23a (stamping),
+                                                  // simulationRadius from S24 (by 32 m cells)
+    double residencyRadius = 0;                   // [exists: S24] the required distance (0: fullRadius)
     double clientPhysicsRadius = 384;             // S29: client proxy bodies (§11); default = simulationRadius
     double terrainEditMargin = 64;                // S28: metres of padding of a chunk's collision height range (§11)
-    double prefetchMargin = 256;                  // S24: prefetch beyond fullRadius (§12.3)
-    double unloadMargin = 128;                    // S24: hysteresis of chunk unloading beyond fullRadius (§12.3)
+    double prefetchMargin = 256;                  // [exists: S24] requested = required + prefetchMargin (§12.3)
+    double unloadMargin = 128;                    // [exists: S24] kept = requested + unloadMargin (§12.3)
+    // S24 validation (SAIGA_EXIT_ERROR naming template and field): the radii and margins finite, fullRadius and
+    // simulationRadius positive, margins >= 0; with WorldConfig::streaming also simulationRadius <= fullRadius and
+    // residencyRadius 0 or in [simulationRadius, fullRadius]. Runtime (not saved, not policy): StreamingSettings
+    // {maxInFlight = 8, synchronous = false}, World::setStreamingSettings / setStreamingSynchronous
     double interestRadius = 512;                  // S32: replication interest (§13.4); asserts >= clientPhysicsRadius
     double interestMargin = 64;                   // S32: hysteresis of leaving the interest set (§13.4)
     AmbientSettings ambient;                      // §10.7: Vec3 skyColor, groundColor; double intensity
@@ -805,10 +816,17 @@ class World
     PhysicsWorld& physics();                 // §11 [planned: S28]
     Animation& anim();                       // §10.6 [planned: S34]
     Navigation& nav();                       // §9.7 [planned: S45]
-    void requestTransition(Entity e, Entity link);   // §12.4 [exists: S21, A7]: any root (players, vehicles, driver
-                                                     // entities); the target and arrival pose copied at the request
-    bool requestArrival(Entity e, SpaceId space, const Vec3& position);   // §12.3; false: rejected by a game limit
-                                                                          // [planned: S24]
+    bool requestTransition(Entity e, Entity link);   // §12.4 [exists: S21, A7; S24: an arrival, returns bool]: any root
+                                                     // (players, vehicles, driver entities); the pose copied
+    bool requestArrival(Entity e, SpaceId space, const Vec3& position,
+                        std::optional<Quat> rotation = {});   // §12.3, §12.4 [exists: S24]; false: refused (logged)
+    bool checkArrival(Entity e, SpaceId space, const Vec3& position, std::string* error) const;   // [exists: S24]
+    std::optional<double> arrivalProgress(Entity e) const;   // the island progress of a pending arrival [S24]
+    int islandCount() const;                 // the islands of players (§12.3) [S24]
+    bool simulated(Entity e) const;          // the Simulated tag [S24]; refreshSimulated(e): re-evaluate its root now
+    bool chunkReady(SpaceId space, double x, double z) const;   // requested and resident (true without streaming) [S24]
+    bool completeResidency(double timeoutSeconds = 120);   // between steps: the required chunks of every centre [S24]
+    ChunkResidency& residency();             // engine-internal (tests, tools) [S24]; StreamingAnchor: a centre tag
     template <class M> void send(uint8_t peer, const M& message);   // §13.6 [exists: S15]; also sendRaw, flushOutbox,
                                              // connectedPeers / peersJoined / peersLeft, netStats
     void setOwner(Entity root, uint8_t peer);   // host; before the entity is replicated (player characters at join);
@@ -900,7 +918,7 @@ generic change detection (only the `Transform` flags), access declarations per s
 | 4 Gameplay | engine and game systems in registration order (player control; the kinematic mover until S29; S21: the optional `spaceLinkSystem`, registered by the game) | per system (`RunOn`) |
 | 5 Physics | owner poses in (S16: `ownerPoseSystem`, host), Jolt step, active bodies -> `Transform`, sorted contacts -> events, character movers from S29 (§11) | host; clients for what they own |
 | 6 Transform | hierarchy, spatial grid, chunk membership | all |
-| 7 Streaming | apply chunk results that are ready, request new ones (§12.3) | all |
+| 7 Streaming | S24 (streaming worlds): the residency update (centres, requests, unloads, the pool's completions applied), the `Simulated` evaluation, then stamping (§12.3; S23a's `chunk_stamp` alone without streaming). Before phase 1 of a streaming world the step-start refresh when the centres changed between steps and the evaluation of the changes made between steps (G5); phase 1's `spaceTransitionSystem` completes arrivals whose island is resident | all |
 | 8 Extract | changed transforms and animation -> `RenderSink` (§10.3); host: replication (§13.4); owners: owner-authoritative state (§13.3); structural log consumed. S16: after the phase's systems and their flush the World calls the replication (host) or the owner state and the `Ping` (clients), then the interpolation system (`RenderPose`); the game's phase-8 systems run before them (they are registered after the engine's), and only these calls can abort after the bookkeeping was staged | all |
 
 Commands are applied after every phase; events of this step become readable in the next step. Terrain and piece
@@ -930,6 +948,9 @@ void registerEngineSystems(SystemList& s)
         // owner (ownedBy); phase 4 only produces CharacterIntent.
     s.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);   // S09: §9.5
     s.add(Phase::Transform, "tick", tickSystem, RunOn::Both);                  // S10: §8.4, after the grid
+    // S24: registered by the World constructor with WorldConfig::streaming (as chunk_stamp), in this order, before
+    // chunk_stamp: s.add(Phase::Streaming, "streaming", streamingSystem, RunOn::Both);
+    //           s.add(Phase::Streaming, "simulation", simulationSystem, RunOn::Both);
     s.add(Phase::Physics, "owner_pose", ownerPoseSystem, RunOn::Host);         // S16: §13.3, owners' states in
     // ...
 }
@@ -1145,7 +1166,11 @@ never streams starts no threads), best-effort low priority; `submit(job, priorit
 equal priorities), `cancel(id)` (a queued job is dropped, a running one sees its `cancelled` flag and reports
 `done(true)`), `drain()` on the main thread (the completions in finishing order; a job's exception is rethrown there),
 `runOneOnCaller()` (the caller helps, `completeView`), `waitIdle` / `waitIdleFor`. Jobs capture copies (the height
-source, the layout), never the World or a store.
+source, the layout), never the World or a store. S24 (G16): the residency's jobs share the pool (required chunks
+`-100000 + d` before everything, prefetch chunks `50000 + d` after the visual tiles and before the masks; the visual
+pyramid and the content render sets 0, tiles `1..8008`, masks `100000 + d`); phase 7 drains the pool (every completion,
+also the visual ones: main thread, outside `parallelEach`). `TerrainStore`'s mutation rule: the main thread, never
+inside `parallelEach` (phase 7 pins tiles inside a step).
 
 `JobPool` (`engine/core/JobPool.h`) [exists]: `JobPool(int workerThreads)`, `setWorkerThreads`, `parallelFor(int64_t
 begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed (they never depend on the
@@ -1160,7 +1185,9 @@ sees the failure, best effort); more than INT64_MAX chunks throw `std::length_er
 
 **Only scenarios are reproducible**: the same build and the same scenario (seed, scripted inputs) give the same
 result on every run in `ScenarioWorld`, so tests never flake. `ScenarioWorld` runs headless with a fixed `dt`, a fixed
-worker thread count (default 1) and synchronous chunk loading (§12.3). Ensured by: fixed `dt`; one PCG32 stream
+worker thread count (default 1) and synchronous chunk loading (§12.3; S24: `World::setStreamingSynchronous(true)` on
+every world it creates; every simulation-visible rule reads the requested set, never pool timing or the unload
+hysteresis, G7). Ensured by: fixed `dt`; one PCG32 stream
 `world.random()` seeded from the world seed (its state is saved); deterministic iteration (§7.5), commands and events;
 `parallelEach` without cross-entity effects.
 
@@ -1283,9 +1310,13 @@ the player's peer and a sequence number; at the start of the next step the queue
 the hash. `characterMoveSystem` (phase 4) moves entities with a non-zero `desiredVelocity` and does not write idle ones; y is
 the entity's space's `terrainHeight` (S20; 0 in a space without terrain). In a space with terrain an idle entity is
 written only when its y differs from `terrainHeight` (S20, e.g. after a spawn or an edit; without terrain the idle rule
-is unchanged).
+is unchanged). S24 (G11): in a streaming world it writes nothing for an entity whose current or destination chunk is
+not requested and resident on this peer (positions clamped to the space's chunk range; `moverHolds`).
 
 ### 9.4 Classes decide, systems execute
+
+Game systems that read events check `world.simulated(target)` before acting on a frozen target (the engine's
+`behaviourEventSystem` does; S24, §12.3).
 
 `update` writes intent; movement, animation, physics, damage, replication and rendering are systems over all entities.
 Reusable mechanics (telegraphed attacks, projectiles, summons, status effects) are components plus systems.
@@ -1332,7 +1363,9 @@ in the same phase returns the pending ID) and accepts entities reserved in the s
 
 - Player entities of connected players are never unloaded by chunk unloading (leaving players: §13.7). Entities with
   `Behaviour::alwaysSimulate` (game decides: world events, important NPCs) keep ticking while their chunk is resident,
-  even outside the simulation radius; they do not keep chunks loaded. When their chunk unloads they unload like every
+  even outside the simulation radius; they do not keep chunks loaded. [exists: S24] "resident" is "requested and
+  resident" (`chunkReady`, G7: the unload hysteresis does not keep it simulated); un-freezing calls no `onCatchUp`
+  (`sinceTick` continues; S25's reload calls it). When their chunk unloads they unload like every
   other entity; a game that needs traveling NPCs far from players moves them abstractly (policy, R-MECH-1).
 - When a chunk is unloaded (rule in §12.3: `fullRadius + unloadMargin`), the root entities (no `Parent`) in it
   are serialized with their descendants into the chunk's state and removed with the
@@ -1686,7 +1719,7 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
   runs the pool's jobs with its workers until they are installed, within its deadline (no request after it; the view is
   then incomplete; S23c's 3 km flight radius needed the workers)) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
   `fullRadius` of every `Player` of the world, synchronous; not in `stepNetworkOnly`); a set goes when its chunk is
-  more than `fullRadius + 256 m` from every centre (S24 replaces this). Record changes reach the sink at once
+  more than `fullRadius + 256 m` from every centre (S24 keeps this: the content render sets stay visual, G2). Record changes reach the sink at once
   (`World::onRecordChanged`, also inside `stepNetworkOnly`): another placement version removes the set and requests it
   again; tombstones are diffed (`removeInstance`; a key no longer tombstoned gets `updateInstances` with its original
   instance, re-snapped). A pool result carries the request counter and version it started with and is dropped when
@@ -2563,8 +2596,12 @@ has none).
   is the `HookGenerator` "prototype"); S20's tile and pyramid functions take it as their `TerrainHeightSource`
   unchanged. Before S26 (S22) the host sends every live modification to every client, and
   clients keep every edited sample in memory (never evicted); S22's minimal snapshot (`sendChunkSnapshot`, §13.2) serves
-  late joiners and host loads; per-loaded-chunk snapshots and the reload rules of §13.2 come with S26. Simulation radii
-  and the chunk store follow in S24 and S25.
+  late joiners and host loads; per-loaded-chunk snapshots and the reload rules of §13.2 come with S26. S24: the
+  residency (§12.3) pins the level-0 base tiles of the resident chunks of every space in `TerrainStore`
+  (`TerrainSystem::pinSimulationTile`, a tile sharing the `ChunkBase`'s heights); a tile is visual (stored by a visual
+  completion or desired by the view; the visual budget `tilesPerLevel` counts these only, eviction clears the flag) and
+  / or pinned; a pinned tile survives eviction and the view-space switch, the sink holds only visual tiles. The chunk
+  store follows in S25.
 - The base spacing is a `SpaceTemplate` parameter (1 m with 257 x 257 tiles, or 2 m with 129 x 129 tiles; shared
   borders); `samples/games/world` uses 1 m (the engine default stays 2 m); coarser levels double the spacing (level L
   covers 2^L chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU
@@ -2650,19 +2687,105 @@ has none).
   S27 (S22: it is merged and patched on the visual path; no synchronous CPU pyramid write).
 - Terrain, grass, water, sky/fog and culling shaders work region/camera relative.
 
-### 12.3 Streaming [planned: S24]
+### 12.3 Streaming [exists: S24 (residency, Simulated, arrivals, islands); planned: S25 entity unloading, S26 clients' snapshots, S28 colliders]
 
-| Radius around each player (defaults; `SpaceTemplate`) | Content |
+| Distance from a streaming centre (defaults; `SpaceTemplate`) | Content |
 |---|---|
-| simulation (e.g. 384 m) | entities tick, physics active |
-| full (e.g. 1 km) | base-level tiles, tier-1/1p instances, colliders, chunk entities |
-| region levels | coarser tiles and far content by distance, to the horizon |
+| simulation (`simulationRadius`, 384 m; player roots only) | entities are `Simulated` (tick, systems of phases 2-5) |
+| required (`residencyRadius`, 0: `fullRadius`) | the chunks an arrival and a complete point wait for |
+| requested (required + `prefetchMargin`, 256 m) | resident chunks: level-0 base heights, tier-1 placement, stamped entities (S28: colliders) |
+| kept (requested + `unloadMargin`, 128 m) | still resident (hysteresis), not `ready` |
+| region levels | coarser tiles and far content by distance, to the horizon (visual) |
 | always | coarse terrain pyramid, world plan |
+
+**S24 as implemented** (decisions G1-G23 of `docs/stages/S24_streaming.plan.md`):
+
+- **A world policy** (G1): `WorldConfig::streaming` (default `false`). Without it nothing of this section applies:
+  every entity is `Simulated`, nothing is resident, movers never hold and transitions complete in the next step (S21).
+  `game_flight` streams its 32 km world; the other tech demos and `game_world` do not.
+- **The resident set** (G2, G3; `ChunkResidency`, `World::residency()`): per space the chunks whose square (in x/z)
+  is within the requested distance of a **streaming centre** are requested; a chunk wanting no part (a flat or enclosed
+  space, a slot-less generator without terrain) is resident in the update that requests it, the others get one
+  residency job on the streaming pool (G17: the base, `ContentSource::baseInJob`, then the placement from the cached
+  base) whose result is applied in phase 7. Resident means: the level-0 base heights **pinned** in the space's
+  `TerrainStore` (any space, not only the view space; §12.2) and the `ChunkPlacement` at the chunk's effective placement
+  version held (`World::tierOnePosition` and `tombstone`'s check read it before the cache). A chunk is unloaded (its
+  job cancelled, the tile unpinned, the placement released) when it is beyond the kept distance of every centre; the
+  hysteresis lies beyond the prefetch ring (G3, replacing "fullRadius + unloadMargin"). `ready(chunk)` = requested and
+  resident; `World::chunkReady(space, x, z)` (positions clamped to the space's chunk range; `true` without streaming).
+- **Streaming centres** (G4, G23): host: the root of every alive `Player` (a **player root**: a root whose subtree
+  contains a `Player`) and of every `StreamingAnchor` (an engine tag, saved, `Replicate::Never`: a player-less vehicle,
+  the flight demo's autopilot), at the root's position (held ones too), and the target of every pending arrival of a
+  player root. Client: its own player roots and anchors and their replicated `PendingTransition` targets; a target stays
+  a client centre until the move's `OwnerCommand` (its teleport counter) is applied. The view camera is never a centre.
+- **Phase 7 and the step start** (G5): `streamingSystem` (phase 7, both roles, before `simulation` and `chunk_stamp`)
+  computes the centres and the requested set, unloads, submits the missing parts by priority (required `-100000 + d`
+  first, prefetch `50000 + d` after the visual tiles; at most `StreamingSettings::maxInFlight` (8) jobs, a queued
+  prefetch job of a chunk that became required is cancelled and resubmitted), drains the pool (every completion, also
+  the visual ones) and applies the results, then counts the stalls and, on the host, the islands. Completions only move
+  their result into a delivery queue; nothing applies outside phase 7 except `World::completeResidency(timeout)` (the
+  app's complete points, a load). When the centres changed between steps (any mutation), the **step-start refresh**
+  runs the request part and the promotion before phase 1 (no drain), so a change between steps is resident for phase 1
+  of the next step exactly as after a load. **Synchronous mode** (`World::setStreamingSynchronous`, set by
+  `ScenarioWorld` on every world it creates, §8.6): every requested chunk is built inline in the requesting update; no
+  pool.
+- **Results apply when ready; edits never wait** (G6, G20): a result is base content only (the tile and the placement
+  are never patched; terrain deltas are merged at every read and at the visual send point, tombstones are applied by
+  every reader), so it is applied together with the modification state as it is at that moment without code; a result
+  whose chunk's terrain sequence changed since the request counts `appliedAfterModification`. A changed effective
+  placement version drops a pending result (another request at the new version) and the held placement of a resident
+  chunk (back to `Requested`, the base stays pinned). Every job carries the residency's generation (bumped by
+  `dropAll`) and a request serial: stale completions after an unload, a load or `replaceSources` deliver nothing.
+  `editTerrain` and `tombstone` on a non-resident or pending chunk stay synchronous (S22, S23b) and create no
+  residency.
+- **Simulation-visible rules use the requested set** (G7): `alwaysSimulate` and the mover hold read "requested and
+  resident", never residency alone, so in synchronous mode the unload hysteresis is invisible to the simulation (the
+  repeat and save/load variants stay exact).
+- **Frozen entities** (G8, `SimulationSet`): the engine tag `Simulated` (a flag in the slot state, not a component) is
+  exact and incremental by the spatial grid's 32 m cells: per space the coverage of the cells by the simulation discs of
+  the centre cells (player roots that are not held, anchor roots; a cell is covered when `(dx^2 + dz^2) * 32^2 <=
+  simulationRadius^2` in cell index differences: the effective radius is the simulation radius +- one cell per axis).
+  The rule of a root, in order: a world-state or space-state entity: simulated; a held player root: frozen; a player
+  root or a root with a `StreamingAnchor` in its subtree: simulated; its cell covered: simulated; `alwaysSimulate` and
+  its chunk ready: simulated; else frozen. Descendants take their root's flag (one pass over `hierarchyOrder`).
+  `simulationSystem` (phase 7 right after `streaming`) re-evaluates the roots of the cells whose coverage flipped, the
+  moved entities, the entities of chunks whose ready state flipped and the structural changes of `Player`,
+  `StreamingAnchor`, `Parent`, `PendingTransition` and `Behaviour`; new entities are evaluated after every command
+  flush and at the step start; `World::refreshSimulated(e)` re-evaluates one root at once (`moveToSpace`, the arrival,
+  the world API's component edits of `Behaviour`; a plain write of `alwaysSimulate` needs it); the step start
+  re-evaluates the changes made between steps. Arrival targets are residency centres, not simulation centres. Clients
+  simulate everything except their held player roots (G10). Inside phases 2-5 `world.view<...>()` and `ownedBy` skip
+  frozen entities; `viewAll` is the opt-out; `behaviourSystem` and `behaviourEventSystem` skip them (game systems that
+  read events check `world.simulated(target)`, §9.4). Un-freezing calls no `onCatchUp`, `sinceTick` continues. Deviation
+  from the earlier plan: phase 7 instead of phase 6 (the ready set of the same step) and exact cells instead of a
+  round-robin with the tick interval (S10 made ticking exact).
+- **The flag is not state** (G9): `save()` writes `kSimulated` set for every alive entity; a load rebuilds the residency
+  (`dropAll`, then `completeResidency` of the required chunks before `tryLoad` returns, timing out with a log line) and
+  evaluates every flag; a world without streaming sets the flag on every entity.
+- **Mover hold and stalls** (G11): in a streaming world `characterMoveSystem` writes nothing for an entity whose current
+  or destination chunk is not ready on its owner (`moverHolds`); the steps with a player root on a chunk that is not
+  ready on this peer are `streamingStalls` (and `playerStallSteps`; the profiler counter `streaming/stalls`). A direct
+  `moveToSpace` or `ownerTeleport` into non-resident chunks is allowed; the entity is held there until the chunks
+  arrive (far teleports use `requestArrival`).
+- **Clients** (G10): a client computes its own residency around its own centres and generates the base and placement
+  itself (R-CONTENT-1); in S24 every client receives every modification (S22, S23b), so no snapshot gates residency
+  (S26 adds the gate and the per-chunk snapshots, §13.2). Clients never stamp.
+- **Islands** (G14): per space the connected components of the player roots (pairs within `2 * simulationRadius`),
+  summed over the spaces (`World::islandCount`, `Islands::count`). Above `WorldConfig::maxSimulationIslands` (default
+  4) the host's streaming system emits `IslandLimitEvent {count}` once per rise (the last reported count is the global
+  `IslandState` of streaming worlds, written at the phase-7 flush with the event; an aborted phase 8 loses that event:
+  accepted) and counts `islandLimitSteps`; with `hardIslandLimit` `requestArrival` refuses an arrival that would raise
+  the count above the limit.
+- **Interfaces of the later stages**: S25 adds the listener members `onResident` / `onKeptChanged`, the part
+  registration `addPart` (`PartStored`; S28 `PartColliders`) and the step-start hooks; S26 the modification gate and
+  `forEachChunk` (the plan's "Interfaces for S25 and S26").
+
+**The design before S24** (kept as history):
 
 - Requests are made in phase 7 from player positions (per space). Generation, loading and meshing run on the
   streaming pool. **Prefetch**: generation of a chunk starts when it enters `fullRadius + prefetchMargin`
   (`SpaceTemplate`, default 256 m), so its results are usually ready when it enters `fullRadius`.
-- A chunk is unloaded when it leaves `fullRadius + unloadMargin` of all players.
+- A chunk is unloaded when it leaves `fullRadius + unloadMargin` of all players (S24: the kept distance, above).
 - S24 scope: modification states of non-resident chunks stay in memory and in the `save()` blob; entities are not
   unloaded before S25.
 - **Results apply when ready**: colliders, height tiles, modifications and chunk entities are applied in the first step
@@ -2700,7 +2823,7 @@ has none).
   `IslandLimitEvent {count}` and a statistic, the engine keeps simulating; with `WorldConfig::hardIslandLimit` set,
   `requestArrival` returns false. A Steam Deck can host small sessions (default: 4 players, 2 islands).
 
-### 12.4 Spaces and transitions [exists: S21, S23a (space instances from the plan, stamped entrances); planned: S24 arrivals, S25 unloading]
+### 12.4 Spaces and transitions [exists: S21, S23a (space instances from the plan, stamped entrances), S24 (arrivals); planned: S25 unloading]
 
 - The open world is a height field. Caves, dungeons and interiors are **separate spaces** (enclosed scenes): authored
   from prefabs or generated, with their own chunk grid, static mesh geometry and colliders, ambient light and fog
@@ -2736,7 +2859,18 @@ has none).
   their static geometry is drawn as the content render sets' static parts (S23b), its colliders come in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
-  affect the simulation.
+  affect the simulation. **S24** (G12, G13): arrivals reuse `PendingTransition`: `World::requestArrival(e, space,
+  position, rotation?)` adds it with a null link and `requestTransition(e, link)` is an arrival with the link (it
+  returns `bool` now: the hard island limit can refuse it). In a streaming world `spaceTransitionSystem` completes the
+  arrival of a player root in phase 1 only when its island (the chunks intersecting the `simulationRadius` disc of the
+  arrival position, `World::arrivalProgress`) is requested and resident on the host; meanwhile the root is **held**:
+  frozen, hidden by the extract (its descendants' instances and lights too, as S19b's `Pending` source; a snap when it
+  ends), its pose unchanged (the host drops the owner states of a held client-owned root). Other roots and worlds
+  without streaming arrive in the next step. `PendingTransition` is `Replicate::Host`: the owning client sees its
+  arrival, preloads the target and holds its player. `requestArrival` refuses (log line, `false`) an unknown space, a
+  non-finite position or one outside the space, a pending arrival and the hard island limit; `checkArrival` is the
+  world API's check. A completed arrival emits `SpaceTransitionEvent` (link null for a plain arrival, `from == to` in
+  the same space).
 - **S21 as implemented** (A2, A7, A8, A9, A17): `requestTransition(e, link)` takes any root and copies the link's
   target and arrival pose (a target out of range and a second request are logged refusals; during a step a command
   that re-checks at the flush); the request is the saved component `PendingTransition {Entity link; SpaceId target;
@@ -2761,8 +2895,13 @@ has none).
   point (§8.3), or after `loadingMaxFrames` (a log line). `EngineAppSetup::{loadingRadius = 256, loadingMaxFrames =
   600, showLoadingScreen, loadingScreen}`: the engine's default (`drawLoadingScreen`, ImGui until S46) is an opaque
   background over the viewport, the space's name and a progress bar; the game may replace it. Not with `--no-render`;
-  with `--coop` the client world's camera decides. S24 adds a request-time signal for the player's peer (the move then
-  waits for the arrival).
+  with `--coop` the client world's camera decides. **S24** (G19): while the app's local player root has a pending
+  arrival (the host's component or the replicated one on a client), the load of the target space runs from the request
+  frame (`SpaceLoading::arrival`, `entity`; progress: the island progress scaled to [0, 0.5], no frame cap while held);
+  after the move the same load continues with the view space's readiness scaled to [0.5, 1] and ends when it is 1, no
+  terrain upload is pending and `chunkReady` holds at the player's position (on a client: its own residency);
+  `loadingMaxFrames` counts from the move. The app's fatal complete points call `World::completeResidency(30)` before
+  `completeView` (with `--coop` also the hidden host world's).
   **Before S25**: no space unloading; the second space (height map or empty) keeps all its chunks resident.
 
 ### 12.5 Placed pieces (tier 1p) [planned: S30, extended in S31]
@@ -2859,6 +2998,11 @@ modification sequence number; every live modification carries the number it prod
 until the host's modification snapshot (not only its local base) is applied, drops those with a number <= the
 snapshot's, and treats a gap as an error that re-requests the snapshot. Live terrain modifications carry the integer
 result as a difference rectangle (new heights minus base), never the brush; clients do not evaluate brushes.
+
+**S24 (before S26)**: clients stream their own residency (§12.3, G10) around their own player roots, anchors and
+arrival targets and generate base and placement locally; every client still receives every modification (S22, S23b),
+so no per-chunk snapshot gates a client's residency: the modification gate, the per-chunk snapshots and the queueing of
+live modifications are S26's (`ChunkResidency::setModificationGate`, `forEachChunk`).
 
 **S22 (before S26)**: two raw engine messages host -> clients on `Channel::State`, reliable, with the epoch (ordered
 with `Resync` and the spawn set; S26 moves snapshots to `ChunkData` with its re-request protocol):
@@ -3193,7 +3337,10 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   order, so views iterate in the same order after a load), `EVNT` (pending events), `ACTN` (queued actions), `STAT`
   (RNG, `Persistent` counter); uncompressed (S25 compresses files). `save()` is deterministic. Not saved: `Saved::No`
   components, game objects (recreated), the grid, hierarchy order, child counts, tick evaluation, change flags (rebuilt
-  by the load); paused, time scale and accumulator (app state). A load keeps the time of the save (`time()` stays
+  by the load); paused, time scale and accumulator (app state). S24 (G9): the `ENTS` slot byte keeps its layout but
+  `Simulated` is written set for every alive entity (derived: a load of a streaming world rebuilds the residency and
+  evaluates every flag before `tryLoad` returns; a world without streaming sets the flag on every entity); the resident
+  set is not saved; `IslandState` (the last reported island count) is a global of streaming worlds. A load keeps the time of the save (`time()` stays
   `steps * dt` when the step rate and the saved time agree; otherwise the saved time + steps since the load * dt).
   Saves are untrusted input: the schema's type strings are bounded (256 characters, nesting 8, arrays of at most 2^16)
   and decoding work is bounded (elements without bytes share a budget).
@@ -3380,6 +3527,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `edit_terrain(space?, op, center, radius, strength)` | S22: `World::editTerrain` between steps on the host (op `add`, `subtract`, `flatten`, `smooth`; center [x, y, z] or [x, z], y the flatten target); refused inside a step, on clients (with `--coop` the tools see the client world), for an unknown or enclosed space and for an invalid brush (the error names the field and the bound); returns `changed_samples`, per changed chunk `{chunk: [x, z], sequence, box: [x0, z0, w, h]}` (chunk-local samples) and the changed `box: [x0, z0, x1, z1]` in metres; logged under `api`; not registered read-only | [exists: S22] |
 | `terrain_height(space?, x, z)`, `terrain_edits(space?, limit?, after?)` | S22: the exact surface height (§12.2, incl. edits) with the three integer samples of the triangle and `edited`; the chunks with terrain state in `ChunkId` order (sequence, `has_deltas`, `non_zero_samples`, the delta min / max in metres), paged (`next`) | [exists: S22] |
 | `chunk_info(space?, chunk?: [x, z], position?: [x, z])`, `list_sites(space?, near?: {position, radius}, limit? (100, <= 1000), after?)` | S23b, reads: the chunk, `placement_version` (effective), `recorded`, `stamped` (host), `sequence`, `tombstones` (slot name, counter; at most 200, `truncated`), `tombstone_count`, instances per slot, the site keys, `content_hash` (generated on demand), errors for a chunk outside the space; per site key, prefab, version, position, quarter turns, base height (m), footprint, linked space IDs and its chunks with their stamped state, paged (`next`) | [exists: S23b] |
+| `streaming_status(space?, chunks?: bool, limit? (100, <= 1000), after?)`, `request_arrival(entity, space?, position: [x, y, z], rotation?)` | S24 (G18), reads: `enabled`, `synchronous`, the residency statistics, per space the requested / resident / pending chunks and the centres (entity, position, `arrival`), the islands and the limit, the simulated count, the pool (queued, running, residency jobs); with `chunks` the chunks in `ChunkId` order (state, parts, wanted, requested, distance, job), paged (`next`). `request_arrival` changes: `World::requestArrival` between steps on the host (errors on a client, inside a step and for a refused request with its reason: pending, island limit, range); returns `accepted`, the target, the island progress and `held`. `chunk_info` adds `residency: {state, parts, requested}`, `world_status` `streaming: {enabled, resident, pending, stalls, islands, simulated}`, `inspect` `held`; `set_component` / `add_component` / `remove_component` re-evaluate the entity's `Simulated` tag (an `alwaysSimulate` edit applies without a move) | [exists: S24] |
 | `tombstone(space?, chunk: [x, z], slot, counter)` | S23b, changes: tombstones one tier-1 instance (host only; on a client an error), slot by name; errors for an unknown slot, a counter out of range, a rejected or excluded candidate and a chunk outside the space; idempotent (`changed: false`); returns the sequence (an exhausted sequence, `UINT32_MAX`, is an error). `edit_terrain` reports `tombstoned: [{chunk, slot, counter}]`; `describe_world` adds `generators: [{name, version, pinned, current, slots: [{name, flags}], integer_only}]`, `world_status` `generation: {seed (string), mismatch, checked}` | [exists: S23b] |
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
@@ -3599,7 +3747,14 @@ void registerEngineScenarios(ScenarioList& s)
   that refuses the host's `GenerationState` fails the host + client variants.
   [exists: S20] `ScenarioWorld` uses the setup's `spaceTemplates` (flat without a hook): `terrainHeight` and the mover
   follow the terrain as in the game; its `RecordingRenderSink` requests no tiles (only the app's view camera streams,
-  §12.2), so a scenario world starts no streaming pool (the radii come with S24).
+  §12.2), so a scenario world starts no streaming pool. [exists: S24] `scenarioSetup` also lowers `simulationRadius` to
+  at most 128 m (and the lowered `fullRadius`), clamps a non-zero `residencyRadius` to `fullRadius` and sets
+  `prefetchMargin = 0`; every world of a scenario (host, clients, the save/load replacement, repeat runs) loads
+  synchronously (`setStreamingSynchronous(true)`). With `streamingTestSetup()` (`tests/streaming_test_setup.h`) a
+  scenario world's required and requested distance is 128 m, its kept distance 192 m. The streaming scenarios
+  (`registerStreamingScenarios`: `streaming_follows_player`, `far_entities_freeze`, `arrival_far_teleport`,
+  `edit_far_chunk_then_visit`, `space_link_with_streaming`) run in every variant in
+  `tests/test_engine_streaming_scenarios.cpp`.
 - A failing scenario prints the failed checks with their steps, the log lines since it started (at most 200),
   `dumpJson` of the involved entities (spawned through the helpers, at most 10) and the traces.
 - Runner (`engine/tools/ScenarioRunner.h`, S12): `runScenario(setup, entry, variant, options)` and
@@ -3885,6 +4040,14 @@ goldens).
   gather and every read of an edited sample uses the hook) runs the same schedule with a cheap integer hook and the
   prototype hook, the encode / decode, `hash()`, save / load and a late join of 50 full-chunk edited chunks, a grass
   mask from merged heights and the patch step on a recording sink. S28 re-runs it with collider patches.
+- Streaming benchmark [exists: S24, G21]: `tests/test_engine_streaming_benchmark.cpp` (non-gating, headless, no game):
+  a streaming world on the prototype hook at 1 m with the asynchronous pool, entities over a 2.15 km square (10 %
+  `Drifter`s) and one player at 30 m/s; prints the step time (median, p95, max) and its `streaming` / `simulation` /
+  step-start / `tick` / `behaviour` parts, the simulated count, resident chunks and bytes, the stalls; and the residency
+  rebuild (cold and warm caches, the load). CI: scaled radii, 10^3 entities, 60 steps unpaced.
+  `SAIGA_STREAMING_BENCHMARK=full` (local, the bench build with `-DSAIGA_BUILD_TESTS=ON`): the default radii, 10^5
+  entities, 3600 steps paced at 60 Hz (2 pool workers): the acceptance of S24 (0 streaming stalls, the step time within
+  §17.10); `full-off` runs the same without streaming (the "before" numbers).
 - ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints the total ms of create, views over one
   component, `Transform` plus one and three components, random reads, remove + re-add and destroy at 10^5 entities
   [exists: S07]; S19b: `ExtractTenThousandEntities` (10^4 moving entities with `RenderInstance` into a recording sink:
@@ -4237,8 +4400,10 @@ The sample keeps running and all tests stay green after every stage.
   determinism if bugs from live sessions need replays.
 - **Plan-defined spaces only** (§12.1): no space instances created or deleted at run time. Add later (IDs from a
   saved monotonic counter, never reused) if a game needs them.
-- **Round-robin tick/`Simulated` re-evaluation** (§9.2, §12.3): no incremental grid-cell rules. Add later if the
-  1/16 latency matters.
+- **`Simulated` by 32 m cells, exact** (§12.3; S24, G8; S10 made ticking exact the same way): no round-robin; the
+  cell quantization makes the effective simulation radius the configured one +- one cell per axis.
+- **Streaming is opt-in per world** (§12.3; S24, G1): `WorldConfig::streaming`; small levels keep every entity
+  simulated and nothing resident. Add a default-on later if most games stream.
 - **Synchronous edits** (§12.2, §11): terrain results, collider patches and compound cell rebuilds run in the
   requesting step. Add later (asynchronous preparation, a shape filter for removed sub-shapes) if the S22/S30
   measurements exceed the step budget.
@@ -4316,7 +4481,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S23a | Generation pipeline (done) | Fixed-point toolkit and integer lint, `Generator` interface (integer template view), world plans with sites and space instances (eager), chunk generation, prefabs, stamping from the plan (entities, SpaceLinks), content cache, pinned versions, GENR/CREC, GenerationState, content hashes on all CI compilers with UBSan on Clang (§12.1, §15.3) | S20, S21, S22 | committed content hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present) in every variant (CI) |
 | S23b | Tombstones and content rendering (done) | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
 | S23c | Overworld generator (tech demo) (done) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
-| S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
+| S24 | Streaming (done) | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
 | S26 | World over the network | Handshake with schema hash (and the environment flag of `EnvironmentSetup::enabled`), chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
 | S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4), impostor shadow casters in the far cascades (the shadow pipeline table's impostor entry, S36a2); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |

@@ -100,6 +100,9 @@ class SAIGA_ENGINE_API ContentSource
     // The pool form inside a job of another kind (S23b: the grass masks): a hit, a running generation (waited for), or
     // generated here
     std::shared_ptr<const ChunkPlacement> placementInJob(ChunkId chunk, uint16_t placementVersion) const;
+    // The base in a pool job (S24, G17: the residency's job): a hit, a running generation (waited for), or generated
+    // here with the key in flight
+    std::shared_ptr<const ChunkBase> baseInJob(ChunkId chunk) const;
     bool valid() const { return sp != nullptr; }
     const SpaceGeneration& space() const { return *sp; }
 
@@ -157,8 +160,9 @@ class SAIGA_ENGINE_API GenerationPipeline
 // Pure helpers (the pipeline, ContentSource jobs, checkContentHashes)
 SAIGA_ENGINE_API std::vector<StampRecord> computeStampList(const SpaceGeneration& space, ChunkId chunk);
 SAIGA_ENGINE_API std::vector<StaticPart> computeStaticList(const SpaceGeneration& space, ChunkId chunk);
+// inJob: the pool form of the cache (waits for a running generation of the same key; S24)
 SAIGA_ENGINE_API std::shared_ptr<const ChunkBase> generateBase(ContentCache& cache, const SpaceGeneration& space,
-                                                               ChunkId chunk);
+                                                               ChunkId chunk, bool inJob = false);
 // inJob: the pool form of the cache (waits for a running generation of the same key)
 SAIGA_ENGINE_API std::shared_ptr<const ChunkPlacement> generatePlacement(ContentCache& cache,
                                                                          const SpaceGeneration& space, ChunkId chunk,

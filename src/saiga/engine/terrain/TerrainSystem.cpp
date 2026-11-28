@@ -13,6 +13,7 @@
 #include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainVisualPatch.h"
+#include "saiga/vulkan/scene/TerrainTiles.h"
 
 #include <algorithm>
 #include <chrono>
@@ -551,8 +552,9 @@ void TerrainSystem::evict(SpaceId space, const Desired& d)
         if (over <= 0) continue;
         // Not desired, least recently desired first (a desired tile is never evicted: the desired set is truncated)
         std::vector<std::pair<uint64_t, RegionId>> candidates;
+        // Visual tiles only (S24: a pinned tile that is not visual is not in the budget)
         for (const auto& [r, t] : st.tiles())
-            if (r.level == k && !d.tileSet.count(r)) candidates.push_back({t.lastDesired, r});
+            if (r.level == k && t.visual && !d.tileSet.count(r)) candidates.push_back({t.lastDesired, r});
         std::stable_sort(candidates.begin(), candidates.end(),
                          [](const auto& a, const auto& b) { return a.first < b.first; });
         for (size_t i = 0; i < candidates.size() && over > 0; ++i, --over)
@@ -581,10 +583,12 @@ void TerrainSystem::sendUpdates(SpaceId space, const Desired& d, int limit)
 {
     if (!sink || !setActive || setSpace != space) return;
     const TerrainStore& st = *spaces[space].store;
-    // Removals first (not budgeted: the sink never holds a tile the store dropped)
+    // Removals first (not budgeted: the sink never holds a tile the store dropped, S24: or that is no longer visual, a
+    // pinned tile that left the desired set; the atlas holds tilesPerLevel)
     for (auto it = sentTiles.begin(); it != sentTiles.end();)
     {
-        if (!st.tile(*it))
+        const TerrainStore::Tile* tile = st.tile(*it);
+        if (!tile || !tile->visual)
         {
             sink->removeTerrainTile(*it);
             it = sentTiles.erase(it);
@@ -1253,6 +1257,21 @@ void TerrainSystem::replaceSources(std::vector<TerrainHeightSource> sources, std
     sentMasks.clear();
 }
 
+void TerrainSystem::pinSimulationTile(const ChunkId& chunk, const std::shared_ptr<const ChunkBase>& base)
+{
+    SAIGA_ASSERT(chunk.space < spaces.size() && base && base->heights, "TerrainSystem::pinSimulationTile: no base");
+    Vulkan::TerrainTileData t;
+    t.heights = base->heights;
+    Vulkan::terrainHeightRange(*t.heights, t.minHeight, t.maxHeight);
+    spaces[chunk.space].store->pinTile(regionOf(chunk.space, 0, chunk.x, chunk.z), std::move(t));
+}
+
+void TerrainSystem::unpinSimulationTile(const ChunkId& chunk)
+{
+    if (chunk.space >= spaces.size()) return;
+    spaces[chunk.space].store->unpinTile(regionOf(chunk.space, 0, chunk.x, chunk.z));
+}
+
 void TerrainSystem::setSink(RenderSink* s)
 {
     // Regression (CodeRabbit, S20): a sink attached again kept the tiles of its old set (the store may hold others
@@ -1328,7 +1347,12 @@ void TerrainSystem::updateStats(SpaceId space, const Desired* d)
     s.maskQueue        = int(maskQueue.size());
     s.maskJobsInFlight = int(editedJobs.size());
     size_t bytes       = 0;
-    for (const Space& sp : spaces) bytes += sp.store->cpuBytes();
+    s.pinnedBytes      = 0;
+    for (const Space& sp : spaces)
+    {
+        bytes += sp.store->cpuBytes();
+        s.pinnedBytes += sp.store->pinnedBytes();
+    }
     // The results in flight (at most one per request; their size by kind)
     for (const auto& [key, id] : requests)
     {

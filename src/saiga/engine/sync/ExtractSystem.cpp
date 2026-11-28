@@ -12,6 +12,7 @@
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
@@ -223,6 +224,9 @@ ExtractSystem::Source ExtractSystem::sourceOf(Entity e, Entity& renderPoseOwner)
 {
     const Registry& reg = w.registry();
     renderPoseOwner     = Entity{};
+    // S24 (G12): a held player root and its descendants are hidden like a remote entity before its first pose (tracked,
+    // no instance or light; a snap when the hold ends)
+    if (w.streaming() && w.heldRoot(w.rootOf(e))) return Source::Pending;
     if (reg.registered(RenderPose::id) && reg.has<RenderPose>(e))
     {
         renderPoseOwner = e;
@@ -484,29 +488,29 @@ void ExtractSystem::consumeLog()
 {
     if (consumer < 0) return;
     const Registry& reg = w.registry();
-    w.structuralLog().consume(
-        consumer,
-        [&](const StructuralLog::Record& r)
-        {
-            if (r.component == RenderInstance::id)
-            {
-                // A destroy, a remove, or the remove of a name record (remove + add)
-                if (!r.added)
-                    untrack(r.entity);
-                else if (reg.alive(r.entity) && reg.has<RenderInstance>(r.entity))
-                    track(r.entity);
-            }
-            else if (r.component == LightSource::id)
-            {
-                // S36b: a light is added and removed with its component
-                if (!r.added)
-                    untrackLight(r.entity);
-                else if (reg.alive(r.entity) && reg.has<LightSource>(r.entity))
-                    trackLight(r.entity);
-            }
-            else if (r.component == RenderPose::id || r.component == Parent::id || r.component == NetOwner::id)
-                sourcesDirty = true;
-        });
+    w.structuralLog().consume(consumer,
+                              [&](const StructuralLog::Record& r)
+                              {
+                                  if (r.component == RenderInstance::id)
+                                  {
+                                      // A destroy, a remove, or the remove of a name record (remove + add)
+                                      if (!r.added)
+                                          untrack(r.entity);
+                                      else if (reg.alive(r.entity) && reg.has<RenderInstance>(r.entity))
+                                          track(r.entity);
+                                  }
+                                  else if (r.component == LightSource::id)
+                                  {
+                                      // S36b: a light is added and removed with its component
+                                      if (!r.added)
+                                          untrackLight(r.entity);
+                                      else if (reg.alive(r.entity) && reg.has<LightSource>(r.entity))
+                                          trackLight(r.entity);
+                                  }
+                                  else if (r.component == RenderPose::id || r.component == Parent::id ||
+                                           r.component == NetOwner::id || r.component == PendingTransition::id)
+                                      sourcesDirty = true;
+                              });
     if (!sourcesDirty) return;
     // A RenderPose, Parent or owner changed: the sources are evaluated again (switches snap when processed). The flag
     // is a member: a sink that throws for a later record keeps it set for the re-delivery
