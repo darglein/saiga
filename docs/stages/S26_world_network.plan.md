@@ -1,6 +1,7 @@
 # S26: World over the network
 
-Status: planned.
+Status: done (implemented on `stage-s26` on top of `stage-s25` at 59f83ee14; reconciled with the S24 and S25 code first;
+the deviations are listed in "Deviations during the implementation", the measurements in "Results").
 
 Sections follow the stage plan template of S05; "S24 interfaces used", "Conflicts with S24", "S25 touchpoints",
 "Implementation steps", "Risks", "Open questions" and "Design-doc amendments" are added for this stage. Reconciled with
@@ -974,3 +975,120 @@ Changed:
 - §17.3: the end condition and comparison of Scope 8.
 - §22: the S26 row's status.
 - AGENTS.md: `engine/net/` in the layout (handshake, `NetSchema`, chunk sync), `test_engine_world_net` and its budget.
+
+## Deviations during the implementation
+
+Recorded per R-DOC-2; the plan's intent is kept in each case.
+
+- **Reconcile (before step 1)**: the S24 and S25 names exist as planned: `ChunkResidency` (`state`, `requested`,
+  `centres`, `dropAll`, `jobHookForTests`, `clientAwaitsMove`), `World::chunkReady` / `completeResidency` /
+  `requestArrival`, the mover hold counters (`moverHolds`, `streamingStalls`), S25's `EngineMessage::Despawn` (renumbered
+  to 14). `forEachChunk` and `setModificationGate` were added to `ChunkResidency` as agreed in S24's "Interfaces for S25
+  and S26" (the gate is checked in `promote()`, which `update()`, `refresh()` and `complete()` call; `complete()` waits
+  for the parts only). S25's records of every resident chunk are written on the host only (`EntityUnloading`) and carry
+  the current placement version, so the snapshot's record rule does not send them. S25's `ChunkRecordCodec.h` already
+  has a `struct ChunkIndex`: the message structs are `ChunkInterestMessage`, `ChunkSnapshotMessage`,
+  `ChunkIndexMessage`. S24 has no "no message type is added" test (`StreamingNet.*` checks behaviour only): nothing to
+  change there.
+- **Steps**: step 1 is its own commit; steps 2-5 are one commit (step 3 alone would have kept the removed
+  `TerrainChunkState` / `GenerationState` / `ChunkRecordState` paths alive for one step), step 6 and step 7 one each.
+- **`JoinRequest` flag bit 1** is the setup's non-legacy generation (`GenerationPipeline::nonLegacy`) instead of
+  `writesGenerationState()`: the latter also depends on chunk records, which a fresh client never has while the host
+  may. `JoinAccept` / `Resync` carry the generation info when the host's world writes generation state; a client whose
+  setup is non-legacy and receives none fails locally.
+- **`GenerationInfo`**: `decodeGenerationInfo(WireReader&, ...)` (`net/WireFormat.h`: the shared little-endian / varint
+  primitives of the S26 messages); `generationInfoDifference` is not kept (the client's `adoptablePins` and
+  `Replication::adoptGeneration` produce the errors).
+- **Gaps and queue overflows** drop the chunk's queue and the gapped part instead of queueing the parts after the gap
+  anew: the missing sequence never arrives on the one ordered channel, and the new snapshot (encoded after the host
+  received the new subscription) covers every part sent before; queueing them made a bogus part re-request forever. A
+  queue overflow re-requests without counting `modificationGaps`.
+- **Deferred join messages** are merged with the rest of the round in (peer, sequence) order right after `JoinAccept`,
+  not strictly before it: an `OwnerCommand` of the admission step (Control) that overtook `JoinAccept` would otherwise be
+  handled before the spawn of its entity (State, sent earlier) in the same round.
+- **The index's snapshots** are queued when the step that sent the `ChunkIndex` commits (served from the next phase 8):
+  an aborted phase 8 then needs no undo of the queue; the index is re-sent after an abort.
+- **An empty `ChunkSnapshot`** is 25 bytes (the header: flags 1, epoch 4, ticket 4, space 2, x 4, z 4, sequence 4, N 2),
+  not 24.
+- **`World::debugAfterReplication`** (the S16 test hook) also runs on clients, after the owner state and the chunk
+  interest (the D16 abort tests of a client's phase 8).
+- **`ScenarioWorld`**: the join must reach `Joined` within `4 * delaySteps + 8` pumps; the initial indexes and
+  snapshots of a world without streaming then have up to 600 pumps. The client check of `streaming_follows_player`
+  allows 4 more steps in the asynchronous variant (the client's irregular steps). `ScenarioRunner.
+  GenerationRefusalInTheFinalSyncFails` became `GenerationAdoptionInTheFinalSync`: a host load of other pins as the
+  scenario's last action is now adopted (the variant passes).
+- **Removed** with the replaced paths: `Replication::onGenerationState`, `sendGenerationState`, `terrainRefused`,
+  `sendRecordStates`, `sendChunkSnapshot`, `rejectContent`, the typed `ResyncMessage`, the "Spawn before a
+  GenerationState" check and the "state entity of a space this client does not have" branch of `onSpawn` (a client of
+  another space table is rejected by the schema's templates section), `encode/decodeTerrainChunkState`,
+  `encode/decodeChunkRecordState`, `kMaxRecordParts` / `kMaxRecordKeys`, `Replication::Stats::generationStatesSent`,
+  `generationStatesDroppedEpoch`, `recordStatesSent`. The live handlers moved to `ClientChunkSync`
+  (`registerEngineMessages` forwards to it).
+- **Tools**: `world_status.net` also reports `joins_rejected`, `dropped_not_joined` and `modification_gaps`.
+- **Tests**: `Handshake.AdoptionFailureIsLocal` is the `PlanChangeV2` case of `test_engine_content`'s
+  `Handshake.GenerationMismatchesAreRejected` (admitted by the host, the adoption fails locally); the "slot table not a
+  prefix" case of `RejectionReasons` is there too (its `ChangedGenerator`). `ClientAdoptsOlderPins` checks the adopted
+  record, tombstone and heights, not the recording sink. `ReloadDuringEditConverges` is one test looping over the ten
+  parameter combinations (queued and dropped parts asserted across them; the stale-snapshot path is asserted by
+  `QueueOverflowRerequests`). `JoinDataFor50EditedChunks` writes seeded noise deltas into the host's store (the state a
+  brush leaves) instead of brushing: 200 brushes over 50 full 1 m chunks took 6.5 s of base heights.
+  `ArrivalSubscribesTarget` holds the host's island jobs with a latch (a synchronous host completes the arrival in the
+  next step, before a client could subscribe). `ReadinessWaitsForSnapshots` uses `test_flat` (no terrain or content
+  readiness in a headless world). In `test_engine_terrain_net`, `LateJoinerGetsEveryChunkState` and
+  `HostLoadSendsResyncThenTheStates` are kept, adapted to the `all` subscription (D19); `HostAuthorityOverNeighbours`
+  keeps its second half on parts (its first half faked a stale `TerrainChunkState`). `test_engine_content`'s
+  `GenerationState.*` are six `Handshake.*` cases. `EnvironmentWrites.CoopLightEditorWritesTheHost` runs at delay 10
+  instead of 20 (the handshake's round trip comes first; every frame renders on lavapipe).
+- **Review round 1 fixes**:
+  - The client's `JoinRequest`, sent while it consumes the `Connected` event in phase 1, is re-tagged `Phase::None` so
+    an abort of that phase does not drop it (`Handshake.JoinRequestSurvivesAnAbortedPhase1`).
+  - A joining client drops unreliable messages instead of deferring them (they filled the 1024 bound and pushed out
+    reliable ones); the host sends at most one `JoinReject` per peer and step; a rejected client logs its dropped
+    messages once.
+  - `onIndex` keeps the ticket of a chunk re-requested while its space waited for the index; `ClientChunkSync::hold`
+    asserts the chunk is inside its space (the host rejects a whole `ChunkInterest` for one bad chunk); a snapshot with
+    a terrain sequence in an enclosed space or deltas with sequence 0 is rejected input.
+  - `HostChunkSubscriptions::serve` finds duplicates with a set (it was quadratic in the queue).
+  - `streaming_status` / `chunk_info` list the `stored` part (S25).
+- **Review round 2 fixes**:
+  - A `Resync` drops a streaming client's residency also when the pins stay (it was dropped only by
+    `replaceGeneration`, so resident chunks kept no state and no hold; `ChunkSync.SamePinsResyncDropsResidency`).
+  - The client never subscribes more than `WorldConfig::network.maxChunksPerPeer` (the host rejects a whole message
+    above it and the client was never told); the limit is in the network schema's flags section, so both sides agree;
+    capped new chunks wait `Requested` (`ClientChunkSync::Stats::interestCapped`).
+  - A `TombstoneModification` for an enclosed space is rejected input (a tombstone bumps the terrain sequence).
+  - Overflowing the deferral while joining (1024 reliable messages before `JoinAccept`) rejects the join instead of
+    continuing with a lost message.
+
+## Results
+
+Measured on the development machine (24 threads; tests in RelWithDebInfo on lavapipe, alone; the machine had other
+load).
+
+- **Tests**: `test_engine_world_net` 32 tests in 0.88 s (budget 1.5 s; the slowest: `PinAdoptionDropsResidency` 0.27 s,
+  the v1 build's own content cache; `JoinDataFor50EditedChunks` 0.17 s), `test_engine_streaming_scenarios` 54 cases in
+  0.43 s (S25: 0.35 s; `streaming_reload_during_edit` in six variants), `test_engine_scenarios` 1.11 s (S25: 1.08 s),
+  `test_engine_net` 0.03 s, `test_engine_replication` 0.09 s, `test_engine_terrain_net` 0.01 s, `test_engine_content`
+  5.07 s, `test_engine_streaming` 1.24 s, `test_engine_app` 8.0 s (S25: 7.9 s), `test_engine_lighting_tools` 5.2 s (the
+  coop test 0.55 s; the binary was not measured before S26 on this machine and is above AGENTS.md's 3.5 s, which S36
+  measured), `test_engine_net_benchmark` 0.69 s, `test_engine_terrain_benchmark` 0.62 s. The whole `ctest --parallel 8`
+  on lavapipe: 96 of 96 passed (17.6 s).
+- **Tech demos**: `game_flight --scenarios` 36 passed, `game_racing --scenarios` 18 passed, `game_platformer
+  --scenarios` 48 passed (every host + client variant through the handshake and the `all` subscription; flight's
+  streaming variants through chunk subscriptions). The headless `--coop --demo` screenshots of the three demos show the
+  client's world as before (flight: the ruin, the terrain and both planes around the client's plane; the log shows
+  "peer 1 joined", no rejection, gap or stall).
+- **Chunk snapshots** (`NetBenchmark.ChunkSnapshotEncode`, RelWithDebInfo): a fully edited 1 m chunk (noise deltas)
+  83 KB, encode 0.59 ms, decode 0.20 ms, the client's apply 1.26 ms; 100 empty snapshots 2.5 KB in 0.004 ms; 8 peers
+  with one edit per step: the host step 0.02 ms (848 parts and 2465 tombstone entries filtered over 60 steps). Join
+  data of 50 edited 1 m chunks (`ChunkSync.JoinDataFor50EditedChunks`): 3.56 MB of snapshots (<= 20 MB), synced in
+  98 ms of host and client steps. At the 1 MB default budget a step encodes at most about a dozen such chunks (~7 ms):
+  above §17.10's 4 ms host step only while a join of many edited chunks is served; the streaming pool remains the
+  fallback (out of scope).
+- **`test_engine_net_benchmark` before / after** (one run before, three after; RelWithDebInfo): small messages 1.78 /
+  1.68-1.73 ms per step, the 16 MB raw message 43.9 / 44.1-45.8 ms, snapshots of 10^4 entities host step 3.74 /
+  3.70-4.07 ms and client step 2.74 / 2.96-3.26 ms (the client's phase 8 adds the interest diff: a loop over the spaces
+  without streaming; within the run-to-run noise of this loaded machine), HostReliable change detection 1.49 / 1.49 ms.
+- **Not done**: the Clang (`SAIGA_CONTENT_UBSAN=ON`) and MSVC builds (not available here; the code follows the
+  portability rules: one `static constexpr` per line, export macros, no GCC extensions); `game_world --benchmark`
+  (opens a window); a release-build before/after of the net benchmark (the numbers above are RelWithDebInfo).

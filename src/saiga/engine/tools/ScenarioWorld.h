@@ -159,6 +159,10 @@ class SAIGA_ENGINE_API ScenarioWorld
     // without a network)
     double terrainHeight(double x, double z, std::optional<int> client = {}, SpaceId space = 0);
     int32_t terrainSample(int64_t i, int64_t k, std::optional<int> client = {}, SpaceId space = 0);
+    // S26: explicit chunk interest of a client (peer 1..clients) on top of its residency (streaming worlds; a no-op
+    // otherwise and in the single-world variants)
+    void holdChunk(int peer, const ChunkId& chunk);
+    void releaseChunk(int peer, const ChunkId& chunk);
 
     // Records a failure (with the step) if condition is false; returns condition
     bool check(bool condition, const std::string& message);
@@ -231,14 +235,16 @@ class SAIGA_ENGINE_API ScenarioWorld
     void stepClients();
     void applyPending();
     void compareReplicas();
-    // S22: every client's chunk sequences equal the host's (the end condition of the host + client variants)
-    bool terrainSynced();
-    // S22: the terrain modification state of every client equals the host's (sequences, dense deltas); no gaps
-    void compareTerrain();
-    // S23b: per space, over the union of the chunks with a record on either side, every client's effective chunk
-    // records equal the host's (placement version, tombstones; stamped is host-only)
-    bool recordsSynced(std::string* difference = nullptr);
-    void compareRecords();
+    // S26 (§17.3): the handshake before the scenario starts (network-only steps of host and clients until every client
+    // joined and, without streaming, its spaces are indexed and synced); failures are recorded
+    void joinClients();
+    // S26: the end condition of the chunk sync: no client has a Pending chunk or a queued part (every space indexed
+    // without streaming), the host has no queued snapshot, every Synced chunk's sequence equals the host's
+    bool chunksSynced();
+    // S26: per client and space over its Synced chunks the sequence, the dense delta of the closed range and the
+    // effective record equal the host's; a chunk that is not subscribed has no entry and no record on the client;
+    // no gaps, re-requests or queue overflows
+    void compareChunks();
     void attach();
     // The step observation is two listeners: the counter first (listeners see steps() including the current step) and
     // the observer last (hash, traces, stop-save and limits see the world after every scenario listener ran)
@@ -250,7 +256,9 @@ class SAIGA_ENGINE_API ScenarioWorld
     void onStep();
 
     WorldSetup worldSetup;
-    bool generationMismatchReported = false;
+    bool joinFailureReported = false;
+    // A client whose join failed (rejected, a failed adoption) fails the variant once
+    void reportJoinFailures(const std::string& when);
     ScenarioOptions options;
     ScenarioNetwork network;
     // Before the worlds: the transports and the sinks outlive them

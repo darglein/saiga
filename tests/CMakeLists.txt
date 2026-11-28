@@ -230,6 +230,8 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_save_directory.cpp "saiga_engine")
     saiga_test(test_engine_save_crash.cpp "saiga_engine")
     saiga_test(test_engine_save_benchmark.cpp "saiga_engine")
+    # World over the network (S26): the network schema, the handshake, chunk subscriptions and snapshots
+    saiga_test(test_engine_world_net.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

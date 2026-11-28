@@ -141,11 +141,16 @@ bool checkTombstone(const World& world, const ChunkId& chunk, const InstanceKey&
         return fail("tombstone: counter " + std::to_string(key.counter) + " of slot " +
                     std::to_string(key.generatorSlot) + " is out of range (" + std::to_string(count) +
                     " candidates per chunk)");
-    // A tombstone advances S22's chunk sequence, which only open-world spaces have (TERR and TerrainChunkState
-    // refuse the entry of an enclosed space)
+    // A tombstone advances S22's chunk sequence, which only open-world spaces have (TERR refuses the entry of an
+    // enclosed space)
     if (!g.openWorld)
         return fail("tombstone: space " + std::to_string(chunk.space) + " ('" + g.settings.name +
                     "') is enclosed (tombstones need an open-world space)");
+    // S26 (D14): at most kMaxChunkTombstones keys per chunk record (a tombstoned key changes nothing)
+    if (const ChunkRecord* r = world.chunkRecord(chunk))
+        if (r->tombstones.size() >= kMaxChunkTombstones && !r->tombstoned(key))
+            return fail("tombstone: " + where + " has " + std::to_string(r->tombstones.size()) +
+                        " tombstones (at most " + std::to_string(kMaxChunkTombstones) + " per chunk)");
     const uint16_t version = world.effectivePlacementVersion(chunk);
     // S24 (G17): a resident chunk's held placement first
     std::shared_ptr<const ChunkPlacement> p = world.residency().heldPlacement(chunk, version);
@@ -162,7 +167,16 @@ bool applyTombstone(World& world, const ChunkId& chunk, const InstanceKey& key)
     SAIGA_ASSERT(world.generation().space(chunk.space).openWorld, "applyTombstone: an enclosed space (checkTombstone)");
     ChunkRecords& records = world.contentRecordsForUpdate();
     if (const ChunkRecord* r = records.find(chunk))
+    {
         if (r->tombstoned(key)) return false;
+        // S26 (D14): a command recorded below the cap that meets a full record at the flush
+        if (r->tombstones.size() >= kMaxChunkTombstones)
+        {
+            SAIGA_LOG("content", "tombstone: chunk (%d, %d) of space %u has %zu tombstones (refused)", chunk.x, chunk.z,
+                      unsigned(chunk.space), r->tombstones.size());
+            return false;
+        }
+    }
     // Reserve: the record (current version if new), the key capacity, S22's entry, the send-list slot
     TerrainEditStore& st = world.terrainEditsForUpdate();
     // An exhausted sequence (UINT32_MAX) cannot be bumped: refused, nothing changes (as an edit of the chunk, S22)

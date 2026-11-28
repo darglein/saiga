@@ -620,6 +620,8 @@ void ChunkResidency::promote()
     for (auto& [c, e] : entries)
     {
         if (e.state != ChunkState::Requested || e.partsDone != e.wanted) continue;
+        // S26 (D18): on a streaming client only with the host's chunk snapshot applied
+        if (modificationGate && !modificationGate(c)) continue;
         e.state = ChunkState::Resident;
         promoted.push_back(c);
         if (e.base && !e.pinned)
@@ -632,6 +634,15 @@ void ChunkResidency::promote()
     for (const ChunkId& c : promoted)
         for (const auto& l : listeners)
             if (l.second.onResident) l.second.onResident(c);
+}
+
+void ChunkResidency::forEachChunk(SpaceId space, const std::function<void(const ChunkId&, ChunkState)>& fn) const
+{
+    ChunkId first;
+    first.space = space;
+    first.x = first.z = std::numeric_limits<int32_t>::min();
+    for (auto it = entries.lower_bound(first); it != entries.end() && it->first.space == space; ++it)
+        if (it->second.state != ChunkState::None) fn(it->first, it->second.state);
 }
 
 void ChunkResidency::notifyReadyChanges()

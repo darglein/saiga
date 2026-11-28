@@ -26,6 +26,10 @@ namespace Saiga
 {
 namespace Engine
 {
+// The tombstones of one chunk record (S26, D14): World::tombstone and tombstone-on-edit refuse a key beyond it (a
+// ChunkSnapshot's keys then fit a few MB)
+constexpr size_t kMaxChunkTombstones = size_t(1) << 20;
+
 struct ChunkRecord
 {
     uint16_t placementVersion = 0;
@@ -74,6 +78,10 @@ class SAIGA_ENGINE_API ChunkRecords
     void replace(Map records, std::set<ChunkId> stamped);
     // A client Resync: every record goes (the stamped set is host-only and empty on a client)
     void clear();
+    // S26, client: a chunk's record goes (an unload, a snapshot without a record)
+    void erase(const ChunkId& chunk);
+    // S26, client: the snapshot's record replaces the chunk's (keys sorted and unique, checked by the caller)
+    ChunkRecord& set(const ChunkId& chunk, uint16_t placementVersion, std::vector<InstanceKey> keys);
     // Test-only (S23b): a record with the version and the keys (sorted, unique; merged into an existing record of the
     // same version); the caller calls World::onRecordChanged
     void injectForTests(const ChunkId& chunk, uint16_t placementVersion, const std::vector<InstanceKey>& keys);

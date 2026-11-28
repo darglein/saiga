@@ -114,6 +114,11 @@ void registerStreamingScenarios(ScenarioList& s)
               w.step(2);
               std::set<ChunkId> stamped;
               int violations = 0, unstamped = 0;
+              // S26: on a client a chunk is resident only with the host's snapshot (one round trip after its request,
+              // the subscription): every chunk within fullRadius is resident at most 2 * delaySteps + 3 steps after it
+              // was requested (asynchronous: the client's irregular steps add up to 4)
+              std::map<ChunkId, uint64_t> requestedAt;
+              const uint64_t bound = uint64_t(2 * w.networkConfig().delaySteps + 3 + (w.networkConfig().async ? 4 : 0));
               w.addStepListener(
                   [&]()
                   {
@@ -126,7 +131,20 @@ void registerStreamingScenarios(ScenarioList& s)
                           const Transform& t = ow.read<Transform>(pe);
                           for (const ChunkId& c :
                                chunksNear(ow, t.space(), t.position(), ow.spaceTemplate(t.space()).fullRadius))
-                              if (!ow.residency().ready(c)) violations++;
+                          {
+                              if (ow.residency().ready(c))
+                              {
+                                  requestedAt.erase(c);
+                                  continue;
+                              }
+                              if (owner == 0 || !ow.residency().requested(c))
+                              {
+                                  violations++;
+                                  continue;
+                              }
+                              const uint64_t first = requestedAt.emplace(c, w.steps()).first->second;
+                              if (w.steps() - first > bound) violations++;
+                          }
                       }
                       // Host: stamped only when ready; a ready site chunk within fullRadius is stamped
                       World& host = w.world();
@@ -294,6 +312,65 @@ void registerStreamingScenarios(ScenarioList& s)
               w.check(w.stepUntil(everyPeer, 4 * syncBound(w) + 20),
                       "every peer shows the edit and hides the tombstoned tree");
               w.check(w.world().residency().ready(c), "the visited chunk is resident");
+          });
+
+    // S26: the host edits the player's chunk C every 3 steps for 30 steps while the player is moved 600 m away (beyond
+    // the kept distance of 192 m: C is unloaded and, on a client, unsubscribed and dropped) and back, dwelling 16 steps
+    // at each end (more than twice the 2 * delaySteps + 3 sync bound at delay 2): edits are in flight during the
+    // unsubscribe, the resubscription and the pending snapshot; every peer ends with the edited surface (the final
+    // comparison checks C's sequence and dense delta on the clients)
+    s.add("streaming_reload_during_edit",
+          [](ScenarioWorld& w)
+          {
+              const Vec3 start(1150, 0, 1400), far(1750, 0, 1400);
+              const Entity player = w.spawnPlayer(start);
+              w.step(3);
+              int steps = 0, edits = 0;
+              auto step = [&]()
+              {
+                  if (steps % 3 == 0 && edits < 10)
+                  {
+                      TerrainBrush b;
+                      b.op       = TerrainBrush::Add;
+                      b.center   = start + Vec3(10, 0, 0);
+                      b.radius   = 8;
+                      b.strength = 0.5;
+                      w.editTerrain(b);
+                      edits++;
+                  }
+                  w.step();
+                  steps++;
+              };
+              auto arriveAt = [&](const Vec3& p)
+              {
+                  w.check(w.world().requestArrival(player, 0, p), "requestArrival");
+                  for (int k = 0; k < 64; ++k)
+                  {
+                      const Vec3 at = w.world().read<Transform>(player).position();
+                      if (std::abs(at.x() - p.x()) < 1e-6 && std::abs(at.z() - p.z()) < 1e-6) break;
+                      step();
+                  }
+                  for (int k = 0; k < 16; ++k) step();
+              };
+              step();
+              arriveAt(far);
+              const ChunkId c = chunkOf(0, start.x(), start.z());
+              w.check(w.world().residency().state(c) == ChunkState::None, "C is unloaded on the host");
+              for (int p = 1; p <= (w.networked() ? w.clientCount() : 0); ++p)
+                  w.check(w.client(p).replication().chunkSync().state(c) == ClientChunkSync::State::None &&
+                              w.client(p).terrainEdits().entry(c) == nullptr,
+                          "C is unsubscribed and dropped on the client");
+              arriveAt(start);
+              while (edits < 10) step();
+              w.check(edits == 10, "ten edits");
+              w.step(syncBound(w));
+              const double edited = w.world().terrainHeight(0, start.x() + 10, start.z());
+              for (int p = 1; p <= (w.networked() ? w.clientCount() : 0); ++p)
+              {
+                  w.check(w.terrainHeight(start.x() + 10, start.z(), p) == edited,
+                          "the client's height at the edit equals the host's");
+                  w.check(w.client(p).chunkSynced(c), "C is synced on the client");
+              }
           });
 
     // S21's link chain into test_dungeon on the streaming setup: the site's stamped entrance; a transition requested

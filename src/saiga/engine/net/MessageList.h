@@ -53,6 +53,7 @@ class SAIGA_ENGINE_API MessageList
     {
         MessageId id = 0;
         std::string name;
+        uint32_t version        = 0;  // M::version, or addRaw's (S26: in the network schema)
         Reliability reliability = Reliability::Reliable;
         Channel channel         = Channel::Control;
         size_t minSize          = 0;  // minimum encoded payload (0 for raw messages)
@@ -68,6 +69,7 @@ class SAIGA_ENGINE_API MessageList
         Entry e;
         e.id          = M::id;
         e.name        = M::name;
+        e.version     = M::version;
         e.reliability = reliability;
         e.channel     = MessageDetail::ChannelOf<M>::value;
         e.minSize     = minEncodedSize<M>();
@@ -80,7 +82,7 @@ class SAIGA_ENGINE_API MessageList
         };
         addEntry(std::move(e));
     }
-    void addRaw(MessageId id, const char* name, Reliability reliability, Channel channel,
+    void addRaw(MessageId id, const char* name, uint32_t version, Reliability reliability, Channel channel,
                 void (*handler)(World&, uint8_t fromPeer, const uint8_t* data, size_t size));
 
     const Entry* find(MessageId id) const;

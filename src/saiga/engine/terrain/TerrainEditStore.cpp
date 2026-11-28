@@ -300,6 +300,46 @@ void TerrainEditStore::setSequence(const ChunkId& chunk, uint32_t sequence)
     it->second.sequence = sequence;
 }
 
+void TerrainEditStore::removeEntry(const ChunkId& chunk)
+{
+    spaces[chunk.space].chunks.erase(chunk);
+}
+
+void TerrainEditStore::dropChunk(const ChunkId& chunk, const std::function<bool(const ChunkId&)>& keep)
+{
+    Space& s = spaces[chunk.space];
+    s.chunks.erase(chunk);
+    if (s.blocks.empty()) return;
+    const int64_t i0 = int64_t(chunk.x) * s.S, k0 = int64_t(chunk.z) * s.S;
+    std::vector<ChunkId> owners;
+    for (int64_t k = k0; k <= k0 + s.S; ++k)
+        for (int64_t i = i0; i <= i0 + s.S; ++i)
+        {
+            if (delta(chunk.space, i, k) == 0) continue;
+            // A sample on the border stays when another kept chunk contains it
+            bool kept = false;
+            if (i == i0 || i == i0 + s.S || k == k0 || k == k0 + s.S)
+            {
+                chunksOfSample(chunk.space, i, k, owners);
+                for (const ChunkId& c : owners) kept = kept || (c != chunk && keep(c));
+            }
+            if (kept) continue;
+            reserveFor(chunk.space, i, k, 0);
+            writeDelta(chunk.space, i, k, 0);
+        }
+    // The blocks of the chunk's range that hold only zeros now are freed (a client visiting many edited chunks would
+    // otherwise keep every block it ever saw); a block with a kept neighbour's sample stays. Only the store's
+    // reference goes: a frozen commit (FrozenTerrain) may still hold the block.
+    for (int64_t bk = k0 >> 4; bk <= (k0 + s.S) >> 4; ++bk)
+        for (int64_t bi = i0 >> 4; bi <= (i0 + s.S) >> 4; ++bi)
+        {
+            auto it = s.blocks.find(blockKey(bi << 4, bk << 4));
+            if (it == s.blocks.end()) continue;
+            const int32_t* d = it->second->delta;
+            if (std::all_of(d, d + 256, [](int32_t v) { return v == 0; })) s.blocks.erase(it);
+        }
+}
+
 void TerrainEditStore::clear()
 {
     for (SpaceId i = 0; i < spaces.size(); ++i) clearSpace(i);

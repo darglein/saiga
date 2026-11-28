@@ -8,6 +8,7 @@
 
 #include "saiga/engine/save/SaveReader.h"
 
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/save/EntityGroup.h"
 #include "saiga/engine/save/SaveFormat.h"
@@ -280,6 +281,14 @@ bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSecti
                 {
                     error = "space " + std::to_string(sp.space) + ": a tombstone count of " + std::to_string(keys) +
                             " does not fit";
+                    return false;
+                }
+                // The cap of every record (S26, D14): a loaded record must fit a chunk snapshot, or it could never be
+                // synchronized to a client
+                if (keys > kMaxChunkTombstones)
+                {
+                    error = "space " + std::to_string(sp.space) + ": a tombstone count of " + std::to_string(keys) +
+                            " exceeds the cap of " + std::to_string(kMaxChunkTombstones);
                     return false;
                 }
                 rec.tombstones.resize(keys);

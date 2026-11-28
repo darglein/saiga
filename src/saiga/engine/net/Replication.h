@@ -17,6 +17,8 @@
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/net/ClientChunkSync.h"
+#include "saiga/engine/net/HostChunkSubscriptions.h"
 #include "saiga/engine/net/HostClock.h"
 #include "saiga/engine/net/InterpolationSystem.h"
 #include "saiga/engine/net/NetIds.h"
@@ -28,6 +30,7 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,7 +48,7 @@ struct HierarchyMessage;
 struct PlayerActionMessage;
 struct PingMessage;
 struct PongMessage;
-struct ResyncMessage;
+struct GenerationInfo;
 
 class SAIGA_ENGINE_API Replication final : public NetIdResolver
 {
@@ -65,11 +68,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         // S22: terrain messages sent (host) / applied, duplicate parts dropped and messages of another epoch (client)
         uint64_t terrainMessagesSent = 0, terrainBytesSent = 0, terrainMessagesApplied = 0;
         uint64_t terrainPartsDuplicate = 0, terrainDroppedEpoch = 0;
-        // S23a: GenerationState messages sent (host) and dropped as of an older epoch (client)
-        uint64_t generationStatesSent = 0, generationStatesDroppedEpoch = 0;
-        // S23b: TombstoneModification / ChunkRecordState messages sent (host; per peer) and applied, tombstone entries
-        // applied and dropped as duplicates, record messages of another epoch (client)
-        uint64_t tombstoneMessagesSent = 0, recordStatesSent = 0, recordMessagesApplied = 0;
+        // S23b: TombstoneModification messages sent (host; per peer) and applied, tombstone entries applied and dropped
+        // as duplicates, messages of another epoch (client)
+        uint64_t tombstoneMessagesSent = 0, recordMessagesApplied = 0;
         uint64_t tombstonesApplied = 0, tombstonesDuplicate = 0, recordsDroppedEpoch = 0;
     };
 
@@ -135,29 +136,26 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onDespawn(uint8_t from, const DespawnMessage& m);
     void onHierarchy(uint8_t from, const HierarchyMessage& m);
     void onOwnerCommand(uint8_t from, const OwnerCommandMessage& m);
+    // Client: OwnerCommands whose entity was not spawned yet are applied once it is (after every receive pass)
+    void retryOwnerCommands();
     void onPlayerAction(uint8_t from, const PlayerActionMessage& m);
     void onPing(uint8_t from, const PingMessage& m);
     void onPong(uint8_t from, const PongMessage& m);
-    void onResync(uint8_t from, const ResyncMessage& m);
-    // S22: a client applies a host's terrain modification / chunk state (validated on its own: no check against the
-    // present neighbours, the host is authoritative); no hook is called
-    void onTerrainModification(uint8_t from, const uint8_t* data, size_t size);
-    void onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size);
-    // S23b: a client applies the host's tombstones / chunk records (validated as a whole before anything applies)
-    void onTombstoneModification(uint8_t from, const uint8_t* data, size_t size);
-    void onChunkRecordState(uint8_t from, const uint8_t* data, size_t size);
-    // S23a: the client checks the host's generation state (validate and refuse: World::generationMismatch)
-    void onGenerationState(uint8_t from, const uint8_t* data, size_t size);
-    // Client (S23a): rejects a terrain message after a refused GenerationState, or before a checked one when this
-    // client's world writes generation state; returns true if rejected
-    bool terrainRefused(uint8_t from, const char* what);
-    // Host (S23a): the GenerationState to a peer, only when the world writes generation state
-    void sendGenerationState(uint8_t peer);
-    // Host (S22, E5): one TerrainChunkState per chunk with terrain state (sequence > 0) of every space, in SpaceId and
-    // ChunkId order (the dense delta only for chunks with deltas): after the spawn set of a join, after Resync on a
-    // host load. S23b sends the ChunkRecordStates first: the records with tombstones or another placement version than
-    // the current one, per space, split by the part and key bounds. S26 replaces it with per-loaded-chunk snapshots
-    void sendChunkSnapshot(uint8_t peer);
+    // S26: a host load (Resync v2 with the generation info): the client drops its replicated entities and chunk state,
+    // adopts the generation info and subscribes its chunks again in the new epoch
+    void onResync(uint8_t from, const uint8_t* data, size_t size);
+    // S26, the handshake (§13.2): the host checks a JoinRequest (admission or JoinReject); the client handles the
+    // host's JoinReject / JoinAccept (adoption of the generation info, Joined)
+    void onJoinRequest(uint8_t from, const uint8_t* data, size_t size);
+    void onJoinReject(uint8_t from, const uint8_t* data, size_t size);
+    void onJoinAccept(uint8_t from, const uint8_t* data, size_t size);
+    // Client: sends the JoinRequest (the transport connected to the host)
+    void sendJoinRequest();
+    // S26: the chunk sync (host: the subscriptions and snapshots; client: the per-chunk state)
+    HostChunkSubscriptions& subscriptions() { return *hostChunks; }
+    const HostChunkSubscriptions& subscriptions() const { return *hostChunks; }
+    ClientChunkSync& chunkSync() { return *clientChunks; }
+    const ClientChunkSync& chunkSync() const { return *clientChunks; }
 
     // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
     // peer after the component changes (also by stepNetworkOnly's extract), the sent ones removed when the step commits
@@ -256,14 +254,25 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     size_t hostStatesSent = 0;
     // Entry buffers of reserveTombstones (capacity reserved), taken by appendTombstone for new entries
     std::vector<std::vector<TombstoneEntry>> spareTombstones;
-    // S23b, client: a rejected record message (counted, logged in the categories net and content)
-    void rejectContent(uint8_t from, const std::string& why);
     // S23b, client Resync: S22's store and the chunk records together, then onTerrainChanged per cleared chunk with
     // deltas and onRecordChanged per cleared record
     void clearReplicatedChunkState();
-    void sendRecordStates(uint8_t peer);
-    // Phase 8 (both extract paths): the host state list to the regular peers
+    // Phase 8 (both extract paths): the host state list to every admitted peer, each entry with the parts / entries of
+    // the chunks the peer subscribed (S26, D8)
     void sendHostStates();
+    // S26, client: the host's generation info against this build: adopts other pins (World::replaceGeneration) and
+    // checks the plans; false with the error (the join or the Resync fails)
+    bool adoptGeneration(const GenerationInfo& host, std::string& error);
+    // S26: the chunk sync of both roles
+    std::unique_ptr<HostChunkSubscriptions> hostChunks;
+    std::unique_ptr<ClientChunkSync> clientChunks;
+    std::vector<uint8_t> filtered;
+    // Host: the step (+ 1; 0 = never) of the last JoinReject per peer (one per peer and step)
+    std::array<uint64_t, 256> joinRejectedAtStep{};
+    // Client: OwnerCommands that overtook their entity's Spawn (the step they arrived; bounded, dropped after a while)
+    std::vector<std::pair<uint64_t, std::shared_ptr<OwnerCommandMessage>>> pendingOwnerCommands;
+    static constexpr size_t kMaxPendingOwnerCommands    = 256;
+    static constexpr uint64_t kPendingOwnerCommandSteps = 600;
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;
@@ -374,6 +383,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     friend SAIGA_ENGINE_API void interpolationSystem(World& world, double dt);
     // The space primitive (S21) notes its writes (World::setSubtreeSpace, teleportTo)
     friend class World;
+    // S26: the client's chunk sync counts in the S22 / S23b statistics
+    friend class ClientChunkSync;
 };
 
 // Phase 5 (host): the owners' latest states of client-owned roots (§13.3); see Replication::ownerPose

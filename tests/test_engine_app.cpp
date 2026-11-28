@@ -1880,17 +1880,21 @@ TEST(EngineAppCoop, InterleavedStepsAndTheClientsPlayer)
             return true;
         });
 
-    // The join is seen in the first host step; the player arrives 1 + delay steps later and becomes the local player
+    // S26: the join is seen in the host step that admits the client's JoinRequest (one round trip at delay 2: host
+    // step 4); the player arrives 1 + delay steps later and becomes the local player
     app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(g_coop.joined.empty());
+    int frames = 1;
+    for (; frames < 16 && g_coop.joined.empty(); ++frames) app.runFrames(1, 1.0 / 60);
     ASSERT_EQ(g_coop.joined, std::vector<uint8_t>{1});
+    EXPECT_EQ(host.stepIndex(), 4u);
     EXPECT_FALSE(app.localPlayer().valid());
-    app.runFrames(6, 1.0 / 60);
+    for (int k = 0; k < 16 && !app.localPlayer().valid(); ++k) app.runFrames(1, 1.0 / 60);
     const Entity mine = app.localPlayer();
     ASSERT_TRUE(mine.valid());
     EXPECT_EQ(client.read<Player>(mine).peer, 1);
     EXPECT_EQ(client.read<Player>(mine).characterId, 101u);
-    EXPECT_EQ(host.stepIndex(), 7u);
-    EXPECT_EQ(client.stepIndex(), 7u);
+    EXPECT_EQ(host.stepIndex(), client.stepIndex());
 
     // A low frame rate: several steps per frame, interleaved host / client (the client never gets two host steps in
     // one round); one accumulator, so both worlds have the same step count and the client's alpha follows the host
@@ -1996,6 +2000,14 @@ TEST(EngineAppCoop, ToolsActOnBothWorlds)
     const Json ws = toolJson(callApp(app, "world_status", Json::object{}));
     EXPECT_EQ(ws["host"]["step"].number_value(), double(host.stepIndex())) << ws.dump();
     EXPECT_TRUE(ws["host"]["hash"].is_string());
+    // S26 (R-MCP-1): the client's handshake, the schema hash and its chunk sync
+    EXPECT_EQ(ws["net"]["join"]["state"].string_value(), "joined") << ws.dump();
+    EXPECT_EQ(ws["net"]["schema_hash"].string_value().size(), 16u);
+    EXPECT_EQ(ws["net"]["chunks"]["pending"].number_value(), 0);
+    EXPECT_EQ(ws["net"]["chunks"]["rerequests"].number_value(), 0);
+    const Json ci = toolJson(callApp(app, "chunk_info", obj(R"({"position": [10, 10]})")));
+    EXPECT_EQ(ci["sync"]["state"].string_value(), "synced") << ci.dump();
+    EXPECT_EQ(ci["sync"]["queued_parts"].number_value(), 0);
     const Json gp = toolJson(callApp(app, "get_profile", obj(R"({"steps": 5})")));
     EXPECT_EQ(gp["host"]["samples"].number_value(), 5) << gp.dump();
 
@@ -2139,7 +2151,10 @@ TEST(EngineCoopLeave, PeersLeftAndDestroyOwnedBy)
     auto client  = std::make_unique<World>(cs);
     host.step();
     client->step();
+    // S26: admitted in the host step that handles the JoinRequest
+    host.step();
     ASSERT_EQ(host.peersJoined(), std::vector<uint8_t>{1});
+    client->step();
     // The peer's player with a child, and a host-owned vehicle
     const Entity player = host.create();
     Player pl;
@@ -2602,7 +2617,7 @@ TEST_F(EngineAppRender, ScreenshotCompletesTheView)
     const Json c =
         callWhileRunning(app, "set_camera", obj(R"({"position": [6500, 120, 7000], "yaw_deg": 30, "pitch_deg": -30})"));
     ASSERT_FALSE(isError(c)) << c.dump();
-    const Json r = callWhileRunning(app, "screenshot", Json::object{});
+    const Json r = callWhileRunning(app, "screenshot", obj(R"({"complete": true})"));
     ASSERT_FALSE(isError(r)) << r.dump().substr(0, 300);
     const Vec3 cam = app.viewCamera().position;
     EXPECT_EQ(app.world().terrain().readiness(0, cam, 1e9), 1.0);
@@ -2628,7 +2643,7 @@ TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
     } open;
     ASSERT_FALSE(isError(callWhileRunning(app, "set_camera", obj(R"({"position": [7000, 120, 7500]})"))));
     double seconds = 0;
-    const Json r   = callWhileRunning(app, "screenshot", Json::object{}, &seconds);
+    const Json r   = callWhileRunning(app, "screenshot", obj(R"({"complete": true})"), &seconds);
     ASSERT_TRUE(isError(r)) << r.dump().substr(0, 300);
     EXPECT_NE(errorText(r).find("terrain not complete before the deadline"), std::string::npos) << errorText(r);
     // The answer is the tool's own (a call past the 0.6 s timeout would answer with the timeout error); the wall-clock
@@ -2641,8 +2656,29 @@ TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
     TerrainTestHooks::openLatch();
     // Streams the new view: a timeout that a loaded machine meets (the deadline was tested above)
     app.mcp().toolTimeoutSeconds = 30;
-    const Json ok                = callWhileRunning(app, "screenshot", Json::object{});
+    const Json ok                = callWhileRunning(app, "screenshot", obj(R"({"complete": true})"));
     EXPECT_FALSE(isError(ok)) << ok.dump().substr(0, 300);
+}
+
+// The default screenshot is the current frame (what the user sees): with the workers held after a far camera move it
+// answers at once without completing the view (no complete point, the terrain still pending), unlike complete: true
+TEST_F(EngineAppRender, ScreenshotDefaultIsTheCurrentFrame)
+{
+    EngineApp app(terrainAppSetup(TerrainTestHooks::latchedHook));
+    noTerrainDraws(app);
+    app.setViewCamera(0, Vec3(500, 80, 500), Quat::Identity(), 1.0);
+    app.runFrames(2, 1.0 / 60);
+    TerrainTestHooks::armLatch();
+    struct Open
+    {
+        ~Open() { TerrainTestHooks::openLatch(); }
+    } open;
+    ASSERT_FALSE(isError(callWhileRunning(app, "set_camera", obj(R"({"position": [7000, 120, 7500]})"))));
+    const Json r = callWhileRunning(app, "screenshot", Json::object{});
+    ASSERT_FALSE(isError(r)) << r.dump().substr(0, 300);
+    EXPECT_LT(app.world().terrain().readiness(0, app.viewCamera().position, 256), 1.0);
+    EXPECT_EQ(app.lastTerrainStreamMs(), 0.0);
+    EXPECT_TRUE(isError(callWhileRunning(app, "screenshot", obj(R"({"complete": 1})"))));
 }
 
 // setCompleteViewEachFrame: every frame completes; the frame that generated tiles at the origin (100 ms each) has its
@@ -2868,7 +2904,7 @@ TEST_F(EngineAppRender, SpaceLoadingSequence)
     app.setViewCameraByTool(3, Vec3(2000, 300, 2000), Quat::Identity(), 1.0, true);
     frame();
     ASSERT_NE(app.spaceLoading(), nullptr);
-    const Json shot = callWhileRunning(app, "screenshot", Json::object{});
+    const Json shot = callWhileRunning(app, "screenshot", obj(R"({"complete": true})"));
     EXPECT_FALSE(isError(shot)) << shot.dump().substr(0, 300);
     EXPECT_EQ(app.spaceLoading(), nullptr);
 

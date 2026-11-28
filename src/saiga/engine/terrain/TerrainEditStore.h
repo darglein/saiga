@@ -24,6 +24,7 @@
 #include "saiga/export.h"
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <vector>
@@ -143,6 +144,12 @@ class SAIGA_ENGINE_API TerrainEditStore
     void bumpSequence(const ChunkId& chunk);
     // The sequence of a client message or a load (> 0; creates the entry if missing)
     void setSequence(const ChunkId& chunk, uint32_t sequence);
+    // S26, client: removes the chunk's entry (its samples stay; a snapshot with sequence 0)
+    void removeEntry(const ChunkId& chunk);
+    // S26, client unload (D10): removes the chunk's entry and writes 0 to every sample of its closed range that no
+    // chunk with keep(c) == true contains (a shared block is cloned first; zero writes allocate nothing else); the
+    // neighbours' nonZeroSamples follow writeDelta's rule
+    void dropChunk(const ChunkId& chunk, const std::function<bool(const ChunkId&)>& keep);
     // Drops every block and entry (a load's replace, a client Resync); the counter keeps counting
     void clear();
     // Drops the entries and blocks of one space

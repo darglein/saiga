@@ -109,7 +109,7 @@ src/
                         readiness, the single send point to the sink), TerrainStore, TerrainGeneration; S22
                         terraforming: TerrainBrush and the integer BrushKernel, applyTerrainEdit (World::editTerrain),
                         TerrainEditStore (delta blocks, per-chunk sequence, World::terrainEdits / terrainSample),
-                        TerrainDeltaCodec, TerrainMessages (TerrainModification, TerrainChunkState), the visual path
+                        TerrainDeltaCodec, TerrainMessages (TerrainModification), the visual path
                         (TerrainVisualPatch: merge at the send point and edited grass masks, TerrainDirtyQueue: the
                         patch step); tests/test_engine_terrain_edit.cpp, _net.cpp, _benchmark.cpp; S23a: HookGenerator
                         (an S20 height hook as a Generator: the games' prototype fixture, the tests' hooks);
@@ -122,12 +122,12 @@ src/
                         (checkContentHashes), ContentConvert (exact conversions), ChunkRecords (CREC state: placement
                         versions and, S23b, tombstones), chunkStampSystem (phase 7, host); S23b: Tombstones
                         (World::tombstone's checks and apply, tombstone-on-edit inside applyTerrainEdit,
-                        tierOneSurface), ContentMessages (TombstoneModification, ChunkRecordState),
+                        tierOneSurface), ContentMessages (TombstoneModification),
                         ContentRenderSystem (the content render sets: one instance set per chunk, centres None / View
                         (EngineApp) / Players (ScenarioWorld), the re-snap queue); content/gen/ (integer only, linted): FixedMath.h, TrigTable,
                         IntNoise, SitePatch, ChunkGeneration, SectionHash, FlatGenerator (GeneratorId 0),
                         AuthoredSpaceGenerator; api/ComponentJson (the component-JSON path of spawn and stamping);
-                        net/GenerationStateMessage; tests/test_engine_content.cpp (+ content_lint.h, the fixture in
+                        net/GenerationInfo (S26: the generation info of JoinAccept and Resync); tests/test_engine_content.cpp (+ content_lint.h, the fixture in
                         tests/content_lint_fixture/, content_test_generator.h, content_test_setup.h),
                         _content_benchmark.cpp; streaming/ (S24, §12.3; worlds with WorldConfig::streaming):
                         ChunkResidency (the resident chunk set around the streaming centres: pinned level-0 base tiles,
@@ -177,7 +177,15 @@ src/
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
                         World::send), the replication (S16: Replication with the host's NetId table and the client
                         handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
-                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld);
+                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld;
+                        S26 the world over the network: the handshake JoinRequest / JoinReject / JoinAccept and Resync
+                        v2 (JoinMessages, JoinCheck, kProtocolVersion; admission gates the peer lists), NetSchema (the
+                        wire's registration, section hashes), GenerationInfo (the adoption of the host's pins,
+                        World::replaceGeneration), ChunkMessages (ChunkInterest, ChunkSnapshot, ChunkIndex),
+                        ClientChunkSync (per chunk Pending / Synced, the queue, re-requests, unload drops, the `all`
+                        subscription of worlds without streaming), HostChunkSubscriptions (subscriptions, the budgeted
+                        snapshot queue, per-peer filtering of the live modifications), WireFormat.h;
+                        tests/test_engine_world_net.cpp, tests/world_net_test_setup.h);
                         sync/ (S19b, depends on saiga_vulkan): RenderSink, VulkanRenderSink (over RenderScene),
                         RecordingRenderSink (tests, every scenario world), ExtractSystem (render instances from the
                         structural log, pose pairs from Transform or RenderPose, the catch-up between steps,
@@ -323,7 +331,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-94 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+95 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -391,9 +399,9 @@ ctest -R test_core_ini --output-on-failure             # one test
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
     `test_vulkan_world` 9.5 s (prototype scenes with terrain and trees; S36: their frames shade with the lighting's
-    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 7.5 s
-    (73 tests; the MCP deadline tests wait ~3 s of real time; S24: the streaming app tests 0.8 s, an app whose complete
-    point and arrival generate the residency of a terrain space), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
+    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 8.5 s
+    (75 tests; the MCP deadline tests wait ~3 s of real time; S24: the streaming app tests 0.6 s, an app whose complete
+    point and arrival generate the residency of a terrain space; measured 8.1-8.3 s alone after S26, 6.9 s before S24), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
     the S36 golden mode: cascades at 1024, the horizon map, ACES), `test_engine_content` 6 s (the test generator's
     pyramids and the committed hashes), `test_vulkan_scene` 5.5 s, `test_vulkan_terrain` 5 s, the S36 lighting
     binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`
@@ -401,7 +409,8 @@ ctest -R test_core_ini --output-on-failure             # one test
     earlier 3.5 s line was stale), `test_engine_lighting_render` 3 s (goldens),
     `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), S25's `test_engine_save_crash` 1 s
     (the crash enumeration: every operation of a commit in four image kinds), `test_engine_save_directory` 1 s and
-    `test_engine_unload` 0.5 s (memory file system, flat worlds), every other binary <= 2 s. These
+    `test_engine_unload` 0.5 s (memory file system, flat worlds), S26's `test_engine_world_net` 1.5 s (a host and up
+    to 8 clients per test over loopback; the join data of 50 edited 1 m chunks), every other binary <= 2 s. These
     are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the

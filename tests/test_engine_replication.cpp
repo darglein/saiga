@@ -238,7 +238,22 @@ struct Net
         s.transport   = t[0].get();
         host          = std::make_unique<World>(s);
         if (createClients)
+        {
             for (int i = 1; i <= n; ++i) addClient(i);
+            join();
+        }
+    }
+    // S26: the handshake of every client (the host admits each one before it receives the world)
+    void join()
+    {
+        auto joined = [&]()
+        {
+            for (auto& c : clients)
+                if (c->joinState() != JoinState::Joined) return false;
+            return true;
+        };
+        for (int k = 0; k < 64 && !joined(); ++k) step();
+        EXPECT_TRUE(joined());
     }
     void addClient(int i)
     {
@@ -436,8 +451,8 @@ TEST(Replication, CompressedOrRaw)
 
 TEST(Roles, RunOnFiltering)
 {
-    g_ran.clear();
     Net n;
+    g_ran.clear();  // after the handshake's steps
     n.step(3);
     EXPECT_EQ((g_ran[{true, 0}]), 3);
     EXPECT_EQ((g_ran[{true, 1}]), 0);

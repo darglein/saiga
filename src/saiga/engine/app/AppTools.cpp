@@ -168,7 +168,13 @@ struct ScreenshotRequest
     bool gui = false;
     // S36a1b: the frame's lighting debug view and overlays (a one-frame override; nullopt: the user's)
     std::optional<Vulkan::LightingDebugState> debug;
-    bool sameFrame(const ScreenshotRequest& o) const { return gui == o.gui && debug == o.debug; }
+    // complete: the frame after the view's terrain is streamed completely (a complete point that blocks the window);
+    // false (default): the next frame as it is, what the user sees
+    bool complete = false;
+    bool sameFrame(const ScreenshotRequest& o) const
+    {
+        return gui == o.gui && debug == o.debug && complete == o.complete;
+    }
     bool answered = false;
     std::function<void(const TemplatedImage<ucvec4>&)> answer;
     // The answer deadline of the tool call (answerDeadline, S20): the frame's terrain completion is bounded by the
@@ -187,6 +193,7 @@ struct ScreenshotBatch
     bool inFlight = false;  // a readback and its frame callback are registered
     bool gui      = false;  // the option of current
     std::optional<Vulkan::LightingDebugState> debug;
+    bool complete = false;  // the option of current
     std::vector<std::shared_ptr<ScreenshotRequest>> current, deferred;
     bool hasImage = false;
     TemplatedImage<ucvec4> image;
@@ -206,8 +213,9 @@ void updateBatch(EngineApp& app, ScreenshotBatch& batch)
         std::vector<std::shared_ptr<ScreenshotRequest>> rest;
         for (auto& r : batch.deferred) (r->sameFrame(*first) ? batch.current : rest).push_back(r);
         batch.deferred.swap(rest);
-        batch.gui   = first->gui;
-        batch.debug = first->debug;
+        batch.gui      = first->gui;
+        batch.debug    = first->debug;
+        batch.complete = first->complete;
     }
     if (!app.scene()) return;
     if (batch.inFlight && !batch.current.empty())
@@ -257,10 +265,12 @@ void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& bat
     if (batch->inFlight)
     {
         // Joins the waiting readback (or adopts it when the deadline answered all its requests)
-        if (batch->current.empty() || (batch->gui == r->gui && batch->debug == r->debug))
+        if (batch->current.empty() ||
+            (batch->gui == r->gui && batch->debug == r->debug && batch->complete == r->complete))
         {
-            batch->gui   = r->gui;
-            batch->debug = r->debug;
+            batch->gui      = r->gui;
+            batch->debug    = r->debug;
+            batch->complete = r->complete;
             batch->current.push_back(r);
         }
         else
@@ -271,16 +281,19 @@ void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& bat
     batch->inFlight = true;
     batch->gui      = r->gui;
     batch->debug    = r->debug;
+    batch->complete = r->complete;
     batch->current.push_back(r);
     updateBatch(app, *batch);
-    // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers. A capture
-    // of the app (S20): the view's terrain is completed and the uploads finish first
+    // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers. A complete
+    // capture of the app (S20): the view's terrain is completed and the uploads finish first; otherwise the next frame
+    // as the user sees it
     app.requestCapture(
         [batch](const TemplatedImage<ucvec4>& img)
         {
             batch->image    = img;
             batch->hasImage = true;
-        });
+        },
+        false, batch->complete);
     app.onFrameRendered(
         [&app, batch]()
         {
@@ -546,14 +559,18 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "frame "
         "number. The GUI is hidden unless gui=true (only in that frame: the app's GUI visibility is not changed). An "
         "error without a device "
-        "or when no frame is rendered before the deadline (rendering disabled, a minimized window). The frame shows "
-        "the "
-        "complete terrain of the view (streamed first; an error if that does not finish before the deadline). S36: "
+        "or when no frame is rendered before the deadline (rendering disabled, a minimized window). By default the "
+        "image is the next frame as it is, what the user sees in the window (terrain still streaming shows as it is). "
+        "complete: true first streams the complete terrain of the view (and the residency of the streaming centres): "
+        "a complete point that blocks the window, up to seconds after a far move; an error if that does not finish "
+        "before the deadline. S36: "
         "lighting_view (a set_lighting_debug view name) and overlays (a list of overlay names) render that frame with "
         "the debug view and overlays (a one-frame override; the next frame is back to the user's; the one not given "
         "keeps the user's). Changes nothing.",
         schema(
             {{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
+             {"complete", McpServer::BooleanProperty("Stream the view's terrain completely first; blocks the window "
+                                                     "(default false: the current frame, as the user sees it)")},
              {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
              {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")},
              {"lighting_view", McpServer::StringProperty("The lighting debug view of this frame (set_lighting_debug)")},
@@ -562,9 +579,12 @@ void registerAppTools(McpServer& server, EngineApp& app)
                                        {"items", Json::object{{"type", "string"}}}}}}),
         [&app, &server, batch](const Json& args, McpServer::Respond respond)
         {
-            if (unknownArgument(args, {"gui", "format", "max_width", "lighting_view", "overlays"}, respond)) return;
+            if (unknownArgument(args, {"gui", "complete", "format", "max_width", "lighting_view", "overlays"}, respond))
+                return;
             if (!app.scene()) return respond(ToolResult::Error("screenshot: this app renders no frames (no device)"));
             if (!args["gui"].is_null() && !args["gui"].is_bool()) return respond(ToolResult::Error("gui: a bool"));
+            if (!args["complete"].is_null() && !args["complete"].is_bool())
+                return respond(ToolResult::Error("complete: a bool"));
             const bool gui           = args["gui"].bool_value();
             const std::string format = args["format"].is_null() ? "jpg" : args["format"].string_value();
             if (format != "jpg" && format != "png") return respond(ToolResult::Error("format: jpg or png"));
@@ -590,6 +610,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
             }
             const auto deadline = answerDeadline(server);
             r->gui              = gui;
+            r->complete         = args["complete"].bool_value();
             r->deadline         = deadline;
             r->fail             = [respond](const std::string& message) { respond(ToolResult::Error(message)); };
             r->answer           = [&app, respond, format, maxWidth](const TemplatedImage<ucvec4>& image)

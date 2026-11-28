@@ -145,13 +145,23 @@ TEST(TerrainEditBenchmark, Schedule)
         std::vector<double> kernel, apply, encode, decode, sampleMs;
         std::vector<uint64_t> hooks;
         uint64_t bytes = 0;
-        // A client world for the decode / apply
+        // A client world for the decode / apply: joined to a host of the same setup, every chunk synced (S26: the
+        // `all` subscription of a world without streaming)
         auto net      = LoopbackTransport::createNetwork(2);
+        WorldSetup hs = setupWith(hook);
+        hs.transport  = net[0].get();
+        World joinHost(hs);
         WorldSetup cs = setupWith(hook);
         cs.transport  = net[1].get();
         cs.role       = NetRole::Client;
         cs.localPeer  = 1;
         World client(cs);
+        for (int i = 0; i < 16 && !client.replication().chunkSync().allIndexed(); ++i)
+        {
+            joinHost.step();
+            client.step();
+        }
+        ASSERT_TRUE(client.replication().chunkSync().allIndexed());
         std::vector<int32_t> base, pre, out;
         for (int e = 0; e < 600; ++e)
         {
@@ -182,7 +192,7 @@ TEST(TerrainEditBenchmark, Schedule)
                 encode.push_back(ms(e0, Clock::now()));
                 bytes += m.size();
                 const auto d0 = Clock::now();
-                client.replication().onTerrainModification(0, m.data(), m.size());
+                client.replication().chunkSync().onTerrainModification(0, m.data(), m.size());
                 decode.push_back(ms(d0, Clock::now()));
                 w.replication().clearHostStates();
             }
@@ -254,24 +264,36 @@ TEST(TerrainEditBenchmark, HashSaveLoadAndJoinOfFiftyChunks)
     hs.transport  = net[0].get();
     World host(hs);
     fillFiftyChunks(host);
-    t0 = Clock::now();
-    host.replication().sendChunkSnapshot(1);
-    host.flushOutbox();
-    const double encodeMs = ms(t0, Clock::now());
-    WorldSetup cs         = setupWith(Vulkan::prototypeHeight);
-    cs.transport          = net[1].get();
-    cs.role               = NetRole::Client;
-    cs.localPeer          = 1;
+    WorldSetup cs = setupWith(Vulkan::prototypeHeight);
+    cs.transport  = net[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
     World client(cs);
     const uint64_t clientHooks = client.terrain().baseHookSamples();
-    t0                         = Clock::now();
-    client.step();
-    const double applyMs = ms(t0, Clock::now());
+    // S26: the handshake, the `all` subscription, the index and the 50 snapshots (budgeted per step): the host steps
+    // encode the snapshots, the client steps apply them
+    double encodeMs = 0, applyMs = 0;
+    auto synced = [&]()
+    {
+        const ClientChunkSync& s = client.replication().chunkSync();
+        return s.allIndexed() && s.pendingCount() == 0 && host.replication().subscriptions().queuedSnapshots() == 0;
+    };
+    for (int i = 0; i < 200 && !synced(); ++i)
+    {
+        t0 = Clock::now();
+        host.step();
+        encodeMs += ms(t0, Clock::now());
+        t0 = Clock::now();
+        client.step();
+        applyMs += ms(t0, Clock::now());
+    }
+    EXPECT_TRUE(synced());
     EXPECT_EQ(client.terrainEdits().chunkCount(), 50u);
     EXPECT_EQ(client.terrain().baseHookSamples(), clientHooks);
     std::cout << "50 full-chunk edited chunks at 1 m: hash " << hashMs << " ms (cached " << cached << " ms), save "
-              << saveMs << " ms (" << blob.size() << " bytes), load " << loadMs << " ms; join: snapshot encode "
-              << encodeMs << " ms, client apply " << applyMs << " ms" << std::endl;
+              << saveMs << " ms (" << blob.size() << " bytes), load " << loadMs << " ms; join: host steps " << encodeMs
+              << " ms, client steps " << applyMs << " ms, " << host.replication().subscriptions().stats().snapshotBytes
+              << " snapshot bytes" << std::endl;
 }
 
 TEST(TerrainEditBenchmark, GrassMaskAndPatchStep)

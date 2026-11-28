@@ -1559,14 +1559,16 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
 // NetId. The client's LightSource is replicated (HostReliable), so the old editor's set_component on the client world
 // was refused (only a log line): nothing could be edited. Regression (round 4, minor 2): the editor showed and resent
 // every field of the client's replica, which lags the host by the replication delay, so an edit of a second field
-// right after the first wrote the first field's old value back to the host
+// right after the first wrote the first field's old value back to the host. About 0.5 s (above the 0.5 s guideline):
+// a co-op app renders every frame on lavapipe, and the replication delay plus the S26 handshake need ~25 frames.
 TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
 {
     if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
     AppOptions o;
     o.coop = true;
-    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags
-    o.coopDelay = 20;
+    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags (S26:
+    // 10, not 20: the handshake's round trip comes first and every frame renders on lavapipe)
+    o.coopDelay = 10;
     EngineApp app(tabSetup(true), o);
     ASSERT_NE(app.hostWorld(), nullptr);
     Vulkan::LightingParameters lp = app.scene()->lightingParameters();
@@ -1576,7 +1578,10 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     const Entity lamp = host.create();
     host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
     host.add<LightSource>(lamp, LightSource());
-    app.runFrames(30, 1.0 / 60);
+    // S26: the handshake's round trip comes first (until the replica arrived, at most 100 frames)
+    for (int k = 0; k < 100 && !app.world().replication().entityOfNetId(host.replication().netIdOf(lamp)).valid(); ++k)
+        app.runFrames(1, 1.0 / 60);
+    app.runFrames(1, 1.0 / 60);
     // The client's replica and its rendered light
     const NetId id = host.replication().netIdOf(lamp);
     ASSERT_NE(id, 0u);

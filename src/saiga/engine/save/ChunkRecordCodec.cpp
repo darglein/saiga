@@ -7,6 +7,7 @@
 #include "saiga/engine/save/ChunkRecordCodec.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 
 #include <algorithm>
@@ -330,7 +331,8 @@ bool decodeRecord(const uint8_t* data, size_t size, RecordContent& out, std::str
             s.read(out.placementVersion);
             s.read(stamped);
             s.read(count);
-            if (!s.ok() || stamped > 1 || uint64_t(count) * 5 > s.remaining())
+            // The tombstone cap of every record (S26, D14: a record must fit a chunk snapshot)
+            if (!s.ok() || stamped > 1 || uint64_t(count) * 5 > s.remaining() || count > kMaxChunkTombstones)
                 return sectionFail("malformed record entry");
             out.stamped = stamped == 1;
             out.tombstones.resize(count);

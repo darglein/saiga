@@ -144,6 +144,13 @@ class SAIGA_ENGINE_API ChunkResidency
     void removeListener(int id);
     // S25: a residency part (its bit above PartPlacement); before the first request
     void addPart(ResidencyPartInfo part);
+    // S26 (D18): a chunk whose parts are ready stays Requested until gate(chunk) holds (a streaming client: the host's
+    // chunk snapshot is applied); re-checked in every update(), refresh() and complete() (complete() does not wait for
+    // it). Null: no gate
+    void setModificationGate(std::function<bool(const ChunkId&)> gate) { modificationGate = std::move(gate); }
+    // S26: fn(chunk, state) for every Requested or Resident chunk of a space, in ChunkId order (a client's chunk
+    // interest)
+    void forEachChunk(SpaceId space, const std::function<void(const ChunkId&, ChunkState)>& fn) const;
     // A load, replaceSources: unpins every tile it pinned, cancels its queued jobs, bumps the generation (completions
     // of running jobs deliver nothing), every chunk to None; no listener called (consumers reset themselves)
     void dropAll();
@@ -217,6 +224,7 @@ class SAIGA_ENGINE_API ChunkResidency
     // S25: the chunks within the kept distance of a centre (the kept discs), for onKeptChanged; the added parts
     std::set<ChunkId> keptSet;
     std::vector<ResidencyPartInfo> parts;
+    std::function<bool(const ChunkId&)> modificationGate;
     void requestParts();
     std::vector<StreamingCentre> currentCentres;
     std::shared_ptr<Shared> shared;
