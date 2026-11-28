@@ -97,8 +97,19 @@ void World::loadSpaceNow(SpaceId space)
         GroupLoader loader(*this);
         const StoredGroup& g                             = groups[0];
         const std::shared_ptr<const SchemaTable> current = store->tables()[store->currentTable(*this)];
-        if (g.schema < store->tables().size() &&
-            loader.stage(g, *store->tables()[g.schema], *current, spaceRecordKey(space), true))
+        bool staged                                      = false;
+        try
+        {
+            staged = g.schema < store->tables().size() &&
+                     loader.stage(g, *store->tables()[g.schema], *current, spaceRecordKey(space), true);
+        }
+        catch (...)
+        {
+            // Nothing was committed: the saved state goes back to the store (the space stays unloaded)
+            store->putBack(spaceRecordKey(space), std::move(groups));
+            throw;
+        }
+        if (staged)
         {
             std::vector<std::pair<Entity, double>> objects;
             loader.commit(objects);

@@ -190,9 +190,11 @@ void enumerate(const std::function<void(CrashRun&)>& before, const std::function
                 reachedNew = reachedNew || loaded == c + 1;
                 EXPECT_EQ(blob, loaded == c ? blobC : blobC1) << where;
             }
-            if (n == K && !firstCommit)
+            if (n == K)
             {
+                // Every operation replayed: the commit survives (a first commit is never adopted again)
                 EXPECT_EQ(loaded, c + 1) << where;
+                EXPECT_FALSE(created) << where;
             }
             if (check)
             {

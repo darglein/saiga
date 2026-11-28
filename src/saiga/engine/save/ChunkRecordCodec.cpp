@@ -510,6 +510,13 @@ bool decodeIndex(const uint8_t* data, size_t size, ChunkIndex& out, std::string&
         if (e.summary.record) r.read(e.summary.placementVersion);
         r.read(e.summary.tombstones);
         r.read(groups);
+        // Summaries the writer never produces (the open would skip state they name): deltas without a sequence,
+        // tombstones without a record
+        if ((e.summary.deltas && e.summary.sequence == 0) || (e.summary.tombstones > 0 && !e.summary.record))
+        {
+            error = "CIDX: entry " + std::to_string(i) + " has an inconsistent summary";
+            return false;
+        }
         if (!r.ok() || uint64_t(groups) * 12 > r.remaining())
         {
             error = "CIDX: entry " + std::to_string(i) + ": the groups do not fit";

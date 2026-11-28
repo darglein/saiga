@@ -598,16 +598,23 @@ class SAIGA_ENGINE_API World
         stepStartHooks.push_back({nextListenerId, std::move(fn)});
         return nextListenerId++;
     }
+    // Also from inside a hook: a hook removed during the dispatch does not run any more in it (the running one
+    // finishes, it is a copy)
     void removeStepStartHook(int id)
     {
         for (size_t i = 0; i < stepStartHooks.size(); ++i)
-            if (stepStartHooks[i].first == id) stepStartHooks.erase(stepStartHooks.begin() + std::ptrdiff_t(i));
+            if (stepStartHooks[i].first == id)
+            {
+                stepStartHooks.erase(stepStartHooks.begin() + std::ptrdiff_t(i));
+                return;
+            }
     }
 
     // ---- the save directory, entity and space unloading (§9.6, §12.3, §12.4, §15.1; S25) -----------------------
 
     // Opens (or creates) a save directory (host, between steps, not in a game hook; asserts otherwise like save()). An
-    // existing directory replaces the world through the load path (the newest valid commit, else its backup); a new or
+    // existing directory replaces the world through the load path (the newest valid commit; its backup only when the
+    // newest is corrupt: a newer format or an IO error fails the open and changes nothing); a new or
     // empty one adopts the current world and commits it as commit 1. A second open while one is open is refused
     SaveOpenResult openSaveDirectory(const std::string& path, const SaveDirectoryOptions& options = {});
     bool hasSaveDirectory() const;

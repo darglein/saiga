@@ -9,6 +9,7 @@
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/core/EngineVersion.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
+#include <set>
 #include <tuple>
 
 namespace Saiga
@@ -561,6 +563,10 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
         for (auto& [key, ie] : result.index)
         {
             if (!ie.location || !(ie.location->file == old) || rewritten.count(key)) continue;
+            // A clean record the open did not read (group-only): its length is bounded before the allocation
+            if (ie.location->length > kMaxRecordBytes)
+                return fail("compaction: the record of " + chunkName(key) + " in " + old.path() +
+                            " exceeds the largest record");
             std::vector<uint8_t> bytes(ie.location->length);
             if (!fs.readAt(old.path(), ie.location->offset, ie.location->length, bytes.data(), &e))
                 return fail("compaction: read " + old.path());
@@ -574,7 +580,6 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
         result.log.push_back("compacted " + old.path() + " into " + tg.key.path());
     }
     // 3: the records of the frozen chunks
-    std::map<std::pair<RegionKey, uint64_t>, std::shared_ptr<RecordContent>> oldRecords;
     std::vector<int32_t> dense;
     for (const FrozenChunk& f : snap.frozen)
     {
@@ -593,22 +598,16 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
             GroupBytes bytes = g.bytes;
             if (!bytes)
             {
+                // Read once per chunk and released with it (a record belongs to one chunk; only the group bytes taken
+                // from it stay alive)
                 if (!old && !oldFailed && f.oldRecord)
                 {
-                    const auto okey = std::make_pair(f.oldRecord->file, f.oldRecord->offset);
-                    auto it         = oldRecords.find(okey);
-                    if (it != oldRecords.end())
-                        old = it->second;
-                    else
                     {
                         auto content = std::make_shared<RecordContent>();
                         std::string re;
                         ReadStatus status = ReadStatus::Ok;
                         if (readRecord(fs, *f.oldRecord, f.key, *content, re, &status))
-                        {
-                            old              = content;
-                            oldRecords[okey] = content;
-                        }
+                            old = content;
                         else if (status == ReadStatus::IoError || status == ReadStatus::Format)
                         {
                             // A transient read error or a record of a newer build must not drop the groups: the
@@ -1005,16 +1004,16 @@ SaveOpenResult SaveDirectory::open()
             anyWorld = anyWorld || kind != 1;
             continue;
         }
-        if (endsWith(n, ".tmp"))
+        // Only the protocol's own temporary names are removed (an unrelated *.tmp is an unknown file)
+        if (n == std::string(kDirHeaderName) + ".tmp")
         {
             tmpFiles.push_back(n);
             continue;
         }
         return fail("the unknown file '" + n + "' (a save directory holds only its own files)");
     }
-    // regions/<space>/<rx>.<rz>.<g>.sgr and *.tmp
+    // regions/<space>/<rx>.<rz>.<g>.sgr (region files are appended to, never written through a temporary name)
     std::vector<RegionKey> regionFiles;
-    std::vector<std::string> regionTmp;
     if (fs->exists("regions"))
     {
         std::vector<std::string> spaces;
@@ -1029,8 +1028,6 @@ SaveOpenResult SaveDirectory::open()
                 RegionKey k;
                 if (parseRegionName(SpaceId(std::strtoul(s.c_str(), nullptr, 10)), n, k))
                     regionFiles.push_back(k);
-                else if (endsWith(n, ".tmp"))
-                    regionTmp.push_back("regions/" + s + "/" + n);
                 else
                     return fail("the unknown file 'regions/" + s + "/" + n + "'");
             }
@@ -1041,7 +1038,6 @@ SaveOpenResult SaveDirectory::open()
     {
         // Adopt (a new directory, or the garbage of a crashed first commit): the current world becomes commit 1
         for (const std::string& t : tmpFiles) fs->remove(t, nullptr);
-        for (const std::string& t : regionTmp) fs->remove(t, nullptr);
         for (const RegionKey& k : regionFiles) fs->remove(k.path(), nullptr);
         if (hasHeader) fs->remove(kDirHeaderName, nullptr);
         store.setTracking(true);
@@ -1069,6 +1065,18 @@ SaveOpenResult SaveDirectory::open()
     if (!fs->readAll(kDirHeaderName, headerBytes, &e) ||
         !decodeDirHeader(headerBytes, engineVersionOfDirectory, tables, e))
         return fail(e);
+    {
+        // The writer interns its tables: a duplicate would be collapsed by the store and shift the numbers of the
+        // tables after it (a group's schema number would name another table)
+        std::set<std::vector<uint8_t>> distinct;
+        for (const auto& t : tables)
+        {
+            std::vector<uint8_t> bytes;
+            BinaryWriter tw(bytes);
+            t->write(tw);
+            if (!distinct.insert(std::move(bytes)).second) return fail("the header lists a schema table twice");
+        }
+    }
     std::sort(worldFiles.rbegin(), worldFiles.rend());
     std::vector<std::string> corruptCandidates;
     std::string lastCorruption;
@@ -1081,15 +1089,11 @@ SaveOpenResult SaveDirectory::open()
         // An IO error fails the open and changes nothing; only a failed checksum is corruption (the backup is tried);
         // a valid checksum with an undecodable content is a newer format: an open error, never corruption
         // Bounded before the read allocates: a valid world file holds two parts of at most kMaxUncompressedPart each
-        // (zstd adds little to incompressible data) and its framing, so a larger file cannot be valid: corruption
+        // (zstd adds little to incompressible data) and its framing, so a larger file is a newer format (unsupported)
         uint64_t worldSize = 0;
         if (!fs->fileSize(name, worldSize, &e)) return fail(name + ": " + e);
         if (worldSize > kMaxWorldFileBytes)
-        {
-            corruptCandidates.push_back(name);
-            lastCorruption = name + ": larger than any valid world-state file";
-            continue;
-        }
+            return fail(name + ": larger than any world-state file of this build (a newer format: unsupported)");
         if (!fs->readAll(name, bytes, &e)) return fail(name + ": " + e);
         if (!checkTrailer(bytes))
         {
@@ -1290,7 +1294,10 @@ SaveOpenResult SaveDirectory::open()
                 keepEverything = true;
             else if (prevSize > kMaxWorldFileBytes)
             {
-                // Larger than any valid world file: garbage (its regions are not kept)
+                // Larger than any world file of this build: possibly a newer format, so its regions are not
+                // provably garbage (no cleanup)
+                keepEverything = true;
+                pe             = "larger than any world-state file of this build";
             }
             else if (!fs->readAll(worldFileName(c - 1), prevBytes, &pe))
                 keepEverything = true;
@@ -1330,6 +1337,14 @@ void SaveDirectory::cleanupAfterOpen(uint64_t loaded, const std::map<RegionKey, 
                                      const std::vector<std::string>& corrupt)
 {
     std::string e;
+    // The loaded commit's name must be durable before anything older is removed (the writer's step 6 rule: a root
+    // sync that failed after a rename left the older commits in place)
+    if (!fs->syncDirectory("", &e))
+    {
+        SAIGA_LOG("save", "%s: the directory sync failed (%s): no cleanup at this open", fs->describe().c_str(),
+                  e.c_str());
+        return;
+    }
     // Newer invalid world-state files are kept for diagnosis
     for (const std::string& n : corrupt)
     {
@@ -1344,7 +1359,7 @@ void SaveDirectory::cleanupAfterOpen(uint64_t loaded, const std::map<RegionKey, 
         uint64_t c       = 0;
         int kind         = 0;
         const bool world = parseWorldName(n, c, kind);
-        const bool tmp   = endsWith(n, ".tmp");
+        const bool tmp   = (world && kind == 1) || n == std::string(kDirHeaderName) + ".tmp";
         if (tmp || (world && kind == 0 && c != loaded && c + 1 != loaded))
             if (!fs->remove(n, &e)) SAIGA_LOG("save", "remove %s: %s", n.c_str(), e.c_str());
     }
@@ -1358,11 +1373,7 @@ void SaveDirectory::cleanupAfterOpen(uint64_t loaded, const std::map<RegionKey, 
             {
                 const std::string p = "regions/" + s + "/" + n;
                 RegionKey k;
-                if (!parseRegionName(SpaceId(std::strtoul(s.c_str(), nullptr, 10)), n, k))
-                {
-                    if (endsWith(n, ".tmp")) fs->remove(p, nullptr);
-                    continue;
-                }
+                if (!parseRegionName(SpaceId(std::strtoul(s.c_str(), nullptr, 10)), n, k)) continue;
                 auto it = keptEnds.find(k);
                 if (it == keptEnds.end())
                 {

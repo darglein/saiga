@@ -15,7 +15,6 @@
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
-#include <set>
 #include <vector>
 
 #include <system_error>
@@ -312,36 +311,25 @@ class DiskSaveFileSystem final : public SaveFileSystem
     bool lock(std::string* error) override
     {
         if (lockFd >= 0) return true;
-        // The path components that do not exist yet: after creating them, each one's parent is synced so a new save
-        // directory survives a power loss (a created entry is durable only once its directory is)
-        std::filesystem::path dir = std::filesystem::path(full("")).lexically_normal();
-        if (!dir.has_filename()) dir = dir.parent_path();
-        std::vector<std::filesystem::path> created;
         std::error_code ec;
-        for (std::filesystem::path p = dir; !p.empty() && !std::filesystem::exists(p, ec); p = p.parent_path())
-        {
-            created.push_back(p);
-            if (p == p.parent_path()) break;
-        }
+        std::filesystem::path dir = std::filesystem::absolute(std::filesystem::path(full("")), ec).lexically_normal();
+        if (ec) return fail(error, "the absolute path of " + root + ": " + ec.message());
+        if (!dir.has_filename()) dir = dir.parent_path();
         std::filesystem::create_directories(dir, ec);
         if (doSync)
         {
-            // The parents of the created components, and always the save directory's own parent (an earlier attempt
-            // may have created the directory without making its entry durable): a failure fails the lock
-            // A failed attempt keeps its unsynced parents for the retry (which no longer sees them as created)
-            for (const std::filesystem::path& p : created) unsyncedParents.insert(p.parent_path());
-            unsyncedParents.insert(dir.parent_path());
-            while (!unsyncedParents.empty())
+            // Every entry on the path to the save directory is made durable at each open: an ancestor that exists
+            // may have been created by an earlier attempt (or another process) whose sync failed or has not run yet,
+            // so existence is no proof of durability (one fsync per ancestor directory)
+            for (std::filesystem::path p = dir; p.has_relative_path(); p = p.parent_path())
             {
-                std::filesystem::path parent = *unsyncedParents.begin();
-                if (parent.empty()) parent = ".";
-                const int d = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+                const std::filesystem::path parent = p.parent_path();
+                const int d                        = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
                 if (d < 0) return fail(error, "open the directory " + parent.string() + ": " + lastError());
                 const bool synced     = ::fsync(d) == 0;
                 const std::string why = synced ? std::string() : lastError();
                 ::close(d);
                 if (!synced) return fail(error, "sync the directory " + parent.string() + ": " + why);
-                unsyncedParents.erase(unsyncedParents.begin());
             }
         }
         const int fd = ::open(full("lock").c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
@@ -387,8 +375,6 @@ class DiskSaveFileSystem final : public SaveFileSystem
     HANDLE lockHandle = INVALID_HANDLE_VALUE;
 #else
     int lockFd = -1;
-    // The parents of created directories whose sync has not succeeded yet (lock)
-    std::set<std::filesystem::path> unsyncedParents;
 #endif
 };
 }  // namespace

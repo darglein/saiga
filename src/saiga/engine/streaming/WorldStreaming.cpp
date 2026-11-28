@@ -79,7 +79,22 @@ void World::streamingStepStart()
     // change between steps is seen by phase 1 exactly as after a load
     if (residencyPtr->centresChanged()) residencyPtr->refresh();
     // S25: the step-start hooks (the reloads of chunks made ready by the refresh, completeResidency or a load)
-    for (size_t i = 0; i < stepStartHooks.size(); ++i) stepStartHooks[i].second();
+    // By id over the hooks registered at the start: a hook removed by an earlier one does not run, and the running
+    // callable is a copy (a hook may remove itself)
+    if (!stepStartHooks.empty())
+    {
+        std::vector<int> ids;
+        ids.reserve(stepStartHooks.size());
+        for (const auto& h : stepStartHooks) ids.push_back(h.first);
+        for (int id : ids)
+        {
+            auto it = std::find_if(stepStartHooks.begin(), stepStartHooks.end(),
+                                   [id](const std::pair<int, std::function<void()>>& h) { return h.first == id; });
+            if (it == stepStartHooks.end()) continue;
+            const std::function<void()> fn = it->second;
+            fn();
+        }
+    }
     simulation->stepStart();
 }
 
