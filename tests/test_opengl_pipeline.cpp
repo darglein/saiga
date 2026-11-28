@@ -442,8 +442,14 @@ TEST_F(OpenGLPipeline, CullsFaces)
 
 // With Vulkan's clip space and a camera with vulkanTransform, the image has Vulkan's rows in memory: the triangle above
 // the center lands in the first rows, which are the top of the image with Vulkan. The depth stays the same.
+bool VulkanClipSpaceSupported()
+{
+    return getVersionMajor() * 10 + getVersionMinor() >= 45 || hasExtension("GL_ARB_clip_control");
+}
+
 TEST_F(OpenGLPipeline, VulkanClipSpaceHasVulkansRows)
 {
+    if (!VulkanClipSpaceSupported()) GTEST_SKIP() << "Vulkan's clip space needs OpenGL 4.5 or GL_ARB_clip_control";
     const TriangleRows gl = DrawTriangle(ClipSpace::OpenGL, CullMode::None);
     ASSERT_GE(gl.first, 0);
     EXPECT_GE(gl.first, 8);
@@ -464,6 +470,7 @@ TEST_F(OpenGLPipeline, VulkanClipSpaceHasVulkansRows)
 // with the front faces and drawn with the back faces culled.
 TEST_F(OpenGLPipeline, FrontFaceKeepsItsMeaningInBothClipSpaces)
 {
+    if (!VulkanClipSpaceSupported()) GTEST_SKIP() << "Vulkan's clip space needs OpenGL 4.5 or GL_ARB_clip_control";
     for (ClipSpace space : {ClipSpace::OpenGL, ClipSpace::Vulkan})
     {
         EXPECT_GE(DrawTriangle(space, CullMode::Back).first, 0);
@@ -473,6 +480,7 @@ TEST_F(OpenGLPipeline, FrontFaceKeepsItsMeaningInBothClipSpaces)
 
 TEST_F(OpenGLPipeline, SetsEveryFieldInVulkansClipSpace)
 {
+    if (!VulkanClipSpaceSupported()) GTEST_SKIP() << "Vulkan's clip space needs OpenGL 4.5 or GL_ARB_clip_control";
     setClipSpace(ClipSpace::Vulkan);
     const PipelineState state = NonDefaultState();
     applyPipelineState(state);

@@ -465,13 +465,15 @@ bool PipelineStateCache::validation()
 
 void setClipSpace(ClipSpace clipSpace)
 {
-    Cache& c = cache();
-    if (clipSpace == ClipSpace::Vulkan && getVersionMajor() * 10 + getVersionMinor() < 45 &&
-        !hasExtension("GL_ARB_clip_control"))
+    Cache& c                  = cache();
+    const bool hasClipControl = getVersionMajor() * 10 + getVersionMinor() >= 45 || hasExtension("GL_ARB_clip_control");
+    if (clipSpace == ClipSpace::Vulkan && !hasClipControl)
     {
         SAIGA_EXIT_ERROR("Vulkan's clip space needs OpenGL 4.5 or GL_ARB_clip_control");
     }
-    if (clipSpace == ClipSpace::Vulkan || c.clipSpace == ClipSpace::Vulkan)
+    // Always set: the remembered clip space may belong to another context. Without clip control, the context can only
+    // have OpenGL's.
+    if (hasClipControl)
     {
         // The origin stays: Vulkan's y axis points down, so the images have the same rows in memory as with Vulkan.
         glClipControl(GL_LOWER_LEFT, clipSpace == ClipSpace::Vulkan ? GL_ZERO_TO_ONE : GL_NEGATIVE_ONE_TO_ONE);
