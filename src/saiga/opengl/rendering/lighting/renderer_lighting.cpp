@@ -11,6 +11,7 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/lighting/deferred_light_shader.h"
 #include "saiga/opengl/rendering/program.h"
 #include "saiga/opengl/rendering/renderer.h"
@@ -131,12 +132,12 @@ void RendererLighting::renderDebug(Camera* cam)
     if (!drawDebug) return;
     if (!debugShader) debugShader = shaderLoader.load<MVPColorShader>("lighting/debugmesh.glsl");
 
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
-    glDisable(GL_CULL_FACE);
+    // The light volumes solid and their outlines as lines.
+    const PipelineState solid         = PipelineState::opaque();
+    PipelineState outline             = solid;
+    outline.rasterization.polygonMode = PolygonMode::Line;
 
-
+    applyPipelineState(solid);
     if(debugShader->bind())
     {
         // ======================= Pointlights ===================
@@ -156,7 +157,7 @@ void RendererLighting::renderDebug(Camera* cam)
         }
 
         // render outline
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        applyPipelineState(outline);
         for (auto& obj : pointLights)
         {
             if (!obj->active || !obj->visible)
@@ -168,7 +169,7 @@ void RendererLighting::renderDebug(Camera* cam)
             pointLightMesh.draw();
         }
         pointLightMesh.unbind();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        applyPipelineState(solid);
 
 
         //==================== Spotlights ==================
@@ -188,7 +189,7 @@ void RendererLighting::renderDebug(Camera* cam)
         }
 
         // render outline
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        applyPipelineState(outline);
         for (auto& obj : spotLights)
         {
             if (!obj->active || !obj->visible)
@@ -200,13 +201,11 @@ void RendererLighting::renderDebug(Camera* cam)
             spotLightMesh.draw();
         }
         spotLightMesh.unbind();
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
 
         debugShader->unbind();
     }
-    glEnable(GL_CULL_FACE);
 }
 
 void RendererLighting::createLightMeshes()

@@ -5,6 +5,7 @@
  */
 
 #include "saiga/config.h"
+#include "saiga/opengl/pipeline.h"
 #ifdef SAIGA_USE_FREETYPE
 #    include "saiga/core/geometry/triangle_mesh.h"
 #    include "saiga/opengl/framebuffer.h"
@@ -34,9 +35,11 @@ void TextDebugOverlay::init(TextAtlas* textureAtlas)
 
 void TextDebugOverlay::render()
 {
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // Over everything, blended with its alpha.
+    PipelineState s  = PipelineState();
+    s.blend          = BlendState::alpha();
+    s.blend.srcAlpha = BlendFactor::SrcAlpha;
+    applyPipelineState(s);
     overlay.render();
 }
 

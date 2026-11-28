@@ -9,6 +9,7 @@
 #include "saiga/core/imgui/imgui_main_menu.h"
 #include "saiga/core/util/ini/ini.h"
 #include "saiga/opengl/glImageFormat.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
@@ -62,7 +63,7 @@ void OpenGLRenderer::render(const RenderInfo& renderInfo)
         ViewPort viewport = ViewPort({0, 0}, {outputWidth, outputHeight});
         auto target_fb    = editor_gui.enabled ? target_framebuffer.get() : &default_framebuffer;
         target_fb->bind();
-        glClear(GL_COLOR_BUFFER_BIT);
+        clearFramebuffer(GL_COLOR_BUFFER_BIT);
 
         if (timer)
         {

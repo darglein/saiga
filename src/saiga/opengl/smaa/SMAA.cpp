@@ -6,14 +6,15 @@
 
 #include "saiga/opengl/smaa/SMAA.h"
 
-#include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/image/imageGenerator.h"
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/opengl_helper.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/gbuffer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/smaa/AreaTex.h"
 #include "saiga/opengl/smaa/SearchTex.h"
-#include "saiga/opengl/opengl_helper.h"
 
 namespace Saiga
 {
@@ -163,16 +164,24 @@ void SMAA::render(std::shared_ptr<Texture> input, Framebuffer& output)
 {
     if (!shaderLoaded) loadShader(quality);
 
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_STENCIL_TEST);
     glViewport(0, 0, screenSize[0], screenSize[1]);
 
-    // write 1 to stencil if the pixel is not discarded
-    glStencilFunc(GL_ALWAYS, 0x1, ~0);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+    // Fullscreen quads. The edge detection writes 1 to the stencil buffer where it doesn't discard the pixel, the
+    // blending weights are only computed there.
+    PipelineState edgeDetection            = PipelineState();
+    edgeDetection.depthStencil.stencilTest = true;
+    StencilFaceState mark;
+    mark.passOp = StencilOp::Replace;
+    edgeDetection.depthStencil.setStencil(mark);
+
+    PipelineState onEdges = edgeDetection;
+    StencilFaceState marked;
+    marked.compareOp = CompareOp::Equal;
+    onEdges.depthStencil.setStencil(marked);
 
     edgesFb.bind();
-    glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    applyPipelineState(edgeDetection, 1);
     if(smaaEdgeDetectionShader->bind())
     {
         smaaEdgeDetectionShader->uploadTexture(input);
@@ -182,13 +191,9 @@ void SMAA::render(std::shared_ptr<Texture> input, Framebuffer& output)
     assert_no_glerror();
 
 
-    // only work on pixels that are marked with 1
-    glStencilFunc(GL_EQUAL, 0x1, ~0);
-    glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-
     blendFb.bind();
-    glClear(GL_COLOR_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT);
+    applyPipelineState(onEdges, 1);
     if(smaaBlendingWeightCalculationShader->bind())
     {
         smaaBlendingWeightCalculationShader->uploadTextures(edgesTex, areaTex, searchTex);
@@ -198,10 +203,9 @@ void SMAA::render(std::shared_ptr<Texture> input, Framebuffer& output)
     assert_no_glerror();
 
 
-    glDisable(GL_STENCIL_TEST);
-
     output.bind();
-    glClear(GL_COLOR_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT);
+    applyPipelineState(PipelineState());
     if(smaaNeighborhoodBlendingShader->bind())
     {
         smaaNeighborhoodBlendingShader->uploadTextures(input, blendTex);
@@ -209,9 +213,6 @@ void SMAA::render(std::shared_ptr<Texture> input, Framebuffer& output)
         smaaNeighborhoodBlendingShader->unbind();
     }
     assert_no_glerror();
-
-
-    glEnable(GL_DEPTH_TEST);
 }
 
 void SMAA::renderImGui()

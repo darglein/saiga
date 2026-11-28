@@ -7,6 +7,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/math/random.h"
 #include "saiga/core/model/model_from_shape.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
 
@@ -37,20 +38,20 @@ class Sample : public SampleWindowDeferred
         //        object.asset = asset;
 
 
-//                Load("user/sponza/sponza.obj");
+        //                Load("user/sponza/sponza.obj");
 
         //        Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/bedroom.glb");
         // Load("/home/dari/Projects/pointrendering2/BlenderScenes/bedroom/iscv2.obj");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro_interior.glb");
         // Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/bistro.glb");
-         Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
-//        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroInterior.fbx");
+        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroExterior.fbx");
+        //        Load("/home/dari/Projects/saiga/data/user/Bistro_v5_1/BistroInterior.fbx");
 
-//        Load("box.obj");
+        //        Load("box.obj");
         //        Load("user/lost-empire/lost_empire.obj");
         //        Load("user/living_room/living_room.obj");
         //        Load("user/fireplace_room/fireplace_room.obj");
-//                Load("box.obj");
+        //                Load("box.obj");
 
 
 
@@ -68,8 +69,8 @@ class Sample : public SampleWindowDeferred
         std::cout << model << std::endl;
 
 
-         auto ta      = std::make_shared<TexturedAsset>(model);
-//        auto ta      = std::make_shared<ColoredAsset>(model);
+        auto ta = std::make_shared<TexturedAsset>(model);
+        //        auto ta      = std::make_shared<ColoredAsset>(model);
         object.asset = ta;
 
 
@@ -116,12 +117,14 @@ class Sample : public SampleWindowDeferred
 
             if (renderWireframe)
             {
-                glEnable(GL_POLYGON_OFFSET_LINE);
-                //        glLineWidth(1);
-                glPolygonOffset(0, -500);
-
+                // The wireframe towards the camera, so it isn't hidden by the faces it belongs to.
+                const PipelineState pass                  = currentPipelineState();
+                PipelineState wireframe                   = pass;
+                wireframe.rasterization.depthBias         = true;
+                wireframe.rasterization.depthBiasConstant = -500;
+                applyPipelineState(wireframe);
                 object.renderWireframe(render_info.camera);
-                glDisable(GL_POLYGON_OFFSET_LINE);
+                applyPipelineState(pass);
             }
         }
         else if (render_info.render_pass == RenderPass::GUI)

@@ -8,6 +8,7 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/math/random.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/particles/particle_shader.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/texture/ArrayTexture2D.h"
@@ -78,10 +79,15 @@ void ParticleSystem::render(Camera* cam)
 {
     //    std::cout<<tick<<" ParticleSystem::renderr()"<<endl;
 
+    // With blending, the rest of the pass's state stays.
+    const PipelineState pass        = currentPipelineState();
+    const uint32_t stencilReference = currentStencilReference();
     if (blending)
     {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        PipelineState blended  = pass;
+        blended.blend          = BlendState::alpha();
+        blended.blend.srcAlpha = BlendFactor::SrcAlpha;
+        applyPipelineState(blended, stencilReference);
     }
 
     if(particleShader->bind())
@@ -104,7 +110,7 @@ void ParticleSystem::render(Camera* cam)
 
     if (blending)
     {
-        glDisable(GL_BLEND);
+        applyPipelineState(pass, stencilReference);
     }
 }
 

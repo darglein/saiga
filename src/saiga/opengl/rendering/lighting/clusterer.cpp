@@ -7,6 +7,7 @@
 #include "saiga/opengl/rendering/lighting/clusterer.h"
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/opengl/pipeline.h"
 
 
 namespace Saiga
@@ -65,6 +66,7 @@ void Clusterer::clusterLights(Camera* cam, const ViewPort& viewPort, ArrayView<P
 void Clusterer::renderDebug(Camera* cam)
 {
     if (!clusterDebug) return;
+    applyPipelineState(PipelineState::opaque());
     debugCluster.render(cam);
 }
 

@@ -19,6 +19,7 @@
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/egl/offscreen_window.h"
 #include "saiga/opengl/opengl.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/deferredRendering/uber_deferred_renderer.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
@@ -57,14 +58,14 @@ struct Variant
     bool volumetric         = false;
 };
 
-WindowParameters HeadlessParameters()
+WindowParameters HeadlessParameters(bool imgui = false)
 {
     WindowParameters params;
     params.backend = WindowParameters::Backend::Headless;
     params.width   = width;
     params.height  = height;
     // Without ImGui the renderers draw into the whole window instead of the editor layout's 3D view.
-    params.imguiParameters.enable = false;
+    params.imguiParameters.enable = imgui;
     return params;
 }
 
@@ -90,8 +91,11 @@ void SetUnrelatedState()
 class Scene : public StandaloneWindow
 {
    public:
-    explicit Scene(const Variant& variant) : StandaloneWindow(HeadlessParameters(), OpenGLParameters())
+    explicit Scene(const Variant& variant, bool imgui = false)
+        : StandaloneWindow(HeadlessParameters(imgui), OpenGLParameters())
     {
+        // The editor layout would size the 3D view by its ImGui window.
+        editor_gui.enabled = false;
         Random::setSeed(3);
         kind = variant.kind;
         switch (variant.kind)
@@ -326,6 +330,48 @@ TEST_P(OpenGLRenderers, IndependentOfEarlierState)
     const TemplatedImage<ucvec4> after = scene.Frame();
     EXPECT_EQ(DifferentPixels(reference, after), 0);
     EXPECT_EQ(glGetError(), GL_NO_ERROR);
+}
+
+// With the cache, applyPipelineState skips the values that don't change. The image stays the same, and the validation
+// asserts if any pass changed the state without going through applyPipelineState.
+TEST_P(OpenGLRenderers, SameImageWithTheCache)
+{
+    const Variant& variant = GetParam();
+    Scene scene(variant);
+    for (int i = 0; i < 3; ++i) scene.Frame();
+    const TemplatedImage<ucvec4> reference = scene.Frame();
+
+    PipelineStateCache::setEnabled(true);
+    PipelineStateCache::setValidation(true);
+    for (int i = 0; i < 2; ++i) scene.Frame();
+    const TemplatedImage<ucvec4> cached = scene.Frame();
+    PipelineStateCache::setEnabled(false);
+    PipelineStateCache::setValidation(false);
+
+    EXPECT_EQ(DifferentPixels(reference, cached), 0);
+}
+
+// ImGui's OpenGL backend sets its state with gl calls and restores the state it found at the end of its frame, so the
+// cache stays valid across it.
+TEST(OpenGLRendererImGui, CacheStaysValid)
+{
+    if (!CreateEGLContext()) GTEST_SKIP() << "No EGL display available";
+    TerminateEGLContext();
+    OpenGLRenderers::SetUpTestSuite();
+
+    Variant variant{"deferred_lights", Kind::Deferred, nullptr, nullptr, true};
+    Scene scene(variant, true);
+    for (int i = 0; i < 3; ++i) scene.Frame();
+    const TemplatedImage<ucvec4> reference = scene.Frame();
+
+    PipelineStateCache::setEnabled(true);
+    PipelineStateCache::setValidation(true);
+    for (int i = 0; i < 3; ++i) scene.Frame();
+    const TemplatedImage<ucvec4> cached = scene.Frame();
+    PipelineStateCache::setEnabled(false);
+    PipelineStateCache::setValidation(false);
+
+    EXPECT_EQ(DifferentPixels(reference, cached), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(Renderers, OpenGLRenderers, ::testing::ValuesIn(Variants()),

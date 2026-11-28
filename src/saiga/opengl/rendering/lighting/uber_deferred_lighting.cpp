@@ -11,6 +11,7 @@
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/core/util/tostring.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/lighting/cpu_plane_clusterer.h"
 #include "saiga/opengl/rendering/lighting/gpu_aabb_clusterer.h"
@@ -111,9 +112,8 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
     lightAccumulationBuffer.bind();
     {
         auto tim = timer->Measure("Shade");
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-        // Lighting Uber Shader
+        // A fullscreen quad that shades every pixel.
+        applyPipelineState(PipelineState());
         if(lightingShader->bind())
         {
             lightingShader->uploadFramebuffer(&gbuffer);
@@ -123,11 +123,6 @@ void UberDeferredLighting::render(Camera* cam, const ViewPort& viewPort)
             lightingShader->unbind();
         }
         assert_no_glerror();
-
-        // reset state
-        glEnable(GL_DEPTH_TEST);
-        glDepthMask(GL_TRUE);
-        glDisable(GL_BLEND);
     }
 
     if (drawDebug)

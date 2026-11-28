@@ -10,6 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/opengl/assets/asset.h"
 #include "saiga/opengl/framebuffer.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/OpenGLWindow.h"
 
@@ -54,9 +55,11 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     SAIGA_ASSERT(renderingInterface);
 
 
+    PipelineState forward          = PipelineState::opaque();
+    forward.rasterization.cullMode = CullMode::Back;
     if (params.wireframe)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        forward.rasterization.polygonMode = PolygonMode::Line;
         glLineWidth(params.wireframeLineSize);
     }
 
@@ -66,13 +69,8 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     setViewPort(viewport);
 
     lightAccumulationBuffer.bind();
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
     glClearColor(params.clearColor[0], params.clearColor[1], params.clearColor[2], params.clearColor[3]);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    clearFramebuffer(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // forward pass with lighting
     lighting.ComputeCullingAndStatistics(camera);
@@ -82,8 +80,8 @@ void ForwardRenderer::renderGL(Framebuffer* target_framebuffer, ViewPort viewpor
     lighting.cluster(camera, viewport);
     {
         SAIGA_OPTIONAL_TIME_MEASURE("Forward + Shade", timer);
+        applyPipelineState(forward);
         renderingInterface->render({camera, RenderPass::Forward});
-        glDepthFunc(GL_LESS);
     }
     lighting.render(camera, viewport);
     lightAccumulationBuffer.unbind();

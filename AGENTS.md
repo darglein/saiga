@@ -39,6 +39,14 @@ src/
                         (WindowParameters::backend, `window_backend` in config.ini): glfw_Window or, headless, the
                         OffscreenWindow (egl/, an EGL pbuffer with ImGui and no window system), or without EGL (Windows) the
                         HiddenGLFWWindow (a GLFW window that is never shown, with the same ImGui)
+                        pipeline.h: applyPipelineState sets the complete fixed-function state of a PipelineState
+                        (core/rendering/PipelineState.h, API independent; Vulkan: PipelineInfo::setState),
+                        GraphicsPipeline pairs it with a shader. Every pass of the renderers applies its state before
+                        drawing or calling the application, and clears with clearFramebuffer; code that draws inside
+                        someone else's pass changes a copy of currentPipelineState(). PipelineStateCache (off by
+                        default) skips unchanged values; its validation mode finds code that bypasses it.
+                        tests/test_opengl_renderers.cpp renders every renderer configuration; with
+                        SAIGA_RENDERER_TEST_OUTPUT=<dir> it writes the images to compare them before and after a change
     vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer (VulkanForwardRenderer with
                         ForwardRenderingParameters: MSAA, reversed-Z with an infinite far plane). Vulkan 1.3 core only
                         (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and

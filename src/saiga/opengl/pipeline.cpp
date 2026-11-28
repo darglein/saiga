@@ -19,7 +19,8 @@ struct Cache
 {
     bool enabled    = false;
     bool validation = false;
-    // The context has `state` and `stencilReference`: everything applyPipelineState sets matches them.
+    // `state` and `stencilReference` are what applyPipelineState set last. With `valid`, the context still has them:
+    // the cache may skip the values that don't change.
     bool valid                = false;
     PipelineState state       = {};
     uint32_t stencilReference = 0;
@@ -233,12 +234,10 @@ void apply(const PipelineState& state, uint32_t reference, const PipelineState* 
     }
 }
 
-void validate(const PipelineState& expected, uint32_t expectedReference, const char* what)
+// Without the stencil reference: queries clamp it to the stencil bits of the bound framebuffer.
+void validate(const PipelineState& expected, const char* what)
 {
-    uint32_t reference        = 0;
-    const PipelineState state = queryPipelineState(&reference);
-    std::string difference    = pipelineStateDifference(expected, state);
-    if (reference != expectedReference) difference += " stencilReference";
+    const std::string difference = pipelineStateDifference(expected, queryPipelineState());
     SAIGA_ASSERT(difference.empty(), std::string(what) + ":" + difference);
 }
 
@@ -292,7 +291,7 @@ StencilFaceState queryStencilFace(bool back)
 void applyPipelineState(const PipelineState& state, uint32_t stencilReference)
 {
     Cache& c = cache();
-    if (c.validation && c.enabled && c.valid) validate(c.state, c.stencilReference, "state changed outside of it");
+    if (c.validation && c.enabled && c.valid) validate(c.state, "state changed outside of it");
 
     if (c.enabled && c.valid)
         apply(state, stencilReference, &c.state, c.stencilReference);
@@ -303,7 +302,7 @@ void applyPipelineState(const PipelineState& state, uint32_t stencilReference)
     c.stencilReference = stencilReference;
     c.valid            = c.enabled;
 
-    if (c.validation) validate(state, stencilReference, "applyPipelineState");
+    if (c.validation) validate(state, "applyPipelineState");
 }
 
 void clearFramebuffer(ClearBufferMask buffers, bool scissor)
@@ -314,16 +313,23 @@ void clearFramebuffer(ClearBufferMask buffers, bool scissor)
     glStencilMask(0xFF);
     setCapability(GL_SCISSOR_TEST, scissor);
 
-    Cache& c = cache();
-    if (c.valid)
-    {
-        c.state.blend.colorWriteMask         = ColorComponentAll;
-        c.state.depthStencil.depthWrite      = true;
-        c.state.depthStencil.front.writeMask = 0xFF;
-        c.state.depthStencil.back.writeMask  = 0xFF;
-        c.state.rasterization.scissorTest    = scissor;
-    }
+    Cache& c                             = cache();
+    c.state.blend.colorWriteMask         = ColorComponentAll;
+    c.state.depthStencil.depthWrite      = true;
+    c.state.depthStencil.front.writeMask = 0xFF;
+    c.state.depthStencil.back.writeMask  = 0xFF;
+    c.state.rasterization.scissorTest    = scissor;
     glClear(buffers);
+}
+
+const PipelineState& currentPipelineState()
+{
+    return cache().state;
+}
+
+uint32_t currentStencilReference()
+{
+    return cache().stencilReference;
 }
 
 PipelineState queryPipelineState(uint32_t* stencilReference)

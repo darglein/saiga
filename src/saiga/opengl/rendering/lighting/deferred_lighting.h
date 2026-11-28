@@ -9,6 +9,7 @@
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/opengl/framebuffer.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/query/gpuTimer.h"
 #include "saiga/opengl/rendering/lighting/renderer_lighting.h"
 #include "saiga/opengl/shader/basic_shaders.h"
@@ -75,6 +76,8 @@ class SAIGA_OPENGL_API DeferredLighting : public RendererLighting
     bool stencilCulling = true;
 
     void blitGbufferDepthToAccumulationBuffer();
+    // The state the light volumes and the directional lights start from.
+    static PipelineState LightPipelineState();
     void setupStencilPass();
     void setupLightPass(bool isVolumetric);
 

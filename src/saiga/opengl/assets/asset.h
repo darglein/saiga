@@ -14,6 +14,7 @@
 #include "saiga/opengl/UnifiedMeshBuffer.h"
 #include "saiga/opengl/animation/boneVertex.h"
 #include "saiga/opengl/indexedVertexBuffer.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/shader/basic_shaders.h"
 
 #include <memory>
@@ -156,14 +157,19 @@ void BasicAsset<ShaderType>::renderWireframe(Camera* cam, const mat4& model)
         // and draw the wireframe without polygon offset.
         //    glPolygonOffset(0.0f,-500.0f);
 
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        // The lines with the rest of the pass's state.
+        const PipelineState pass        = currentPipelineState();
+        const uint32_t stencilReference = currentStencilReference();
+        PipelineState lines             = pass;
+        lines.rasterization.polygonMode = PolygonMode::Line;
+        applyPipelineState(lines, stencilReference);
         if (unified_buffer)
         {
             unified_buffer->Bind();
             unified_buffer->Draw();
             unified_buffer->Unbind();
         }
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        applyPipelineState(pass, stencilReference);
         //    glDisable(GL_POLYGON_OFFSET_LINE);
 
         wireframeshader->unbind();

@@ -4,11 +4,13 @@
  * See LICENSE file for more information.
  */
 
+#include "postProcessor.h"
+
 #include "saiga/core/model/model_from_shape.h"
 #include "saiga/opengl/error.h"
+#include "saiga/opengl/pipeline.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "postProcessor.h"
 
 
 namespace Saiga
@@ -176,8 +178,8 @@ void PostProcessor::render(bool use_gbuffer_as_first )
     first = use_gbuffer_as_first;
 
 
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_BLEND);
+    // Fullscreen quads.
+    applyPipelineState(PipelineState());
 
     for (int i = 0; i < effects; ++i)
     {
@@ -188,8 +190,6 @@ void PostProcessor::render(bool use_gbuffer_as_first )
     //    shaderTimer[effects-1].startTimer();
     //    applyShaderFinal(postProcessingEffects[effects-1]);
     //    shaderTimer[effects-1].stopTimer();
-
-    glEnable(GL_DEPTH_TEST);
 
 
     assert_no_glerror();
@@ -252,7 +252,7 @@ void PostProcessor::renderLast(Framebuffer* target, ViewPort vp)
     //    glViewport(0, 0, windowWidth, windowHeight);
     //    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     target->bind();
-    glDisable(GL_DEPTH_TEST);
+    applyPipelineState(PipelineState());
     if(passThroughShader->bind())
     {
         vec4 screenSize(width, height, 1.0 / width, 1.0 / height);
